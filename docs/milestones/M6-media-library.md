@@ -17,3 +17,17 @@ No page-element integration yet — that's M8, where this picker gets reused to 
 3. Manually create a `page_elements` row referencing an image's `media_asset_id` (via Studio, since the editor doesn't exist yet), then attempt to delete that image from the UI — confirm it's blocked with a clear message.
 4. Remove the referencing row, retry delete — succeeds.
 
+## Scope addition
+- Before upload: client-side resize/compress images to a max dimension
+  matching the canvas width (1080px), and compress to a reasonable quality
+  (e.g. JPEG/WebP ~80% quality) before sending to Storage. Target ~200–400KB
+  per image. This matters for staying within Supabase free-tier storage (1GB)
+  and bandwidth (5GB/month egress) limits — see `CLAUDE.md` deployment notes.
+- Store the *compressed* dimensions in `media_assets.width`/`height` (not the
+  original upload's dimensions).
+
+## Manual verification addition
+5. Upload a large source image (e.g. 4–5MB from a phone camera) — confirm
+   the file that actually lands in the `media` Storage bucket is significantly
+   smaller (verify in Supabase Studio's Storage browser) and still looks
+   visually acceptable on the canvas.

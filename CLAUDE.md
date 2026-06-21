@@ -304,3 +304,20 @@ See `docs/milestones/` for full per-milestone scope and verification steps.
 - M10 — Word-click TTS
 - M11 — Quiz embed (final page)
 - M12 — Polish & UX
+
+## UI component library — scope boundary
+
+Admin interface (forms, lists, dialogs, navigation — everything outside
+the canvas) uses **shadcn/ui** + Tailwind CSS.
+
+**Hard boundary: `src/renderer/` (PageCanvas and all element renderers)
+NEVER uses Tailwind classes or relies on Tailwind's global reset/preflight.**
+This is the WYSIWYG-critical code — it must render identically regardless
+of what CSS framework styles the surrounding admin chrome. Tailwind's
+preflight must be scoped/disabled so it cannot affect canvas-internal
+elements (e.g. via `important: '#admin-root'` scoping, or disabling
+preflight and hand-rolling the minimal reset `renderer/` needs).
+
+If you're ever unsure whether a new piece of UI belongs to "admin chrome"
+(→ shadcn/Tailwind OK) or "the canvas" (→ isolated, no Tailwind) — stop
+and ask.
