@@ -21,7 +21,7 @@ React + Vite + TypeScript, Supabase (Postgres DB, Auth, Storage) — no custom b
 Single app, client-side route split — not two separate deployments:
 - `/admin/*` — auth-gated via `RequireAuth` (Supabase session + `admin_users` row check)
 - `/admin/login`
-- `/b/:token` — public reader, no auth, only `status = 'published'` booklets resolve (RLS-enforced)
+- `/b/:token` — public reader, no auth, only `status = 'published'` booklets resolve (RLS-enforced); `draft` and `disabled` both resolve to the same not-found behavior
 
 ## Core architecture rules
 
@@ -67,7 +67,9 @@ interface BackgroundImageProps {
 
 ### 4. No draft/live content fork
 
-`booklets.status` (`draft` | `published`) is the *only* visibility gate. There is no separate staging copy of content — editing a published booklet edits it live, autosaving directly. This is a deliberate V1 simplification: the reader has no realtime subscription (fetches on page load only), so an already-open reader tab won't flicker mid-edit; only someone loading the link at the exact moment of a save sees a transient state, an accepted edge case. If heavier in-progress editing needs to happen without any visibility risk, the admin can temporarily flip the booklet back to `draft`, edit, then republish. **Do not build a draft/live fork (shadow content table + explicit publish step) without an explicit decision to revisit this** — it's a meaningful complexity jump that was deliberately deferred.
+`booklets.status` (`draft` | `published` | `disabled`) is the *only* visibility gate. There is no separate staging copy of content — editing a published booklet edits it live, autosaving directly. This is a deliberate V1 simplification: the reader has no realtime subscription (fetches on page load only), so an already-open reader tab won't flicker mid-edit; only someone loading the link at the exact moment of a save sees a transient state, an accepted edge case. If heavier in-progress editing needs to happen without any visibility risk, the admin can temporarily flip the booklet back to `draft`, edit, then republish. **Do not build a draft/live fork (shadow content table + explicit publish step) without an explicit decision to revisit this** — it's a meaningful complexity jump that was deliberately deferred.
+
+`disabled` is a third, distinct state from `draft`: both are publicly invisible (RLS only allows `published`), but they mean different things to the admin and must stay visually distinct in the admin UI. `draft` = "not ready yet, never been live." `disabled` = "was live at this exact `public_token`, intentionally revoked" — e.g. the admin wants to kill access without losing the link/content/page structure, or without it being mistaken for an in-progress edit. Toggling `draft → published` and `disabled → published` are *not* the same action in the UI: re-enabling a `disabled` booklet restores public access at an already-known link, so it requires an explicit confirm step (the cost of an accidental click is higher than the first-ever publish of a fresh draft, where nobody has the link yet).
 
 ## Auth & multi-admin
 
@@ -243,7 +245,7 @@ RLS: SELECT public (`true`). INSERT/UPDATE `is_admin()`. **No DELETE policy** �
 | id | uuid PK default gen_random_uuid() | |
 | public_token | text not null unique | random nanoid, public URL `/b/:public_token` |
 | title | text not null | admin-facing only |
-| status | text not null default 'draft' | 'draft' \| 'published' |
+| status | text not null default 'draft' | 'draft' \| 'published' \| 'disabled', constrained via `check` |
 | canvas_width | int not null default 1080 | |
 | canvas_height | int not null default 1920 | |
 | quiz_embed_code | text | raw Fillout snippet, nullable |
