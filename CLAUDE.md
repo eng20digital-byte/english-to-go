@@ -313,11 +313,31 @@ the canvas) uses **shadcn/ui** + Tailwind CSS.
 **Hard boundary: `src/renderer/` (PageCanvas and all element renderers)
 NEVER uses Tailwind classes or relies on Tailwind's global reset/preflight.**
 This is the WYSIWYG-critical code — it must render identically regardless
-of what CSS framework styles the surrounding admin chrome. Tailwind's
-preflight must be scoped/disabled so it cannot affect canvas-internal
-elements (e.g. via `important: '#admin-root'` scoping, or disabling
-preflight and hand-rolling the minimal reset `renderer/` needs).
+of what CSS framework styles the surrounding admin chrome.
+
+Implementation (`src/index.css`): Tailwind's Preflight layer is not
+imported at all — only `tailwindcss/theme.css` and `tailwindcss/utilities.css`
+are, so no global `*`/element-selector reset ever reaches `renderer/`. A
+small hand-rolled reset for admin chrome (box-sizing, margin/padding,
+form-control font inheritance) is scoped under `#admin-root` instead.
+Tailwind v4 does not honor a JS-config `important: '#selector'` option via
+`@config` (confirmed empirically — it silently no-ops), so the real
+containment guarantee is the hard rule above: a utility class sitting
+unused in the compiled stylesheet can't affect an element that was never
+given that class. No `tailwind.config.js` is used — content is detected
+automatically by the Tailwind v4 PostCSS plugin.
 
 If you're ever unsure whether a new piece of UI belongs to "admin chrome"
 (→ shadcn/Tailwind OK) or "the canvas" (→ isolated, no Tailwind) — stop
 and ask.
+
+## Git branching
+
+Work directly on `main` for routine milestone work — commits are already
+small and frequent. Create a feature branch (`git checkout -b m8-editor-canvas`)
+only when:
+- A milestone involves substantial structural risk (e.g. M8's drag/resize
+  mechanics, any schema migration that's hard to reverse).
+- I explicitly ask for one.
+Merge back to `main` once the milestone is verified and approved, then
+delete the branch.
