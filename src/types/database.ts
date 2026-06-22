@@ -9,3 +9,12 @@ export interface FontRow {
   storage_path: string;
   created_at: string;
 }
+
+export interface MediaAssetRow {
+  id: string;
+  storage_path: string;
+  file_name: string;
+  width: number | null;
+  height: number | null;
+  created_at: string;
+}
