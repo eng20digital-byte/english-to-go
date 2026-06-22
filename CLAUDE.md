@@ -103,7 +103,9 @@ A page is marked as the quiz page via `pages.is_quiz_page`; the reader renders `
 
 ## Media library
 
-Images uploaded to the `media` Storage bucket are shared across all booklets via `media_assets`. Deletion is only possible through the `delete_media_asset(id)` RPC (security definer, admin-gated, raises if any `page_elements.props->>'media_asset_id'` references it) — there is no raw DELETE RLS policy on `media_assets`, so this protection can't be bypassed by a direct API call.
+Images uploaded to the `media` Storage bucket are shared across all booklets via `media_assets`. Deletion is only possible through the `delete_media_asset(id)` RPC (security definer, admin-gated, raises if any `page_elements.props->>'media_asset_id'` references it) — there is no raw DELETE RLS policy on `media_assets`, so this protection can't be bypassed by a direct API call. The RPC only removes the DB row (that's the part needing the "still referenced" guard); the admin client removes the Storage object as a separate follow-up call, same rollback-on-failure shape as the upload path below.
+
+Every upload is resized/recompressed client-side before it ever reaches Storage — `src/lib/imageCompression.ts` (`compressImage`) downscales to fit `MEDIA_MAX_DIMENSION` (= `CANVAS_WIDTH`, no point storing pixels the canvas can't display) and re-encodes as WebP at `MEDIA_COMPRESS_QUALITY`, both in `src/config/media.ts`. This is what keeps the project inside Supabase's free-tier storage/bandwidth caps (see Deployment above) — a single uncompressed phone photo can be several MB. `media_assets.width`/`height` store the *compressed* dimensions, not the original upload's.
 
 ## Font pipeline
 
@@ -267,9 +269,11 @@ RLS: SELECT public only where `status = 'published'`; `is_admin()` sees all. Wri
 | page_order | int not null | 0-based sequence |
 | is_quiz_page | boolean not null default false | flags the final page to render `quiz_embed_code` instead of elements |
 | created_at | timestamptz default now() | |
-| | | unique(booklet_id, page_order), index on booklet_id |
+| | | unique(booklet_id, page_order) deferrable initially immediate, index on booklet_id |
 
-RLS: SELECT public if parent booklet is published; `is_admin()` sees all. Writes `is_admin()`.
+RLS: SELECT public if parent booklet is published; `is_admin()` sees all. Writes `is_admin()` (via `add_page`/`delete_page`/`reorder_pages` RPCs in practice — see below).
+
+`page_order` is renumbered across multiple rows at once on add/delete/reorder (e.g. swapping two pages' order, or compacting the gap left by a delete). A plain `unique(booklet_id, page_order)` constraint is checked per-row immediately, even within a single multi-row `UPDATE`, so that renumbering would transiently collide. The constraint is `deferrable initially immediate` specifically so `add_page`/`delete_page`/`reorder_pages` (`supabase/migrations/0002_page_management.sql`) can `set constraints ... deferred` and renumber freely within the transaction. Those same RPCs also re-enforce "only the last page may be `is_quiz_page`" after every structural change, since adding/deleting/reordering pages can silently demote the page that used to be last.
 
 ### `page_elements`
 | column | type | notes |

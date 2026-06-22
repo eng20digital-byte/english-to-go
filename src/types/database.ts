@@ -18,3 +18,26 @@ export interface MediaAssetRow {
   height: number | null;
   created_at: string;
 }
+
+export type BookletStatus = 'draft' | 'published' | 'disabled';
+
+export interface BookletRow {
+  id: string;
+  public_token: string;
+  title: string;
+  status: BookletStatus;
+  canvas_width: number;
+  canvas_height: number;
+  quiz_embed_code: string | null;
+  quiz_embed_height: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PageRow {
+  id: string;
+  booklet_id: string;
+  page_order: number;
+  is_quiz_page: boolean;
+  created_at: string;
+}
