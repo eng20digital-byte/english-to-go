@@ -176,6 +176,7 @@ src/
       QuizEmbedEditor.tsx
     fonts/
       FontManagerPage.tsx
+      FontPreview.tsx
   reader/
     routes.tsx
     ReaderBookletPage.tsx
@@ -183,6 +184,7 @@ src/
   components/                    -- generic shared UI
   hooks/
     useBookletQuery.ts            -- React Query hooks
+    useFontsQuery.ts               -- fonts list + register-font mutation
 scripts/
   convert-fonts.mjs               -- re-runnable TTF/OTF -> WOFF2
 fonts/                             -- source TTF/OTF files (input to the script above)

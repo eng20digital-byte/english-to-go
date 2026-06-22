@@ -2,7 +2,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AuthProvider } from '@/auth/AuthContext';
 import { RequireAuth } from '@/auth/RequireAuth';
 import { LoginPage } from '@/admin/LoginPage';
-import { DashboardPage } from '@/admin/DashboardPage';
+import { AdminRoutes } from '@/admin/routes';
 import { ReaderBookletPage } from '@/reader/ReaderBookletPage';
 
 function App() {
@@ -15,7 +15,7 @@ function App() {
             path="/admin/*"
             element={
               <RequireAuth>
-                <DashboardPage />
+                <AdminRoutes />
               </RequireAuth>
             }
           />
