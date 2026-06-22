@@ -1,20 +1,29 @@
-import { Button } from '@/components/ui/button';
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { AuthProvider } from '@/auth/AuthContext';
+import { RequireAuth } from '@/auth/RequireAuth';
+import { LoginPage } from '@/admin/LoginPage';
+import { DashboardPage } from '@/admin/DashboardPage';
+import { ReaderBookletPage } from '@/reader/ReaderBookletPage';
 
 function App() {
   return (
-    <>
-      {/* Admin chrome scope — Tailwind utilities and shadcn/ui components
-          are active and scoped here (see src/index.css). Replaced with
-          real routing in M2. */}
-      <div id="admin-root">
-        <Button>shadcn Button (inside #admin-root)</Button>
-      </div>
-
-      {/* Outside the admin scope — stands in for src/renderer/ output.
-          Renders with plain browser default button styling, proving
-          Tailwind preflight/utilities don't leak out here. */}
-      <button>Plain button (outside #admin-root)</button>
-    </>
+    <BrowserRouter>
+      <AuthProvider>
+        <Routes>
+          <Route path="/admin/login" element={<LoginPage />} />
+          <Route
+            path="/admin/*"
+            element={
+              <RequireAuth>
+                <DashboardPage />
+              </RequireAuth>
+            }
+          />
+          <Route path="/b/:token" element={<ReaderBookletPage />} />
+          <Route path="*" element={<Navigate to="/admin" replace />} />
+        </Routes>
+      </AuthProvider>
+    </BrowserRouter>
   );
 }
 

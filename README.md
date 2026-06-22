@@ -2,6 +2,30 @@
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
+## Deployment (Cloudflare Pages)
+
+This repo has no git remote configured yet, so the Cloudflare Pages git
+integration can't be wired up automatically. Once a remote (e.g. GitHub) is
+added:
+
+1. In the Cloudflare dashboard: **Workers & Pages → Create → Pages → Connect
+   to Git**, select this repo.
+2. Build settings: build command `npm run build`, output directory `dist`.
+3. Add environment variables (Settings → Environment variables, for both
+   Production and Preview): `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`
+   (same values as `.env`, not committed — see `.env.example`).
+4. `public/_redirects` (`/* /index.html 200`) is already in place for SPA
+   fallback routing, so deep links like `/admin/login` and `/b/:token`
+   won't 404 on refresh.
+
+Until a remote exists, deploy manually with the
+[Wrangler CLI](https://developers.cloudflare.com/pages/get-started/direct-upload/):
+
+```sh
+npm run build
+npx wrangler pages deploy dist
+```
+
 Currently, two official plugins are available:
 
 - [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
