@@ -206,6 +206,8 @@ create function is_admin() returns boolean as $$
 $$ language sql security definer stable;
 ```
 
+**Migrations must explicitly `GRANT` base table privileges to `anon`/`authenticated`.** RLS policies only filter rows — Postgres still requires the underlying `GRANT` before either role can touch a table at all. Supabase's Table Editor adds this automatically for tables created through the UI, but raw SQL migrations (the only way this project creates tables) do not get it for free. Every migration that adds a table must pair it with a `grant select/insert/update/delete ... to anon, authenticated` block sized to that table's RLS policy (see `supabase/migrations/0001_init.sql` for the pattern). RPC functions (`security definer`) don't need this — they run as the function owner regardless of caller grants.
+
 ### `admin_users`
 | column | type | notes |
 |---|---|---|
