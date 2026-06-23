@@ -4,7 +4,6 @@ import { RequireAuth } from '@/auth/RequireAuth';
 import { LoginPage } from '@/admin/LoginPage';
 import { AdminRoutes } from '@/admin/routes';
 import { ReaderBookletPage } from '@/reader/ReaderBookletPage';
-import { CanvasPreviewPage } from '@/dev/CanvasPreviewPage';
 
 function App() {
   return (
@@ -21,8 +20,6 @@ function App() {
             }
           />
           <Route path="/b/:token" element={<ReaderBookletPage />} />
-          {/* M4 throwaway harness — delete once M5 ships a real reader to verify against. */}
-          <Route path="/dev/canvas-preview" element={<CanvasPreviewPage />} />
           <Route path="*" element={<Navigate to="/admin" replace />} />
         </Routes>
       </AuthProvider>
