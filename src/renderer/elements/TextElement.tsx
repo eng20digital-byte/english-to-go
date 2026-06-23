@@ -1,5 +1,7 @@
 import { useFontsQuery } from '@/hooks/useFontsQuery';
 import { useFontFace } from '@/hooks/useFontFace';
+import { TTS_ACTIVE_WORD_STYLE } from '@/config/tts';
+import { useWordSpeechOptional } from '@/tts/useWordSpeech';
 import type { PageElement } from '@/types/elements';
 import type { ElementRendererProps } from './registry';
 
@@ -12,13 +14,19 @@ type Props = ElementRendererProps<Extract<PageElement, { type: 'text' }>>;
 // `white-space: pre-wrap`. Word spans render in both modes; only the reader
 // wires clicks to speech (M10) — editor mode keeps the whole box as the
 // drag/select target.
-export function TextElement({ element }: Props) {
+export function TextElement({ element, renderMode }: Props) {
   const { content, font_id, font_size, color, align, line_height, direction } = element.props;
 
   const { data: fonts } = useFontsQuery();
   const font = fonts?.find((f) => f.id === font_id);
   const familyName = `font-${font_id}`;
   const fontStatus = useFontFace(font?.storage_path, familyName);
+
+  // Called unconditionally (rules-of-hooks) — returns null in editor mode,
+  // where no WordSpeechProvider is mounted (provider wraps the reader
+  // chrome only, see ReaderBookletPage.tsx).
+  const wordSpeechContext = useWordSpeechOptional();
+  const wordSpeech = renderMode === 'reader' ? wordSpeechContext : null;
 
   const tokens = content.split(/(\s+)/);
   let wordIndex = 0;
@@ -38,15 +46,33 @@ export function TextElement({ element }: Props) {
         overflowWrap: 'break-word',
       }}
     >
-      {tokens.map((token, index) =>
-        /^\s+$/.test(token) ? (
-          token
-        ) : (
-          <span key={index} data-word-index={wordIndex++}>
+      {tokens.map((token, index) => {
+        if (/^\s+$/.test(token)) return token;
+
+        const wordKey = `${element.id}:${wordIndex++}`;
+        if (!wordSpeech) {
+          return (
+            <span key={index} data-word-index={wordIndex}>
+              {token}
+            </span>
+          );
+        }
+
+        const isSpeaking = wordSpeech.speakingWordKey === wordKey;
+        return (
+          <span
+            key={index}
+            data-word-index={wordIndex}
+            onClick={() => wordSpeech.speak(token, wordKey)}
+            style={{
+              cursor: 'pointer',
+              ...(isSpeaking ? TTS_ACTIVE_WORD_STYLE : null),
+            }}
+          >
             {token}
           </span>
-        ),
-      )}
+        );
+      })}
     </div>
   );
 }
