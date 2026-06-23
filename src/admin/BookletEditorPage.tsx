@@ -1,5 +1,6 @@
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { Spinner } from '@/components/Spinner';
 import { StatusBadge } from '@/components/StatusBadge';
 import { useBookletDetailQuery } from '@/hooks/useBookletQuery';
 import {
@@ -8,6 +9,8 @@ import {
   useReorderPagesMutation,
   useSetQuizPageMutation,
 } from '@/hooks/usePagesQuery';
+import { PageElementEditor } from '@/admin/editor/PageElementEditor';
+import { QuizEmbedEditor } from '@/admin/editor/QuizEmbedEditor';
 import type { PageRow } from '@/types/database';
 
 interface PageRowItemProps {
@@ -106,8 +109,11 @@ export function BookletEditorPage() {
 
   if (isLoading) {
     return (
-      <div id="admin-root" className="p-8">
-        <p>Loading…</p>
+      <div id="admin-root" className="flex min-h-screen items-center justify-center">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Spinner />
+          <span>Loading booklet…</span>
+        </div>
       </div>
     );
   }
@@ -181,12 +187,12 @@ export function BookletEditorPage() {
         ))}
       </ul>
 
-      {pageId && (
-        <div className="mt-8 rounded-md border border-dashed border-input p-6 text-sm text-muted-foreground">
-          Page editor for this page lands in M8 — selecting a page here just confirms it exists and
-          navigates to its placeholder route.
-        </div>
-      )}
+      <QuizEmbedEditor booklet={booklet} />
+
+      {/* Keyed by pageId so switching pages remounts the editor — a fresh
+          reducer/selection/undo-stack per page rather than one that's been
+          reset out from under a still-mounted component. */}
+      {pageId && <PageElementEditor key={pageId} pageId={pageId} />}
     </div>
   );
 }

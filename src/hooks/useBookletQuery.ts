@@ -6,12 +6,18 @@ import type { PageElement } from '@/types/elements';
 import type { PageCanvasPage } from '@/renderer/PageCanvas';
 import type { BookletRow, BookletStatus, PageRow } from '@/types/database';
 
+export interface ReaderBookletPage extends PageCanvasPage {
+  is_quiz_page: boolean;
+}
+
 export interface ReaderBooklet {
   id: string;
   title: string;
   canvas_width: number;
   canvas_height: number;
-  pages: PageCanvasPage[];
+  quiz_embed_code: string | null;
+  quiz_embed_height: number | null;
+  pages: ReaderBookletPage[];
 }
 
 interface BookletQueryRow {
@@ -19,7 +25,14 @@ interface BookletQueryRow {
   title: string;
   canvas_width: number;
   canvas_height: number;
-  pages: { id: string; page_order: number; page_elements: PageElement[] }[];
+  quiz_embed_code: string | null;
+  quiz_embed_height: number | null;
+  pages: {
+    id: string;
+    page_order: number;
+    is_quiz_page: boolean;
+    page_elements: PageElement[];
+  }[];
 }
 
 // Single nested select pulls the booklet, its pages, and each page's
@@ -40,7 +53,7 @@ export function useBookletByToken(token: string | undefined) {
       const { data, error } = await supabase
         .from('booklets')
         .select(
-          'id, title, canvas_width, canvas_height, pages(id, page_order, page_elements(id, page_id, type, z_index, x, y, w, h, rotation, props))',
+          'id, title, canvas_width, canvas_height, quiz_embed_code, quiz_embed_height, pages(id, page_order, is_quiz_page, page_elements(id, page_id, type, z_index, x, y, w, h, rotation, props))',
         )
         .eq('public_token', token)
         .order('page_order', { referencedTable: 'pages' })
@@ -54,7 +67,13 @@ export function useBookletByToken(token: string | undefined) {
         title: booklet.title,
         canvas_width: booklet.canvas_width,
         canvas_height: booklet.canvas_height,
-        pages: booklet.pages.map((page) => ({ id: page.id, elements: page.page_elements })),
+        quiz_embed_code: booklet.quiz_embed_code,
+        quiz_embed_height: booklet.quiz_embed_height,
+        pages: booklet.pages.map((page) => ({
+          id: page.id,
+          elements: page.page_elements,
+          is_quiz_page: page.is_quiz_page,
+        })),
       };
     },
   });
@@ -155,6 +174,32 @@ export function useUpdateBookletStatusMutation() {
     onSuccess: (_data, { id }) => {
       queryClient.invalidateQueries({ queryKey: ADMIN_BOOKLETS_QUERY_KEY });
       queryClient.invalidateQueries({ queryKey: adminBookletQueryKey(id) });
+    },
+  });
+}
+
+// QuizEmbedEditor (M11) — booklet-level fields, saved explicitly (not
+// autosaved like page_elements) since they're a small, infrequently-edited
+// pair of fields rather than continuous drag/type edits.
+export function useUpdateBookletQuizMutation(bookletId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      quizEmbedCode,
+      quizEmbedHeight,
+    }: {
+      quizEmbedCode: string | null;
+      quizEmbedHeight: number;
+    }): Promise<void> => {
+      const { error } = await supabase
+        .from('booklets')
+        .update({ quiz_embed_code: quizEmbedCode, quiz_embed_height: quizEmbedHeight })
+        .eq('id', bookletId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: adminBookletQueryKey(bookletId) });
     },
   });
 }
