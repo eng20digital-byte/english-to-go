@@ -1,6 +1,8 @@
 import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
+import { BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Spinner } from '@/components/Spinner';
 import { StatusBadge } from '@/components/StatusBadge';
 import {
   useBookletsQuery,
@@ -12,6 +14,43 @@ import type { BookletRow } from '@/types/database';
 
 function readerUrl(token: string): string {
   return `${window.location.origin}/b/${token}`;
+}
+
+// Three placeholder cards that mimic the shape of a real booklet list item.
+function BookletListSkeleton() {
+  return (
+    <ul className="flex flex-col gap-4">
+      {[0, 1, 2].map((i) => (
+        <li key={i} className="rounded-md border border-input p-4">
+          <div className="mb-2 flex items-center gap-2">
+            <div className="h-4 w-40 animate-pulse rounded bg-neutral-200" />
+            <div className="h-5 w-16 animate-pulse rounded-full bg-neutral-200" />
+          </div>
+          <div className="mb-3 h-3 w-64 animate-pulse rounded bg-neutral-100" />
+          <div className="flex gap-2">
+            <div className="h-8 w-16 animate-pulse rounded-md bg-neutral-100" />
+            <div className="h-8 w-20 animate-pulse rounded-md bg-neutral-100" />
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function EmptyBooklets() {
+  return (
+    <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-neutral-300 py-14 text-center">
+      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-neutral-100">
+        <BookOpen className="h-5 w-5 text-neutral-400" />
+      </div>
+      <div>
+        <p className="font-medium text-neutral-700">No booklets yet</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Create your first booklet using the form above.
+        </p>
+      </div>
+    </div>
+  );
 }
 
 interface BookletActionsProps {
@@ -114,33 +153,42 @@ export function BookletListPage() {
       <Link to="/admin" className="text-sm text-muted-foreground hover:underline">
         ← Back to dashboard
       </Link>
-      <h1 className="mt-2 mb-4 text-xl font-semibold">Booklets</h1>
+      <h1 className="mt-2 mb-6 text-xl font-semibold">Booklets</h1>
 
       <form onSubmit={handleSubmit} className="mb-8 flex max-w-sm flex-col gap-3">
         <label className="flex flex-col gap-1">
-          <span>Title</span>
+          <span className="text-sm font-medium">Title</span>
           <input
             type="text"
             value={title}
             onChange={(event) => setTitle(event.target.value)}
             placeholder="My English Booklet"
             required
-            className="rounded-md border border-input px-3 py-2"
+            className="rounded-md border border-input px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
           />
         </label>
         {formError && <p className="text-sm text-destructive">{formError}</p>}
-        <Button type="submit" disabled={createBooklet.isPending}>
-          {createBooklet.isPending ? 'Creating…' : 'Create booklet'}
+        <Button type="submit" disabled={createBooklet.isPending} className="self-start">
+          {createBooklet.isPending ? (
+            <span className="flex items-center gap-2">
+              <Spinner size="sm" className="text-primary-foreground" />
+              Creating…
+            </span>
+          ) : (
+            'Create booklet'
+          )}
         </Button>
       </form>
 
-      {isLoading && <p>Loading…</p>}
-      {!isLoading && booklets?.length === 0 && (
-        <p className="text-muted-foreground">No booklets yet.</p>
-      )}
+      {isLoading && <BookletListSkeleton />}
+      {!isLoading && booklets?.length === 0 && <EmptyBooklets />}
+
       <ul className="flex flex-col gap-4">
         {booklets?.map((booklet) => (
-          <li key={booklet.id} className="rounded-md border border-input p-4">
+          <li
+            key={booklet.id}
+            className="rounded-md border border-input p-4 transition-shadow hover:shadow-sm"
+          >
             <div className="mb-2 flex flex-wrap items-center gap-2">
               <p className="text-sm font-medium">{booklet.title}</p>
               <StatusBadge status={booklet.status} />

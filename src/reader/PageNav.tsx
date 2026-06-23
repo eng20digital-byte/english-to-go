@@ -1,49 +1,50 @@
-import type { CSSProperties } from 'react';
-
 interface PageNavProps {
   currentIndex: number;
   pageCount: number;
-  onChange: (index: number) => void;
+  onPrev: () => void;
+  onNext: () => void;
+  disabled: boolean;
 }
 
-const navButtonStyle: CSSProperties = {
-  width: 40,
-  height: 40,
-  fontSize: 20,
-  lineHeight: 1,
-  borderRadius: '50%',
-  border: '1px solid #ccc',
-  background: '#fff',
-  cursor: 'pointer',
-};
+// Prev/next controls + progress indicator for the public reader. Reader
+// chrome lives under #reader-root (see CLAUDE.md "UI component library —
+// scope boundary"), so Tailwind utilities are safe here — this is not
+// src/renderer/. LTR convention (previous = left, next = right) per the
+// booklets being English-language content.
+export function PageNav({ currentIndex, pageCount, onPrev, onNext, disabled }: PageNavProps) {
+  const progress = pageCount > 1 ? (currentIndex / (pageCount - 1)) * 100 : 100;
 
-// Prev/next controls + page indicator for the public reader. No
-// Tailwind/admin chrome here — see CLAUDE.md "UI component library — scope
-// boundary" (Tailwind/shadcn is scoped to #admin-root).
-export function PageNav({ currentIndex, pageCount, onChange }: PageNavProps) {
   return (
-    <nav style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-      <button
-        type="button"
-        aria-label="Previous page"
-        onClick={() => onChange(currentIndex - 1)}
-        disabled={currentIndex === 0}
-        style={{ ...navButtonStyle, opacity: currentIndex === 0 ? 0.4 : 1 }}
-      >
-        ‹
-      </button>
-      <span>
-        {currentIndex + 1} / {pageCount}
-      </span>
-      <button
-        type="button"
-        aria-label="Next page"
-        onClick={() => onChange(currentIndex + 1)}
-        disabled={currentIndex === pageCount - 1}
-        style={{ ...navButtonStyle, opacity: currentIndex === pageCount - 1 ? 0.4 : 1 }}
-      >
-        ›
-      </button>
+    <nav className="flex w-full max-w-[640px] flex-col items-center gap-3">
+      <div className="flex items-center gap-5">
+        <button
+          type="button"
+          aria-label="Previous page"
+          onClick={onPrev}
+          disabled={disabled || currentIndex === 0}
+          className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-xl text-neutral-700 shadow-md transition hover:bg-neutral-50 hover:shadow-lg active:scale-95 disabled:cursor-not-allowed disabled:opacity-30 disabled:shadow-none disabled:active:scale-100"
+        >
+          ‹
+        </button>
+        <span className="min-w-[5rem] text-center text-sm font-medium text-neutral-600">
+          Page {currentIndex + 1} of {pageCount}
+        </span>
+        <button
+          type="button"
+          aria-label="Next page"
+          onClick={onNext}
+          disabled={disabled || currentIndex === pageCount - 1}
+          className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-xl text-neutral-700 shadow-md transition hover:bg-neutral-50 hover:shadow-lg active:scale-95 disabled:cursor-not-allowed disabled:opacity-30 disabled:shadow-none disabled:active:scale-100"
+        >
+          ›
+        </button>
+      </div>
+      <div className="h-1 w-40 overflow-hidden rounded-full bg-neutral-200">
+        <div
+          className="h-full rounded-full bg-neutral-500 transition-[width] duration-300 ease-out"
+          style={{ width: `${progress}%` }}
+        />
+      </div>
     </nav>
   );
 }

@@ -25,7 +25,11 @@ body {
   padding: 0;
 }
 body {
-  font: 18px/145% system-ui, 'Segoe UI', Roboto, sans-serif;
+  font:
+    18px/145% system-ui,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
   color-scheme: light;
 }
 
@@ -140,15 +144,22 @@ body {
   --color-sidebar-ring: var(--sidebar-ring);
 }
 
-/* Admin-chrome-only reset (shadcn/ui assumes Preflight-like resets for
-   forms/buttons) — scoped to #admin-root so it can never leak into the
-   canvas renderer. */
-#admin-root {
+/* Chrome-only reset (shadcn/ui-style assumes Preflight-like resets for
+   forms/buttons) — scoped to #admin-root and #reader-root so it can never
+   leak into the canvas renderer (src/renderer/). #reader-root is the public
+   reader's chrome root (everything around PageCanvas: layout, nav, loading/
+   error states) — same isolation rule as #admin-root, see CLAUDE.md "UI
+   component library — scope boundary". */
+#admin-root,
+#reader-root {
   box-sizing: border-box;
 }
 #admin-root *,
 #admin-root *::before,
-#admin-root *::after {
+#admin-root *::after,
+#reader-root *,
+#reader-root *::before,
+#reader-root *::after {
   box-sizing: inherit;
   margin: 0;
   padding: 0;
@@ -157,7 +168,65 @@ body {
 #admin-root button,
 #admin-root input,
 #admin-root select,
-#admin-root textarea {
+#admin-root textarea,
+#reader-root button,
+#reader-root input,
+#reader-root select,
+#reader-root textarea {
   font: inherit;
   color: inherit;
+}
+
+/* Reader page-flip animation (src/reader/PageFlip.tsx). Plain @keyframes —
+   can't be expressed as inline styles. Direction/duration/easing stay
+   config-driven via src/config/reader.ts: duration/easing are set inline as
+   animation-duration/animation-timing-function on the element, and the
+   shadow's peak opacity is passed in via the --page-flip-shadow-max custom
+   property rather than hardcoded here. */
+.page-flip-layer {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  animation-fill-mode: forwards;
+}
+.page-flip-layer--next {
+  transform-origin: left center;
+  animation-name: page-flip-next;
+}
+.page-flip-layer--prev {
+  transform-origin: right center;
+  animation-name: page-flip-prev;
+}
+@keyframes page-flip-next {
+  from {
+    transform: rotateY(0deg);
+  }
+  to {
+    transform: rotateY(-180deg);
+  }
+}
+@keyframes page-flip-prev {
+  from {
+    transform: rotateY(0deg);
+  }
+  to {
+    transform: rotateY(180deg);
+  }
+}
+.page-flip-shadow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0) 40%, rgba(0, 0, 0, 0.6) 100%);
+  animation-name: page-flip-shadow;
+  animation-fill-mode: forwards;
+}
+@keyframes page-flip-shadow {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  50% {
+    opacity: var(--page-flip-shadow-max, 0.35);
+  }
 }
