@@ -38,9 +38,9 @@ If a future change seems to require a second rendering path for the editor vs. r
 
 ### 2. Fixed virtual canvas, scaled to fit
 
-All booklets use a 1080×1920 (portrait) virtual canvas (constants in `src/config/canvas.ts`, also stored per-booklet in `booklets.canvas_width`/`canvas_height` for future-proofing, though V1 has no UI to change them). Element positions (`x`, `y`, `w`, `h`, `rotation`) are stored as **canvas-space pixel values**, not normalized 0–1 — directly usable as CSS px, simplest for drag/resize math.
+All booklets use a 1920×1080 (landscape, 16:9) virtual canvas (constants in `src/config/canvas.ts`, also stored per-booklet in `booklets.canvas_width`/`canvas_height` for future-proofing, though V1 has no UI to change them). Element positions (`x`, `y`, `w`, `h`, `rotation`) are stored as **canvas-space pixel values**, not normalized 0–1 — directly usable as CSS px, simplest for drag/resize math.
 
-Scaling mechanism: a fixed-aspect-ratio viewport container + `transform: scale(var(--scale))` on the 1080×1920 inner element. `scale` is computed via `ResizeObserver` in `src/renderer/useCanvasScale.ts`, used identically by editor and reader. This is what guarantees WYSIWYG — there is exactly one scaling code path.
+Scaling mechanism: a fixed-aspect-ratio viewport container + `transform: scale(var(--scale))` on the 1920×1080 inner element. `scale` is computed via `ResizeObserver` in `src/renderer/useCanvasScale.ts`, used identically by editor and reader. This is what guarantees WYSIWYG — there is exactly one scaling code path.
 
 ### 3. Structured content, not HTML
 
@@ -289,8 +289,8 @@ RLS: SELECT public (`true`). INSERT/UPDATE `is_admin()`. **No DELETE policy** �
 | public_token            | text not null unique              | random nanoid, public URL `/b/:public_token`                  |
 | title                   | text not null                     | admin-facing only                                             |
 | status                  | text not null default 'draft'     | 'draft' \| 'published' \| 'disabled', constrained via `check` |
-| canvas_width            | int not null default 1080         |                                                               |
-| canvas_height           | int not null default 1920         |                                                               |
+| canvas_width            | int not null default 1920         |                                                               |
+| canvas_height           | int not null default 1080         |                                                               |
 | quiz_embed_code         | text                              | raw Fillout snippet, nullable                                 |
 | quiz_embed_height       | int default 600                   | iframe height for inline-style embeds                         |
 | created_by              | uuid references admin_users(id)   |                                                               |

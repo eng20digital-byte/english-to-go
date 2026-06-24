@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { ImageIcon, Redo2, RotateCcw, Save, Type } from 'lucide-react';
 import { usePageElementsQuery } from '@/hooks/usePageElementsQuery';
 import { useFontsQuery } from '@/hooks/useFontsQuery';
 import {
@@ -19,16 +20,17 @@ import {
 import { useEditorReducer } from './useEditorReducer';
 import { useAutosave } from './useAutosave';
 import { EditorCanvas } from './EditorCanvas';
-import { EditorToolbar } from './EditorToolbar';
 import { ElementInspector } from './ElementInspector';
 import { MediaLibraryPicker } from './MediaLibraryPicker';
 import { Spinner } from '@/components/Spinner';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { BRAND } from '@/config/theme';
 import type { PageElement, TextProps, BackgroundImageProps } from '@/types/elements';
 import type { MediaAssetRow } from '@/types/database';
 
@@ -46,9 +48,90 @@ function lowestZIndex(elements: PageElement[]): number {
   return elements.reduce((min, element) => Math.min(min, element.z_index), 0) - 1;
 }
 
+// Large icon+label action button used in the Quick Actions panel.
+function QuickActionBtn({
+  icon, label, bgColor, textColor = BRAND.text, onClick,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  bgColor: string;
+  textColor?: string;
+  onClick: () => void;
+}) {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+        gap: 7, padding: '12px 6px', borderRadius: 14, border: 'none',
+        backgroundColor: bgColor, color: textColor,
+        cursor: 'pointer', fontFamily: 'inherit',
+        transition: 'transform 0.16s ease, box-shadow 0.16s ease',
+        transform: hovered ? 'translateY(-3px)' : 'translateY(0)',
+        boxShadow: hovered
+          ? '0 8px 20px rgba(0,0,0,0.18), 0 2px 6px rgba(0,0,0,0.1)'
+          : '0 3px 8px rgba(0,0,0,0.1), 0 1px 3px rgba(0,0,0,0.06)',
+      }}
+    >
+      <div style={{
+        width: 38, height: 38, borderRadius: 12,
+        backgroundColor: 'rgba(255,255,255,0.28)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        flexShrink: 0,
+      }}>
+        {icon}
+      </div>
+      <span style={{ fontSize: 11, fontWeight: 700, lineHeight: 1 }}>{label}</span>
+    </button>
+  );
+}
+
+// Small circular icon button for undo/redo/save.
+function MiniIconBtn({
+  label, disabled, onClick, children,
+}: {
+  label: string;
+  disabled?: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={onClick}
+          onMouseEnter={() => setHovered(true)}
+          onMouseLeave={() => setHovered(false)}
+          style={{
+            width: 30, height: 30, borderRadius: '50%', border: 'none', padding: 0,
+            backgroundColor: hovered && !disabled ? 'rgba(89,178,146,0.14)' : 'transparent',
+            color: disabled ? 'rgba(26,26,26,0.28)' : BRAND.text,
+            cursor: disabled ? 'not-allowed' : 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            transition: 'background-color 0.15s',
+            fontFamily: 'inherit', flexShrink: 0,
+          }}
+        >
+          {children}
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="bottom">{label}</TooltipContent>
+    </Tooltip>
+  );
+}
+
+const PANEL_SHADOW = '0 8px 28px rgba(0,0,0,0.14), 0 2px 6px rgba(0,0,0,0.08)';
+
 // Top-level page editor: loads a page's elements once, owns the undo/redo
 // reducer and (separately) selection + textEditingId UI state, and hosts the
-// toolbar, shared canvas, style inspector, and autosave.
+// shared canvas, style inspector, and autosave.
 export function PageElementEditor({ pageId, onSaveStatusChange }: PageElementEditorProps) {
   const { data: loadedElements, isLoading, isError } = usePageElementsQuery(pageId);
   const { data: fonts } = useFontsQuery();
@@ -149,18 +232,16 @@ export function PageElementEditor({ pageId, onSaveStatusChange }: PageElementEdi
 
   if (isLoading) {
     return (
-      <div className="flex h-full items-center justify-center">
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Spinner />
-          <span>Loading page…</span>
-        </div>
+      <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+        <Spinner />
+        <span style={{ fontSize: 14, color: 'rgba(255,255,255,0.78)' }}>Loading page…</span>
       </div>
     );
   }
   if (isError) {
     return (
-      <div className="flex h-full items-center justify-center">
-        <p className="text-sm text-destructive">Could not load this page's elements.</p>
+      <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center' }}>
+        <p style={{ fontSize: 14, color: BRAND.pink, margin: 0 }}>Could not load this page's elements.</p>
       </div>
     );
   }
@@ -168,24 +249,33 @@ export function PageElementEditor({ pageId, onSaveStatusChange }: PageElementEdi
   const selectedElement =
     state.elements.find((element) => element.id === effectiveSelectedId) ?? null;
 
-  return (
-    <div className="flex h-full flex-col overflow-hidden">
-      {/* Floating pill toolbar */}
-      <EditorToolbar
-        onAddText={handleAddText}
-        onAddBackgroundImage={() => setShowMediaPicker(true)}
-        onUndo={() => dispatch({ type: 'UNDO' })}
-        canUndo={state.past.length > 0}
-        onRedo={() => dispatch({ type: 'REDO' })}
-        canRedo={state.future.length > 0}
-        saveStatus={saveStatus}
-        onSaveNow={() => void saveNow()}
-      />
+  const canUndo = state.past.length > 0;
+  const canRedo = state.future.length > 0;
 
-      {/* Canvas + inspector */}
-      <div className="flex min-h-0 flex-1">
-        {/* Canvas area — flex-1, scrollable */}
-        <div className="flex flex-1 items-start justify-center overflow-y-auto bg-background p-6 pt-4">
+  return (
+    <div style={{
+      display: 'flex', height: '100%', overflow: 'hidden',
+      gap: 12,
+      fontFamily: 'system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif',
+    }}>
+      {/* ── Center: canvas workspace ────────────────────────────────────── */}
+      {/* Transparent — green parent background shows through as the workspace.
+          The canvas is aspect-ratio constrained so it always fits without scroll. */}
+      <div style={{
+        flex: 1, minWidth: 0, minHeight: 0,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: '12px 4px 16px',
+        overflow: 'hidden',
+      }}>
+        {/* Aspect-ratio constraint wrapper: limits canvas to available height,
+            so the page always fits in view — never requires scrolling.
+            maxHeight: 100% + aspect-ratio together produce "contain" semantics. */}
+        <div style={{
+          width: '100%',
+          maxHeight: '100%',
+          aspectRatio: `${CANVAS_WIDTH} / ${CANVAS_HEIGHT}`,
+          overflow: 'hidden',
+        }}>
           <EditorCanvas
             pageId={pageId}
             elements={state.elements}
@@ -215,15 +305,102 @@ export function PageElementEditor({ pageId, onSaveStatusChange }: PageElementEdi
             onSendBackward={(id) => dispatch({ type: 'SEND_BACKWARD', id })}
           />
         </div>
+      </div>
 
-        {/* Right inspector panel */}
-        <aside className="w-[280px] shrink-0 overflow-hidden border-l border-border bg-card">
+      {/* ── Right: tools column (Quick Actions + Properties) ──────────── */}
+      <div style={{
+        width: 252, flexShrink: 0,
+        display: 'flex', flexDirection: 'column',
+        gap: 10, paddingBottom: 16, paddingTop: 6,
+      }}>
+
+        {/* Quick Actions card — add elements, undo/redo, save */}
+        <div style={{
+          backgroundColor: BRAND.cream,
+          borderRadius: 20,
+          padding: '14px 14px 12px',
+          boxShadow: PANEL_SHADOW,
+          flexShrink: 0,
+        }}>
+          <p style={{
+            margin: '0 0 12px', fontSize: 10, fontWeight: 700,
+            letterSpacing: '0.12em', textTransform: 'uppercase',
+            color: BRAND.textMuted,
+          }}>
+            Add to Page
+          </p>
+
+          {/* Primary action buttons */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12 }}>
+            <QuickActionBtn
+              icon={<Type size={18} />}
+              label="Text"
+              bgColor={BRAND.yellow}
+              textColor={BRAND.text}
+              onClick={handleAddText}
+            />
+            <QuickActionBtn
+              icon={<ImageIcon size={18} />}
+              label="Image"
+              bgColor={BRAND.green}
+              textColor="#fff"
+              onClick={() => setShowMediaPicker(true)}
+            />
+          </div>
+
+          {/* Undo / Redo / Save row */}
+          <div style={{
+            display: 'flex', alignItems: 'center',
+            justifyContent: 'space-between',
+            paddingTop: 10,
+            borderTop: '1px solid rgba(0,0,0,0.07)',
+          }}>
+            <div style={{ display: 'flex', gap: 2 }}>
+              <MiniIconBtn label="Undo" disabled={!canUndo} onClick={() => dispatch({ type: 'UNDO' })}>
+                <RotateCcw size={14} />
+              </MiniIconBtn>
+              <MiniIconBtn label="Redo" disabled={!canRedo} onClick={() => dispatch({ type: 'REDO' })}>
+                <Redo2 size={14} />
+              </MiniIconBtn>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              {saveStatus === 'saving' && (
+                <span style={{ fontSize: 11, color: BRAND.textMuted, display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <Spinner size="sm" /> Saving…
+                </span>
+              )}
+              {saveStatus === 'saved' && (
+                <span style={{ fontSize: 11, fontWeight: 600, color: BRAND.green }}>✓ Saved</span>
+              )}
+              {saveStatus === 'error' && (
+                <span style={{ fontSize: 11, fontWeight: 600, color: BRAND.pink }}>Failed</span>
+              )}
+              {saveStatus !== 'saving' && (
+                <MiniIconBtn label="Save now" onClick={() => void saveNow()}>
+                  <Save size={14} />
+                </MiniIconBtn>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Properties panel — scrolls internally, never causes outer layout shift */}
+        <div style={{
+          flex: 1, minHeight: 0,
+          backgroundColor: BRAND.cream,
+          borderRadius: 20,
+          boxShadow: PANEL_SHADOW,
+          overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column',
+        }}>
           <ElementInspector
             element={selectedElement}
             onUpdateTextProps={handleUpdateTextProps}
             onUpdateBackgroundImageProps={handleUpdateBackgroundImageProps}
           />
-        </aside>
+        </div>
       </div>
 
       {/* Media picker dialog */}

@@ -10,7 +10,7 @@ export type BackgroundImageFit = 'cover' | 'contain';
 export interface TextProps {
   content: string; // plain text; words are split at render time, not pre-tokenized
   font_id: string;
-  font_size: number; // px, canvas-space (1080-wide reference)
+  font_size: number; // px, canvas-space (1920-wide reference)
   color: string;
   align: TextAlign;
   line_height: number;

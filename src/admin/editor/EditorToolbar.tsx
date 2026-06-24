@@ -1,8 +1,8 @@
+import { useState } from 'react';
 import { ImageIcon, Redo2, RotateCcw, Save, Type } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { Separator } from '@/components/ui/separator';
 import { Spinner } from '@/components/Spinner';
+import { BRAND } from '@/config/theme';
 import type { SaveStatus } from './useAutosave';
 
 interface EditorToolbarProps {
@@ -27,19 +27,32 @@ function ToolbarIconButton({
   onClick: () => void;
   children: React.ReactNode;
 }) {
+  const [hovered, setHovered] = useState(false);
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <Button
+        <button
           type="button"
-          variant="ghost"
-          size="icon"
           disabled={disabled}
           onClick={onClick}
-          className="h-8 w-8 rounded-full text-foreground/70 hover:bg-muted hover:text-foreground"
+          onMouseEnter={() => setHovered(true)}
+          onMouseLeave={() => setHovered(false)}
+          style={{
+            width: 36, height: 36,
+            borderRadius: '50%',
+            border: 'none',
+            backgroundColor: hovered && !disabled ? 'rgba(89,178,146,0.14)' : 'transparent',
+            color: disabled ? 'rgba(26,26,26,0.28)' : BRAND.text,
+            cursor: disabled ? 'not-allowed' : 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            transition: 'background-color 0.15s, color 0.15s',
+            padding: 0,
+            fontFamily: 'inherit',
+            flexShrink: 0,
+          }}
         >
           {children}
-        </Button>
+        </button>
       </TooltipTrigger>
       <TooltipContent side="bottom">{label}</TooltipContent>
     </Tooltip>
@@ -47,7 +60,7 @@ function ToolbarIconButton({
 }
 
 // Floating pill toolbar above the editor canvas — icon buttons with tooltips.
-// Delete action moved to the floating action bubble on selected elements.
+// Styled as a cream paper card consistent with all other admin page panels.
 export function EditorToolbar({
   onAddText,
   onAddBackgroundImage,
@@ -59,75 +72,56 @@ export function EditorToolbar({
   onSaveNow,
 }: EditorToolbarProps) {
   return (
-    <div className="flex justify-center py-3">
-      <div
-        className="flex items-center gap-1 rounded-full border border-border bg-card px-3 py-1.5"
-        style={{ boxShadow: 'var(--shadow-float)' }}
-      >
+    <div style={{ display: 'flex', justifyContent: 'center', padding: '10px 0 6px' }}>
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 2,
+        backgroundColor: BRAND.cream,
+        borderRadius: 50,
+        padding: '5px 10px',
+        boxShadow: '0 4px 20px rgba(0,0,0,0.16), 0 2px 6px rgba(0,0,0,0.08)',
+        fontFamily: 'system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif',
+      }}>
         {/* Add elements */}
         <ToolbarIconButton label="Add text box" onClick={onAddText}>
-          <Type className="h-4 w-4" />
+          <Type size={16} />
         </ToolbarIconButton>
         <ToolbarIconButton label="Add background image" onClick={onAddBackgroundImage}>
-          <ImageIcon className="h-4 w-4" />
+          <ImageIcon size={16} />
         </ToolbarIconButton>
 
-        <Separator orientation="vertical" className="mx-1 h-5" />
+        <div style={{ width: 1, height: 20, backgroundColor: 'rgba(0,0,0,0.1)', margin: '0 4px', flexShrink: 0 }} />
 
         {/* Undo / redo */}
         <ToolbarIconButton label="Undo" disabled={!canUndo} onClick={onUndo}>
-          <RotateCcw className="h-4 w-4" />
+          <RotateCcw size={16} />
         </ToolbarIconButton>
         <ToolbarIconButton label="Redo" disabled={!canRedo} onClick={onRedo}>
-          <Redo2 className="h-4 w-4" />
+          <Redo2 size={16} />
         </ToolbarIconButton>
 
-        <Separator orientation="vertical" className="mx-1 h-5" />
+        <div style={{ width: 1, height: 20, backgroundColor: 'rgba(0,0,0,0.1)', margin: '0 4px', flexShrink: 0 }} />
 
-        {/* Save status */}
+        {/* Save status text */}
         {saveStatus === 'saving' && (
-          <div className="flex items-center gap-1.5 px-2 text-xs text-muted-foreground">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '0 6px', fontSize: 12, color: BRAND.textMuted }}>
             <Spinner size="sm" />
             <span>Saving…</span>
           </div>
         )}
         {saveStatus === 'saved' && (
-          <span className="px-2 text-xs text-muted-foreground">Saved</span>
+          <span style={{ padding: '0 6px', fontSize: 12, fontWeight: 600, color: BRAND.green }}>✓ Saved</span>
         )}
         {saveStatus === 'error' && (
-          <span className="px-2 text-xs text-destructive">Save failed</span>
+          <span style={{ padding: '0 6px', fontSize: 12, fontWeight: 600, color: BRAND.pink }}>Save failed</span>
         )}
-        {saveStatus === 'idle' && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                onClick={onSaveNow}
-                className="h-8 w-8 rounded-full text-foreground/70 hover:bg-muted hover:text-foreground"
-              >
-                <Save className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">Save now</TooltipContent>
-          </Tooltip>
-        )}
-        {saveStatus !== 'idle' && saveStatus !== 'saving' && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                onClick={onSaveNow}
-                className="h-8 w-8 rounded-full text-foreground/70 hover:bg-muted hover:text-foreground"
-              >
-                <Save className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">Save now</TooltipContent>
-          </Tooltip>
+
+        {/* Save now button — visible whenever not actively saving */}
+        {saveStatus !== 'saving' && (
+          <ToolbarIconButton label="Save now" onClick={onSaveNow}>
+            <Save size={16} />
+          </ToolbarIconButton>
         )}
       </div>
     </div>

@@ -2,13 +2,19 @@
 // CLAUDE.md "no magic numbers in components" — see src/reader/PageFlip.tsx
 // and ReaderBookletPage.tsx.
 
-// Caps how wide the canvas grows on large desktop viewports; mobile/tablet
-// just fill available width (container is `width: 100%`).
-export const READER_MAX_WIDTH = 640;
+// Caps how wide the canvas grows on very large desktop viewports; fills
+// available width otherwise (container is `width: 100%`). Set to the canvas's
+// native width (1920) so the booklet fills the viewport at maximum scale — any
+// display narrower than 1920px is already constrained by available width + the
+// 3vw horizontal margin in ReaderBookletPage, so the cap only applies to
+// ultrawide monitors (>2560px-class screens).
+export const READER_MAX_WIDTH = 1920;
 
 export const PAGE_FLIP_DURATION_MS = 600;
 export const PAGE_FLIP_EASING = 'cubic-bezier(0.4, 0, 0.2, 1)';
-export const PAGE_FLIP_PERSPECTIVE_PX = 2400;
+// Scaled up from the portrait-era 2400 to keep the same perspective-to-width
+// ratio (~3.5×) now that the canvas is landscape and containers are wider.
+export const PAGE_FLIP_PERSPECTIVE_PX = 4800;
 // Max opacity of the dark shadow overlay on the flipping page, reached at
 // the midpoint (90deg) of the rotation, for a sense of depth.
 export const PAGE_FLIP_SHADOW_MAX_OPACITY = 0.35;

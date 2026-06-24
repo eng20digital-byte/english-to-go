@@ -27,9 +27,10 @@ export const EDITOR_MIN_ELEMENT_SIZE = 40;
 export const EDITOR_HANDLE_SIZE = 16;
 export const EDITOR_SELECTION_COLOR = '#2563eb';
 
-// Caps how wide the editor canvas grows on large desktop viewports, mirroring
-// the reader's READER_MAX_WIDTH.
-export const EDITOR_CANVAS_MAX_WIDTH = 720;
+// Caps how wide the editor canvas grows on large desktop viewports. The center
+// column takes remaining space after the sidebar, so this cap rarely triggers
+// except on very wide monitors — mirroring the intent of the reader's READER_MAX_WIDTH.
+export const EDITOR_CANVAS_MAX_WIDTH = 1200;
 
 // Debounce window for autosaving the element array via save_page_elements
 // (CLAUDE.md "Autosave & undo/redo").

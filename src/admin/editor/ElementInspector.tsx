@@ -1,5 +1,5 @@
+import type { CSSProperties } from 'react';
 import { MousePointer2 } from 'lucide-react';
-import { Separator } from '@/components/ui/separator';
 import { useFontsQuery } from '@/hooks/useFontsQuery';
 import {
   INSPECTOR_FONT_SIZE_MIN,
@@ -8,6 +8,7 @@ import {
   INSPECTOR_LINE_HEIGHT_MAX,
   INSPECTOR_LINE_HEIGHT_STEP,
 } from '@/config/editor';
+import { BRAND } from '@/config/theme';
 import type {
   PageElement,
   TextProps,
@@ -27,9 +28,15 @@ const BACKGROUND_IMAGE_FIT_OPTIONS: { value: BackgroundImageFit; label: string }
   { value: 'contain', label: 'Contain' },
 ];
 
-const labelCls = 'text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5 block';
-const inputCls =
-  'w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring';
+const LABEL_STYLE: CSSProperties = {
+  display: 'block',
+  fontSize: 10,
+  fontWeight: 700,
+  letterSpacing: '0.09em',
+  textTransform: 'uppercase',
+  color: BRAND.textMuted,
+  marginBottom: 5,
+};
 
 interface ElementInspectorProps {
   element: PageElement | null;
@@ -37,13 +44,25 @@ interface ElementInspectorProps {
   onUpdateBackgroundImageProps: (id: string, changes: Partial<BackgroundImageProps>) => void;
 }
 
+// Section card inside the inspector panel. Each section has a title label and
+// groups related controls. Border-bottom separates sections visually.
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="px-4 py-3">
-      <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground/70">
+    <div style={{
+      padding: '14px 16px',
+      borderBottom: '1px solid rgba(0,0,0,0.07)',
+    }}>
+      <p style={{
+        margin: '0 0 12px',
+        fontSize: 10, fontWeight: 700,
+        letterSpacing: '0.12em', textTransform: 'uppercase',
+        color: BRAND.textMuted,
+      }}>
         {title}
       </p>
-      <div className="flex flex-col gap-3">{children}</div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {children}
+      </div>
     </div>
   );
 }
@@ -52,6 +71,10 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 // counterpart to EditorOverlay's geometry handles. Lives outside the canvas
 // (plain form controls, not the renderer) since it's admin chrome,
 // not WYSIWYG content — see CLAUDE.md "UI component library — scope boundary".
+//
+// CSS classes `ei-input`, `ei-input-readonly`, `ei-color` are defined in
+// index.css (scoped to #admin-root) so that :focus pseudo-state styling works
+// without React useState tracking on every individual input.
 export function ElementInspector({
   element,
   onUpdateTextProps,
@@ -61,11 +84,19 @@ export function ElementInspector({
 
   if (!element) {
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
-        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-muted">
-          <MousePointer2 className="h-5 w-5 text-muted-foreground" />
+      <div style={{
+        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+        gap: 14, height: '100%', padding: '0 24px', textAlign: 'center',
+        fontFamily: 'system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif',
+      }}>
+        <div style={{
+          width: 48, height: 48, borderRadius: 16,
+          backgroundColor: 'rgba(89,178,146,0.12)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <MousePointer2 size={20} color={BRAND.green} />
         </div>
-        <p className="text-sm text-muted-foreground">
+        <p style={{ margin: 0, fontSize: 13, color: BRAND.textMuted, lineHeight: 1.5 }}>
           Click an element to edit its style and position.
         </p>
       </div>
@@ -77,26 +108,28 @@ export function ElementInspector({
     const update = (changes: Partial<TextProps>) => onUpdateTextProps(element.id, changes);
 
     return (
-      <div className="h-full overflow-y-auto">
+      <div style={{
+        height: '100%', overflowY: 'auto',
+        fontFamily: 'system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif',
+      }}>
         <Section title="Content">
           <textarea
             value={props.content}
             onChange={(event) => update({ content: event.target.value })}
             dir={props.direction === 'auto' ? undefined : props.direction}
             rows={4}
-            className={`${inputCls} resize-y`}
+            className="ei-input"
+            style={{ resize: 'vertical' }}
           />
         </Section>
 
-        <Separator />
-
         <Section title="Typography">
-          <label className="block">
-            <span className={labelCls}>Font</span>
+          <label style={{ display: 'block' }}>
+            <span style={LABEL_STYLE}>Font</span>
             <select
               value={props.font_id}
               onChange={(event) => update({ font_id: event.target.value })}
-              className={inputCls}
+              className="ei-input"
             >
               {!fonts?.some((font) => font.id === props.font_id) && (
                 <option value={props.font_id}>(unknown font)</option>
@@ -109,20 +142,20 @@ export function ElementInspector({
             </select>
           </label>
 
-          <div className="grid grid-cols-2 gap-2">
-            <label className="block">
-              <span className={labelCls}>Size (px)</span>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            <label style={{ display: 'block' }}>
+              <span style={LABEL_STYLE}>Size (px)</span>
               <input
                 type="number"
                 min={INSPECTOR_FONT_SIZE_MIN}
                 max={INSPECTOR_FONT_SIZE_MAX}
                 value={props.font_size}
                 onChange={(event) => update({ font_size: Number(event.target.value) })}
-                className={inputCls}
+                className="ei-input"
               />
             </label>
-            <label className="block">
-              <span className={labelCls}>Line height</span>
+            <label style={{ display: 'block' }}>
+              <span style={LABEL_STYLE}>Line height</span>
               <input
                 type="number"
                 min={INSPECTOR_LINE_HEIGHT_MIN}
@@ -130,36 +163,37 @@ export function ElementInspector({
                 step={INSPECTOR_LINE_HEIGHT_STEP}
                 value={props.line_height}
                 onChange={(event) => update({ line_height: Number(event.target.value) })}
-                className={inputCls}
+                className="ei-input"
               />
             </label>
           </div>
 
-          <label className="block">
-            <span className={labelCls}>Color</span>
-            <div className="flex items-center gap-2">
+          <label style={{ display: 'block' }}>
+            <span style={LABEL_STYLE}>Color</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <input
                 type="color"
                 value={props.color}
                 onChange={(event) => update({ color: event.target.value })}
-                className="h-9 w-14 cursor-pointer rounded-lg border border-input p-1"
+                className="ei-color"
               />
               <input
                 type="text"
                 value={props.color}
                 onChange={(event) => update({ color: event.target.value })}
-                className={`${inputCls} flex-1`}
+                className="ei-input"
+                style={{ flex: 1 }}
               />
             </div>
           </label>
 
-          <div className="grid grid-cols-2 gap-2">
-            <label className="block">
-              <span className={labelCls}>Align</span>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            <label style={{ display: 'block' }}>
+              <span style={LABEL_STYLE}>Align</span>
               <select
                 value={props.align}
                 onChange={(event) => update({ align: event.target.value as TextAlign })}
-                className={inputCls}
+                className="ei-input"
               >
                 {TEXT_ALIGN_OPTIONS.map(({ value, label }) => (
                   <option key={value} value={value}>
@@ -168,14 +202,14 @@ export function ElementInspector({
                 ))}
               </select>
             </label>
-            <label className="block">
-              <span className={labelCls}>Direction</span>
+            <label style={{ display: 'block' }}>
+              <span style={LABEL_STYLE}>Direction</span>
               <select
                 value={props.direction}
                 onChange={(event) =>
                   update({ direction: event.target.value as TextProps['direction'] })
                 }
-                className={inputCls}
+                className="ei-input"
               >
                 <option value="rtl">RTL</option>
                 <option value="ltr">LTR</option>
@@ -185,18 +219,16 @@ export function ElementInspector({
           </div>
         </Section>
 
-        <Separator />
-
         <Section title="Position">
-          <div className="grid grid-cols-2 gap-2">
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
             {(['x', 'y', 'w', 'h'] as const).map((key) => (
-              <label key={key} className="block">
-                <span className={labelCls}>{key.toUpperCase()}</span>
+              <label key={key} style={{ display: 'block' }}>
+                <span style={LABEL_STYLE}>{key.toUpperCase()}</span>
                 <input
                   type="number"
                   value={Math.round(element[key])}
                   readOnly
-                  className={`${inputCls} bg-muted text-muted-foreground`}
+                  className="ei-input ei-input-readonly"
                 />
               </label>
             ))}
@@ -209,10 +241,13 @@ export function ElementInspector({
   // background_image element
   const { props } = element;
   return (
-    <div className="h-full overflow-y-auto">
+    <div style={{
+      height: '100%', overflowY: 'auto',
+      fontFamily: 'system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif',
+    }}>
       <Section title="Image">
-        <label className="block">
-          <span className={labelCls}>Fit</span>
+        <label style={{ display: 'block' }}>
+          <span style={LABEL_STYLE}>Fit</span>
           <select
             value={props.fit}
             onChange={(event) =>
@@ -220,7 +255,7 @@ export function ElementInspector({
                 fit: event.target.value as BackgroundImageFit,
               })
             }
-            className={inputCls}
+            className="ei-input"
           >
             {BACKGROUND_IMAGE_FIT_OPTIONS.map(({ value, label }) => (
               <option key={value} value={value}>
@@ -231,18 +266,16 @@ export function ElementInspector({
         </label>
       </Section>
 
-      <Separator />
-
       <Section title="Position">
-        <div className="grid grid-cols-2 gap-2">
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
           {(['x', 'y', 'w', 'h'] as const).map((key) => (
-            <label key={key} className="block">
-              <span className={labelCls}>{key.toUpperCase()}</span>
+            <label key={key} style={{ display: 'block' }}>
+              <span style={LABEL_STYLE}>{key.toUpperCase()}</span>
               <input
                 type="number"
                 value={Math.round(element[key])}
                 readOnly
-                className={`${inputCls} bg-muted text-muted-foreground`}
+                className="ei-input ei-input-readonly"
               />
             </label>
           ))}
