@@ -10,7 +10,7 @@
 // ultrawide monitors (>2560px-class screens).
 export const READER_MAX_WIDTH = 1920;
 
-export const PAGE_FLIP_DURATION_MS = 600;
+export const PAGE_FLIP_DURATION_MS = 850;
 export const PAGE_FLIP_EASING = 'cubic-bezier(0.4, 0, 0.2, 1)';
 // Scaled up from the portrait-era 2400 to keep the same perspective-to-width
 // ratio (~3.5×) now that the canvas is landscape and containers are wider.

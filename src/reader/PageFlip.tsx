@@ -40,6 +40,9 @@ interface PageFlipProps {
   onIndexChange: (index: number) => void;
   renderPage: (index: number, scale: number) => ReactNode;
   children?: (args: PageFlipRenderArgs) => ReactNode;
+  // Exposes next/prev to a parent that needs to render buttons outside this component's DOM tree.
+  onControlsChange?: (controls: { next: () => void; prev: () => void }) => void;
+  onIsFlippingChange?: (isFlipping: boolean) => void;
 }
 
 function prefersReducedMotion(): boolean {
@@ -60,6 +63,8 @@ export function PageFlip({
   onIndexChange,
   renderPage,
   children,
+  onControlsChange,
+  onIsFlippingChange,
 }: PageFlipProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const scale = useCanvasScale(containerRef);
@@ -82,6 +87,14 @@ export function PageFlip({
     },
     [flip, currentIndex, pageCount, onIndexChange],
   );
+
+  useEffect(() => {
+    onControlsChange?.({ next: () => startFlip('next'), prev: () => startFlip('prev') });
+  }, [startFlip, onControlsChange]);
+
+  useEffect(() => {
+    onIsFlippingChange?.(flip !== null);
+  }, [flip, onIsFlippingChange]);
 
   function finishFlip() {
     if (!flip) return;

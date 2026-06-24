@@ -14,6 +14,7 @@ interface PagesSidebarProps {
   isAddingPage: boolean;
   onAddPage: () => void;
   onDeletePage: (page: PageRow) => void;
+  onReorderPages: (orderedPageIds: string[]) => void;
 }
 
 // Left panel of the 3-column editor — page thumbnails + add/delete pages.
@@ -25,10 +26,42 @@ export function PagesSidebar({
   isAddingPage,
   onAddPage,
   onDeletePage,
+  onReorderPages,
 }: PagesSidebarProps) {
   const navigate = useNavigate();
   const [hoveredPageId, setHoveredPageId] = useState<string | null>(null);
   const [addHover, setAddHover] = useState(false);
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [dropIndex, setDropIndex] = useState<number | null>(null);
+
+  function handleDragStart(index: number) {
+    setDragIndex(index);
+  }
+
+  function handleDragOver(e: React.DragEvent, index: number) {
+    e.preventDefault();
+    setDropIndex(index);
+  }
+
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault();
+    if (dragIndex === null || dropIndex === null || dragIndex === dropIndex) {
+      setDragIndex(null);
+      setDropIndex(null);
+      return;
+    }
+    const reordered = [...pages];
+    const [moved] = reordered.splice(dragIndex, 1);
+    reordered.splice(dropIndex, 0, moved);
+    onReorderPages(reordered.map((p) => p.id));
+    setDragIndex(null);
+    setDropIndex(null);
+  }
+
+  function handleDragEnd() {
+    setDragIndex(null);
+    setDropIndex(null);
+  }
 
   return (
     <aside style={{
@@ -105,9 +138,22 @@ export function PagesSidebar({
           {pages.map((page, index) => (
             <li
               key={page.id}
-              style={{ position: 'relative' }}
+              draggable
+              onDragStart={() => handleDragStart(index)}
+              onDragOver={(e) => handleDragOver(e, index)}
+              onDrop={handleDrop}
+              onDragEnd={handleDragEnd}
               onMouseEnter={() => setHoveredPageId(page.id)}
               onMouseLeave={() => setHoveredPageId(null)}
+              style={{
+                position: 'relative',
+                opacity: dragIndex === index ? 0.4 : 1,
+                transition: 'opacity 0.15s',
+                borderRadius: 12,
+                outline: dropIndex === index && dragIndex !== index
+                  ? `2px solid ${BRAND.green}`
+                  : '2px solid transparent',
+              }}
             >
               <PageThumbnail
                 page={page}

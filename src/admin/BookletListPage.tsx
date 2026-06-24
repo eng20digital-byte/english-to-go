@@ -1,6 +1,6 @@
 import { useState, type CSSProperties } from 'react';
-import { Link } from 'react-router-dom';
-import { BookOpen, Check, Copy, ExternalLink, Plus, Trash2 } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { ArrowLeft, BookOpen, Check, Copy, ExternalLink, Globe, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -37,6 +37,10 @@ type CardPalette = {
   neutralBtnBg: string;
   neutralBtnBgHover: string;
   neutralBtnText: string;
+  decoA: string; // decorative circle color A
+  decoB: string; // decorative circle color B
+  deleteIconColor: string;
+  deleteBgHover: string;
 };
 
 const CARD_COLORS: CardPalette[] = [
@@ -50,6 +54,10 @@ const CARD_COLORS: CardPalette[] = [
     neutralBtnBg: 'rgba(0,0,0,0.07)',
     neutralBtnBgHover: 'rgba(0,0,0,0.13)',
     neutralBtnText: BRAND.text,
+    decoA: BRAND.green,
+    decoB: BRAND.pink,
+    deleteIconColor: BRAND.pink,
+    deleteBgHover: 'rgba(250,103,129,0.18)',
   },
   {
     bg: BRAND.yellow,
@@ -61,6 +69,10 @@ const CARD_COLORS: CardPalette[] = [
     neutralBtnBg: 'rgba(0,0,0,0.09)',
     neutralBtnBgHover: 'rgba(0,0,0,0.16)',
     neutralBtnText: BRAND.text,
+    decoA: BRAND.pink,
+    decoB: BRAND.green,
+    deleteIconColor: BRAND.pink,
+    deleteBgHover: 'rgba(250,103,129,0.18)',
   },
   {
     bg: BRAND.pink,
@@ -72,17 +84,21 @@ const CARD_COLORS: CardPalette[] = [
     neutralBtnBg: 'rgba(255,255,255,0.2)',
     neutralBtnBgHover: 'rgba(255,255,255,0.32)',
     neutralBtnText: '#fff',
+    decoA: BRAND.yellow,
+    decoB: 'rgba(255,255,255,0.4)',
+    deleteIconColor: 'rgba(255,255,255,0.85)',
+    deleteBgHover: 'rgba(255,255,255,0.28)',
   },
 ];
 
 const BTN_BASE: CSSProperties = {
   border: 'none',
-  borderRadius: 12,
-  padding: '10px 20px',
+  borderRadius: 13,
+  padding: '11px 22px',
   fontSize: 14,
   fontWeight: 700,
   cursor: 'pointer',
-  transition: 'background-color 0.16s',
+  transition: 'background-color 0.16s, box-shadow 0.16s',
   fontFamily: 'inherit',
   lineHeight: 1,
 };
@@ -92,19 +108,19 @@ function BookletCardSkeleton() {
     <div style={{
       backgroundColor: BRAND.cream,
       borderRadius: 24,
-      padding: '28px 28px 24px',
-      boxShadow: '0 8px 24px rgba(0,0,0,0.14), 0 2px 6px rgba(0,0,0,0.08)',
+      padding: '36px 36px 32px',
+      boxShadow: '0 10px 32px rgba(0,0,0,0.16), 0 3px 8px rgba(0,0,0,0.10)',
     }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-        <div style={{ width: 44, height: 44, borderRadius: 14, backgroundColor: 'rgba(89,178,146,0.15)', animation: 'sk-pulse 1.5s ease-in-out infinite' }} />
-        <div style={{ width: 72, height: 22, borderRadius: 11, backgroundColor: 'rgba(26,26,26,0.08)', animation: 'sk-pulse 1.5s ease-in-out infinite' }} />
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+        <div style={{ width: 52, height: 52, borderRadius: 16, backgroundColor: 'rgba(89,178,146,0.15)', animation: 'sk-pulse 1.5s ease-in-out infinite' }} />
+        <div style={{ width: 72, height: 24, borderRadius: 12, backgroundColor: 'rgba(26,26,26,0.08)', animation: 'sk-pulse 1.5s ease-in-out infinite' }} />
       </div>
-      <div style={{ height: 22, width: '70%', borderRadius: 6, backgroundColor: 'rgba(26,26,26,0.1)', marginBottom: 10, animation: 'sk-pulse 1.5s ease-in-out infinite' }} />
-      <div style={{ height: 13, width: '88%', borderRadius: 4, backgroundColor: 'rgba(26,26,26,0.06)', marginBottom: 20, animation: 'sk-pulse 1.5s ease-in-out infinite' }} />
-      <div style={{ height: 1, backgroundColor: 'rgba(0,0,0,0.06)', marginBottom: 16 }} />
-      <div style={{ display: 'flex', gap: 8 }}>
-        <div style={{ height: 34, width: 72, borderRadius: 10, backgroundColor: 'rgba(89,178,146,0.2)', animation: 'sk-pulse 1.5s ease-in-out infinite' }} />
-        <div style={{ height: 34, width: 80, borderRadius: 10, backgroundColor: 'rgba(255,201,77,0.25)', animation: 'sk-pulse 1.5s ease-in-out infinite' }} />
+      <div style={{ height: 24, width: '70%', borderRadius: 6, backgroundColor: 'rgba(26,26,26,0.1)', marginBottom: 10, animation: 'sk-pulse 1.5s ease-in-out infinite' }} />
+      <div style={{ height: 13, width: '88%', borderRadius: 4, backgroundColor: 'rgba(26,26,26,0.06)', marginBottom: 24, animation: 'sk-pulse 1.5s ease-in-out infinite' }} />
+      <div style={{ height: 1, backgroundColor: 'rgba(0,0,0,0.06)', marginBottom: 20 }} />
+      <div style={{ display: 'flex', gap: 10 }}>
+        <div style={{ height: 42, flex: 1, borderRadius: 13, backgroundColor: 'rgba(255,201,77,0.3)', animation: 'sk-pulse 1.5s ease-in-out infinite' }} />
+        <div style={{ height: 42, width: 40, borderRadius: 11, backgroundColor: 'rgba(250,103,129,0.15)', animation: 'sk-pulse 1.5s ease-in-out infinite' }} />
       </div>
     </div>
   );
@@ -166,12 +182,14 @@ function BookletCard({
   onDelete,
   isUpdating,
 }: BookletCardProps) {
+  const navigate = useNavigate();
   const [hovered, setHovered] = useState(false);
   const [btnHover, setBtnHover] = useState<string | null>(null);
   const [linkHover, setLinkHover] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  function handleCopy() {
+  function handleCopy(e: React.MouseEvent) {
+    e.stopPropagation();
     navigator.clipboard.writeText(readerUrl(booklet.public_token)).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
@@ -180,17 +198,21 @@ function BookletCard({
 
   return (
     <div
+      onClick={() => navigate(`/admin/booklets/${booklet.id}`)}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
+        position: 'relative',
+        overflow: 'hidden',
+        cursor: 'pointer',
         backgroundColor: palette.bg,
         borderRadius: 24,
         padding: '36px 36px 32px',
         minHeight: 290,
         boxShadow: hovered
-          ? '0 20px 50px rgba(0,0,0,0.2), 0 8px 20px rgba(0,0,0,0.12)'
-          : '0 8px 24px rgba(0,0,0,0.14), 0 2px 6px rgba(0,0,0,0.08)',
-        transform: hovered ? 'translateY(-6px) scale(1.01)' : 'translateY(0) scale(1)',
+          ? '0 28px 60px rgba(0,0,0,0.24), 0 10px 28px rgba(0,0,0,0.14)'
+          : '0 10px 32px rgba(0,0,0,0.16), 0 3px 8px rgba(0,0,0,0.10)',
+        transform: hovered ? 'translateY(-8px) scale(1.015)' : 'translateY(0) scale(1)',
         transition: 'transform 0.22s ease, box-shadow 0.22s ease',
         display: 'flex',
         flexDirection: 'column',
@@ -199,14 +221,39 @@ function BookletCard({
         fontFamily: 'system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif',
       }}
     >
+      {/* Decorative circles — low-opacity shapes give the card visual depth */}
+      <div style={{
+        position: 'absolute', top: -36, right: -36,
+        width: 120, height: 120, borderRadius: '50%',
+        backgroundColor: palette.decoA,
+        opacity: 0.14,
+        pointerEvents: 'none',
+      }} />
+      <div style={{
+        position: 'absolute', bottom: -24, left: -24,
+        width: 88, height: 88, borderRadius: '50%',
+        backgroundColor: palette.decoB,
+        opacity: 0.12,
+        pointerEvents: 'none',
+      }} />
+      {/* Small accent dot */}
+      <div style={{
+        position: 'absolute', bottom: 60, right: 28,
+        width: 20, height: 20, borderRadius: '50%',
+        backgroundColor: palette.decoA,
+        opacity: 0.22,
+        pointerEvents: 'none',
+      }} />
+
       {/* Top row: icon + status badge */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
         <div style={{
-          width: 48, height: 48, borderRadius: 15, flexShrink: 0,
+          width: 52, height: 52, borderRadius: 16, flexShrink: 0,
           backgroundColor: palette.iconBg,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
+          boxShadow: '3px 3px 0 rgba(0,0,0,0.10)',
         }}>
-          <BookOpen size={24} color={palette.iconColor} />
+          <BookOpen size={26} color={palette.iconColor} />
         </div>
         <StatusBadge status={booklet.status} />
       </div>
@@ -224,59 +271,128 @@ function BookletCard({
         {booklet.title}
       </h3>
 
-      {/* Reader URL row: link + copy button */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 24, overflow: 'hidden' }}>
-        <a
-          href={readerUrl(booklet.public_token)}
-          target="_blank"
-          rel="noreferrer"
-          onMouseEnter={() => setLinkHover(true)}
-          onMouseLeave={() => setLinkHover(false)}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 4,
-            fontSize: 12,
-            color: linkHover ? palette.text : palette.textMuted,
-            textDecoration: linkHover ? 'underline' : 'none',
-            transition: 'color 0.15s',
+      {/* Reader URL row — more prominent for published booklets */}
+      {booklet.status === 'published' ? (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 24 }}>
+          {/* "View Live" pill button */}
+          <a
+            href={readerUrl(booklet.public_token)}
+            target="_blank"
+            rel="noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            onMouseEnter={() => setLinkHover(true)}
+            onMouseLeave={() => setLinkHover(false)}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '6px 13px',
+              borderRadius: 20,
+              border: `1.5px solid ${linkHover ? palette.text : palette.separatorColor}`,
+              backgroundColor: linkHover ? palette.neutralBtnBgHover : palette.neutralBtnBg,
+              color: palette.text,
+              fontSize: 12,
+              fontWeight: 700,
+              textDecoration: 'none',
+              transition: 'all 0.15s',
+              flexShrink: 0,
+              letterSpacing: '0.1px',
+            }}
+          >
+            <ExternalLink size={11} />
+            View Live
+          </a>
+          {/* URL text (truncated) */}
+          <span style={{
+            fontSize: 11,
+            color: palette.textMuted,
             overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
             flex: 1,
             minWidth: 0,
-          }}
-        >
-          <ExternalLink size={12} style={{ flexShrink: 0 }} />
-          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          }}>
             {readerUrl(booklet.public_token)}
           </span>
-        </a>
-
-        {/* Copy URL button */}
-        <button
-          type="button"
-          onClick={handleCopy}
-          title="Copy link"
-          style={{
-            flexShrink: 0,
-            width: 28, height: 28,
-            borderRadius: 8,
-            border: 'none',
-            backgroundColor: copied
-              ? 'rgba(89,178,146,0.18)'
-              : btnHover === 'copy' ? palette.neutralBtnBgHover : palette.neutralBtnBg,
-            color: copied ? BRAND.green : palette.textMuted,
-            cursor: 'pointer',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            transition: 'background-color 0.16s, color 0.16s',
-            padding: 0,
-            fontFamily: 'inherit',
-          }}
-          onMouseEnter={() => setBtnHover('copy')}
-          onMouseLeave={() => setBtnHover(null)}
-        >
-          {copied ? <Check size={13} /> : <Copy size={13} />}
-        </button>
-      </div>
+          {/* Copy URL button */}
+          <button
+            type="button"
+            onClick={handleCopy}
+            title="Copy link"
+            style={{
+              flexShrink: 0,
+              width: 32, height: 32,
+              borderRadius: 9,
+              border: 'none',
+              backgroundColor: copied
+                ? 'rgba(89,178,146,0.18)'
+                : btnHover === 'copy' ? palette.neutralBtnBgHover : palette.neutralBtnBg,
+              color: copied ? BRAND.green : palette.textMuted,
+              cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              transition: 'background-color 0.16s, color 0.16s',
+              padding: 0,
+              fontFamily: 'inherit',
+            }}
+            onMouseEnter={() => setBtnHover('copy')}
+            onMouseLeave={() => setBtnHover(null)}
+          >
+            {copied ? <Check size={14} /> : <Copy size={14} />}
+          </button>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 24, overflow: 'hidden' }}>
+          <a
+            href={readerUrl(booklet.public_token)}
+            target="_blank"
+            rel="noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            onMouseEnter={() => setLinkHover(true)}
+            onMouseLeave={() => setLinkHover(false)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4,
+              fontSize: 12,
+              color: linkHover ? palette.text : palette.textMuted,
+              textDecoration: linkHover ? 'underline' : 'none',
+              transition: 'color 0.15s',
+              overflow: 'hidden',
+              flex: 1,
+              minWidth: 0,
+            }}
+          >
+            <ExternalLink size={12} style={{ flexShrink: 0 }} />
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {readerUrl(booklet.public_token)}
+            </span>
+          </a>
+          <button
+            type="button"
+            onClick={handleCopy}
+            title="Copy link"
+            style={{
+              flexShrink: 0,
+              width: 32, height: 32,
+              borderRadius: 9,
+              border: 'none',
+              backgroundColor: copied
+                ? 'rgba(89,178,146,0.18)'
+                : btnHover === 'copy' ? palette.neutralBtnBgHover : palette.neutralBtnBg,
+              color: copied ? BRAND.green : palette.textMuted,
+              cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              transition: 'background-color 0.16s, color 0.16s',
+              padding: 0,
+              fontFamily: 'inherit',
+            }}
+            onMouseEnter={() => setBtnHover('copy')}
+            onMouseLeave={() => setBtnHover(null)}
+          >
+            {copied ? <Check size={14} /> : <Copy size={14} />}
+          </button>
+        </div>
+      )}
 
       {/* Separator */}
       <div style={{ height: 1, backgroundColor: palette.separatorColor, marginBottom: 20 }} />
@@ -284,38 +400,34 @@ function BookletCard({
       {/* Action buttons */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginTop: 'auto' }}>
 
-        {/* Open — primary action, always green */}
-        <Link
-          to={`/admin/booklets/${booklet.id}`}
-          onMouseEnter={() => setBtnHover('open')}
-          onMouseLeave={() => setBtnHover(null)}
-          style={{
-            ...BTN_BASE,
-            backgroundColor: btnHover === 'open' ? BRAND.greenDark : BRAND.green,
-            color: '#fff',
-            textDecoration: 'none',
-            display: 'inline-flex',
-            alignItems: 'center',
-          }}
-        >
-          Open
-        </Link>
-
-        {/* Draft → Publish */}
+        {/* Draft → Publish — full-width, prominent yellow CTA */}
         {booklet.status === 'draft' && (
           <button
-            onClick={onPublish}
+            onClick={(e) => { e.stopPropagation(); onPublish(); }}
             disabled={isUpdating}
             onMouseEnter={() => setBtnHover('publish')}
             onMouseLeave={() => setBtnHover(null)}
             style={{
               ...BTN_BASE,
+              flex: 1,
+              fontSize: 16,
+              padding: '14px 28px',
+              borderRadius: 14,
               backgroundColor: btnHover === 'publish' ? BRAND.yellowDark : BRAND.yellow,
               color: BRAND.text,
               opacity: isUpdating ? 0.6 : 1,
               cursor: isUpdating ? 'not-allowed' : 'pointer',
+              boxShadow: btnHover === 'publish'
+                ? '0 6px 20px rgba(255,201,77,0.6), 0 3px 0 rgba(0,0,0,0.12)'
+                : '0 4px 16px rgba(255,201,77,0.45), 0 3px 0 rgba(0,0,0,0.10)',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+              letterSpacing: '0.2px',
             }}
           >
+            <Globe size={18} />
             Publish
           </button>
         )}
@@ -324,7 +436,7 @@ function BookletCard({
         {booklet.status === 'published' && (
           <>
             <button
-              onClick={onUnpublish}
+              onClick={(e) => { e.stopPropagation(); onUnpublish(); }}
               disabled={isUpdating}
               onMouseEnter={() => setBtnHover('unpublish')}
               onMouseLeave={() => setBtnHover(null)}
@@ -339,7 +451,7 @@ function BookletCard({
               Unpublish
             </button>
             <button
-              onClick={onDisable}
+              onClick={(e) => { e.stopPropagation(); onDisable(); }}
               disabled={isUpdating}
               onMouseEnter={() => setBtnHover('disable')}
               onMouseLeave={() => setBtnHover(null)}
@@ -359,7 +471,7 @@ function BookletCard({
         {/* Disabled → Re-enable */}
         {booklet.status === 'disabled' && (
           <button
-            onClick={onReenable}
+            onClick={(e) => { e.stopPropagation(); onReenable(); }}
             disabled={isUpdating}
             onMouseEnter={() => setBtnHover('reenable')}
             onMouseLeave={() => setBtnHover(null)}
@@ -375,23 +487,23 @@ function BookletCard({
           </button>
         )}
 
-        {/* Delete — always pushed to the right */}
+        {/* Delete — always pushed to the right, palette-aware so it stays visible on pink cards */}
         <button
-          onClick={onDelete}
+          onClick={(e) => { e.stopPropagation(); onDelete(); }}
           disabled={isUpdating}
           onMouseEnter={() => setBtnHover('delete')}
           onMouseLeave={() => setBtnHover(null)}
           aria-label={`Delete ${booklet.title}`}
           style={{
-            width: 34, height: 34,
-            borderRadius: 9,
-            backgroundColor: btnHover === 'delete' ? 'rgba(250,103,129,0.14)' : 'transparent',
+            width: 42, height: 42,
+            borderRadius: 12,
+            backgroundColor: btnHover === 'delete' ? palette.deleteBgHover : 'transparent',
             border: 'none',
             cursor: isUpdating ? 'not-allowed' : 'pointer',
             display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'center',
-            color: BRAND.pink,
+            color: palette.deleteIconColor,
             transition: 'background-color 0.16s',
             marginLeft: 'auto',
             padding: 0,
@@ -399,7 +511,7 @@ function BookletCard({
             fontFamily: 'inherit',
           }}
         >
-          <Trash2 size={14} />
+          <Trash2 size={16} />
         </button>
       </div>
     </div>
@@ -549,16 +661,21 @@ export function BookletListPage() {
             style={{
               display: 'inline-flex',
               alignItems: 'center',
-              gap: 4,
+              gap: 7,
+              padding: '7px 14px 7px 10px',
+              borderRadius: 10,
               fontSize: 13,
-              fontWeight: 600,
-              color: backLinkHover ? BRAND.text : BRAND.textMuted,
+              fontWeight: 700,
+              color: backLinkHover ? BRAND.text : BRAND.green,
+              backgroundColor: backLinkHover ? 'rgba(89,178,146,0.14)' : 'rgba(89,178,146,0.08)',
+              border: `1.5px solid ${backLinkHover ? 'rgba(89,178,146,0.4)' : 'rgba(89,178,146,0.2)'}`,
               textDecoration: 'none',
-              marginBottom: 18,
-              transition: 'color 0.15s',
+              marginBottom: 20,
+              transition: 'all 0.15s',
             }}
           >
-            ← Back to dashboard
+            <ArrowLeft size={14} />
+            Back to Dashboard
           </Link>
 
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
@@ -666,7 +783,6 @@ export function BookletListPage() {
                   gap: 8,
                   fontFamily: 'inherit',
                   flexShrink: 0,
-                  // Align with input bottom edge
                   marginBottom: 0,
                 }}
               >

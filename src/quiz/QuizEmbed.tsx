@@ -29,5 +29,5 @@ export function QuizEmbed({ embedCode }: QuizEmbedProps) {
     }
   }, [embedCode]);
 
-  return <div ref={ref} className="w-full p-4" />;
+  return <div ref={ref} />;
 }

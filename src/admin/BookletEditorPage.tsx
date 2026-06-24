@@ -16,6 +16,7 @@ import { useBookletDetailQuery, useUpdateBookletStatusMutation } from '@/hooks/u
 import {
   useAddPageMutation,
   useDeletePageMutation,
+  useReorderPagesMutation,
   useSetQuizPageMutation,
 } from '@/hooks/usePagesQuery';
 import { PageElementEditor } from '@/admin/editor/PageElementEditor';
@@ -71,6 +72,7 @@ export function BookletEditorPage() {
 
   const addPage = useAddPageMutation(bookletId ?? '');
   const deletePage = useDeletePageMutation(bookletId ?? '');
+  const reorderPages = useReorderPagesMutation(bookletId ?? '');
   const setQuizPage = useSetQuizPageMutation(bookletId ?? '');
 
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
@@ -241,6 +243,7 @@ export function BookletEditorPage() {
             selectedPageId={pageId}
             isAddingPage={addPage.isPending}
             onDeletePage={(page) => setDeletePageTarget(page)}
+            onReorderPages={(ids) => reorderPages.mutate(ids)}
             onAddPage={() => {
               addPage.mutate(undefined, {
                 onSuccess: (newPage) => {

@@ -21,11 +21,13 @@ export function BackgroundImageElement({ element }: Props) {
     <img
       src={publicUrl}
       alt=""
+      draggable={false}
       style={{
         width: '100%',
         height: '100%',
         objectFit: element.props.fit,
         display: 'block',
+        pointerEvents: 'none',
       }}
     />
   );

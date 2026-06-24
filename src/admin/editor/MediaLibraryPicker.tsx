@@ -1,6 +1,6 @@
 import { useRef, useState, type ChangeEvent } from 'react';
 import { Link } from 'react-router-dom';
-import { CheckCircle, ImageIcon, Trash2 } from 'lucide-react';
+import { ArrowLeft, CheckCircle, ImageIcon, Trash2 } from 'lucide-react';
 import { Spinner } from '@/components/Spinner';
 import { supabase } from '@/lib/supabaseClient';
 import { MEDIA_STORAGE_BUCKET, MEDIA_ACCEPTED_FILE_TYPES } from '@/config/media';
@@ -428,16 +428,21 @@ export function MediaLibraryPicker({ onSelect }: MediaLibraryPickerProps = {}) {
             style={{
               display: 'inline-flex',
               alignItems: 'center',
-              gap: 4,
+              gap: 7,
+              padding: '7px 14px 7px 10px',
+              borderRadius: 10,
               fontSize: 13,
-              fontWeight: 600,
-              color: backLinkHover ? BRAND.text : BRAND.textMuted,
+              fontWeight: 700,
+              color: backLinkHover ? BRAND.text : BRAND.green,
+              backgroundColor: backLinkHover ? 'rgba(89,178,146,0.14)' : 'rgba(89,178,146,0.08)',
+              border: `1.5px solid ${backLinkHover ? 'rgba(89,178,146,0.4)' : 'rgba(89,178,146,0.2)'}`,
               textDecoration: 'none',
-              marginBottom: 18,
-              transition: 'color 0.15s',
+              marginBottom: 20,
+              transition: 'all 0.15s',
             }}
           >
-            ← Back to dashboard
+            <ArrowLeft size={14} />
+            Back to Dashboard
           </Link>
 
           <div style={{

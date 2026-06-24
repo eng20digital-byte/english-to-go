@@ -288,9 +288,12 @@ export function EditorOverlay({
   return (
     <div
       onPointerDown={handleBackgroundPointerDown}
-      style={{ position: 'absolute', inset: 0 }}
+      style={{ position: 'absolute', inset: 0, isolation: 'isolate' }}
     >
-      {/* Transparent hit-areas for each element (drag to move) */}
+      {/* Transparent hit-areas for each element (drag to move).
+          zIndex matches the element's visual z_index so the frontmost
+          element's hit-area is always on top — guaranteeing the full
+          bounds of every text box are clickable regardless of overlap. */}
       {elements.map((element) => (
         <div
           key={element.id}
@@ -317,6 +320,7 @@ export function EditorOverlay({
             width: toScreen(element.w),
             height: toScreen(element.h),
             cursor: element.id === textEditingId ? 'default' : 'move',
+            zIndex: element.z_index,
           }}
         />
       ))}
