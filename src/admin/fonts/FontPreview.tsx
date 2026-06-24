@@ -43,14 +43,23 @@ export function FontPreview({ font }: FontPreviewProps) {
   }, [familyName, font.storage_path]);
 
   if (status === 'error') {
-    return <p className="text-sm text-destructive">Failed to load font file.</p>;
+    return <p style={{ margin: 0, fontSize: 13, color: 'var(--destructive)' }}>Failed to load font file.</p>;
   }
 
   return (
     <p
       dir="rtl"
       lang="he"
-      style={{ fontFamily: status === 'loaded' ? familyName : undefined, fontSize: '1.25rem' }}
+      style={{
+        fontFamily: status === 'loaded' ? familyName : undefined,
+        fontSize: '2.5rem',
+        margin: 0,
+        textAlign: 'center',
+        lineHeight: 1.3,
+        // Fade in when the real font finishes loading — purely cosmetic
+        opacity: status === 'loading' ? 0.35 : 1,
+        transition: 'opacity 0.4s ease',
+      }}
     >
       {FONT_PREVIEW_TEXT}
     </p>

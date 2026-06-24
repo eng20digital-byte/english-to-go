@@ -24,9 +24,12 @@ export type EditorAction =
   | { type: 'SET_ELEMENTS'; elements: PageElement[] }
   | { type: 'ADD_ELEMENT'; element: PageElement }
   | { type: 'DELETE_ELEMENT'; id: string }
+  | { type: 'DUPLICATE_ELEMENT'; id: string; newId: string }
   | { type: 'UPDATE_ELEMENT'; id: string; changes: GeometryChanges }
   | { type: 'UPDATE_TEXT_PROPS'; id: string; changes: Partial<TextProps> }
   | { type: 'UPDATE_BACKGROUND_IMAGE_PROPS'; id: string; changes: Partial<BackgroundImageProps> }
+  | { type: 'BRING_FORWARD'; id: string }
+  | { type: 'SEND_BACKWARD'; id: string }
   | { type: 'UNDO' }
   | { type: 'REDO' };
 
@@ -62,6 +65,25 @@ function reducer(state: EditorState, action: EditorAction): EditorState {
         future: [],
       };
 
+    case 'DUPLICATE_ELEMENT': {
+      const source = state.elements.find((element) => element.id === action.id);
+      if (!source) return state;
+      const maxZ = state.elements.reduce((max, el) => Math.max(max, el.z_index), -1);
+      const copy: PageElement = {
+        ...source,
+        id: action.newId,
+        x: source.x + 20,
+        y: source.y + 20,
+        z_index: maxZ + 1,
+      } as PageElement;
+      return {
+        ...state,
+        elements: [...state.elements, copy],
+        past: pushHistory(state.past, state.elements),
+        future: [],
+      };
+    }
+
     case 'UPDATE_ELEMENT':
       return {
         ...state,
@@ -96,6 +118,45 @@ function reducer(state: EditorState, action: EditorAction): EditorState {
         future: [],
       };
 
+    case 'BRING_FORWARD': {
+      const el = state.elements.find((e) => e.id === action.id);
+      if (!el) return state;
+      // Find the element with the next-higher z_index (if any) and swap.
+      const higher = state.elements
+        .filter((e) => e.z_index > el.z_index)
+        .sort((a, b) => a.z_index - b.z_index)[0];
+      if (!higher) return state;
+      return {
+        ...state,
+        elements: state.elements.map((e) => {
+          if (e.id === el.id) return { ...e, z_index: higher.z_index } as PageElement;
+          if (e.id === higher.id) return { ...e, z_index: el.z_index } as PageElement;
+          return e;
+        }),
+        past: pushHistory(state.past, state.elements),
+        future: [],
+      };
+    }
+
+    case 'SEND_BACKWARD': {
+      const el = state.elements.find((e) => e.id === action.id);
+      if (!el) return state;
+      const lower = state.elements
+        .filter((e) => e.z_index < el.z_index)
+        .sort((a, b) => b.z_index - a.z_index)[0];
+      if (!lower) return state;
+      return {
+        ...state,
+        elements: state.elements.map((e) => {
+          if (e.id === el.id) return { ...e, z_index: lower.z_index } as PageElement;
+          if (e.id === lower.id) return { ...e, z_index: el.z_index } as PageElement;
+          return e;
+        }),
+        past: pushHistory(state.past, state.elements),
+        future: [],
+      };
+    }
+
     case 'UNDO': {
       if (state.past.length === 0) return state;
       const previous = state.past[state.past.length - 1];
@@ -123,9 +184,10 @@ function reducer(state: EditorState, action: EditorAction): EditorState {
   }
 }
 
-// Owns the page's element array for the editor. Selection is deliberately
-// NOT part of this state — it lives as separate useState in the component
-// that owns this reducer, so selecting/deselecting never creates an undo step.
+// Owns the page's element array for the editor. Selection and textEditingId
+// are deliberately NOT part of this state — they live as separate useState in
+// the component that owns this reducer, so those UI interactions never create
+// undo steps.
 export function useEditorReducer() {
   return useReducer(reducer, initialState);
 }

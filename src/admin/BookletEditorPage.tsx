@@ -1,115 +1,60 @@
+import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { ArrowLeft, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Spinner } from '@/components/Spinner';
 import { StatusBadge } from '@/components/StatusBadge';
-import { useBookletDetailQuery } from '@/hooks/useBookletQuery';
+import { useBookletDetailQuery, useUpdateBookletStatusMutation } from '@/hooks/useBookletQuery';
 import {
   useAddPageMutation,
   useDeletePageMutation,
-  useReorderPagesMutation,
   useSetQuizPageMutation,
 } from '@/hooks/usePagesQuery';
 import { PageElementEditor } from '@/admin/editor/PageElementEditor';
+import { PagesSidebar } from '@/admin/editor/PagesSidebar';
 import { QuizEmbedEditor } from '@/admin/editor/QuizEmbedEditor';
+import type { SaveStatus } from '@/admin/editor/useAutosave';
 import type { PageRow } from '@/types/database';
 
-interface PageRowItemProps {
-  page: PageRow;
-  index: number;
-  pageCount: number;
-  isLast: boolean;
-  isSelected: boolean;
-  bookletId: string;
-  onMoveUp: () => void;
-  onMoveDown: () => void;
-  onDelete: () => void;
-  onToggleQuizPage: (next: boolean) => void;
-  isReordering: boolean;
-}
-
-function PageRowItem({
-  page,
-  index,
-  pageCount,
-  isLast,
-  isSelected,
-  bookletId,
-  onMoveUp,
-  onMoveDown,
-  onDelete,
-  onToggleQuizPage,
-  isReordering,
-}: PageRowItemProps) {
-  return (
-    <li
-      className={`flex flex-wrap items-center gap-3 rounded-md border p-3 ${
-        isSelected ? 'border-primary' : 'border-input'
-      }`}
-    >
-      <div className="flex flex-col gap-1">
-        <Button
-          type="button"
-          variant="outline"
-          size="icon"
-          disabled={index === 0 || isReordering}
-          onClick={onMoveUp}
-          aria-label="Move page up"
-        >
-          ↑
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          size="icon"
-          disabled={index === pageCount - 1 || isReordering}
-          onClick={onMoveDown}
-          aria-label="Move page down"
-        >
-          ↓
-        </Button>
-      </div>
-
-      <Link
-        to={`/admin/booklets/${bookletId}/pages/${page.id}`}
-        className="flex-1 text-sm font-medium hover:underline"
-      >
-        Page {index + 1}
-        {page.is_quiz_page && (
-          <span className="ml-2 text-xs text-muted-foreground">(quiz page)</span>
-        )}
-      </Link>
-
-      {isLast && (
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={page.is_quiz_page}
-            onChange={(event) => onToggleQuizPage(event.target.checked)}
-          />
-          Quiz page
-        </label>
-      )}
-
-      <Button type="button" variant="destructive" size="sm" onClick={onDelete}>
-        Delete
-      </Button>
-    </li>
-  );
+function SaveIndicator({ status }: { status: SaveStatus }) {
+  if (status === 'idle') return null;
+  if (status === 'saving')
+    return (
+      <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+        <Spinner size="sm" />
+        Saving…
+      </span>
+    );
+  if (status === 'saved')
+    return <span className="text-xs text-muted-foreground">Saved</span>;
+  return <span className="text-xs text-destructive">Save failed</span>;
 }
 
 export function BookletEditorPage() {
   const { bookletId, pageId } = useParams<{ bookletId: string; pageId?: string }>();
   const navigate = useNavigate();
   const { data: booklet, isLoading } = useBookletDetailQuery(bookletId);
+  const updateStatus = useUpdateBookletStatusMutation();
 
   const addPage = useAddPageMutation(bookletId ?? '');
   const deletePage = useDeletePageMutation(bookletId ?? '');
-  const reorderPages = useReorderPagesMutation(bookletId ?? '');
   const setQuizPage = useSetQuizPageMutation(bookletId ?? '');
+
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
+  const [deletePageTarget, setDeletePageTarget] = useState<PageRow | null>(null);
+  const [showQuizEditor, setShowQuizEditor] = useState(false);
 
   if (isLoading) {
     return (
-      <div id="admin-root" className="flex min-h-screen items-center justify-center">
+      <div id="admin-root" className="flex min-h-screen items-center justify-center bg-background">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <Spinner />
           <span>Loading booklet…</span>
@@ -120,79 +65,172 @@ export function BookletEditorPage() {
 
   if (!booklet) {
     return (
-      <div id="admin-root" className="p-8">
-        <Link to="/admin/booklets" className="text-sm text-muted-foreground hover:underline">
-          ← Back to booklets
-        </Link>
-        <p className="mt-4">This booklet could not be found.</p>
+      <div id="admin-root" className="flex min-h-screen flex-col items-center justify-center gap-4 bg-background">
+        <BookOpen className="h-10 w-10 text-muted-foreground/40" />
+        <p className="text-muted-foreground">This booklet could not be found.</p>
+        <Button asChild variant="outline" size="sm">
+          <Link to="/admin/booklets">← Back to booklets</Link>
+        </Button>
       </div>
     );
   }
 
   const pages = booklet.pages;
-  const lastIndex = pages.length - 1;
 
-  function movePage(fromIndex: number, toIndex: number) {
-    const reordered = [...pages];
-    const [moved] = reordered.splice(fromIndex, 1);
-    reordered.splice(toIndex, 0, moved);
-    reorderPages.mutate(reordered.map((page) => page.id));
-  }
-
-  async function handleDeletePage(page: PageRow, index: number) {
-    if (!window.confirm(`Delete page ${index + 1}? This cannot be undone.`)) {
-      return;
-    }
+  async function handleDeletePage(page: PageRow) {
     await deletePage.mutateAsync(page.id);
     if (pageId === page.id) {
       navigate(`/admin/booklets/${bookletId}`);
     }
+    setDeletePageTarget(null);
   }
 
+  const lastPage = pages[pages.length - 1];
+
   return (
-    <div id="admin-root" className="p-8">
-      <Link to="/admin/booklets" className="text-sm text-muted-foreground hover:underline">
-        ← Back to booklets
-      </Link>
-      <div className="mt-2 mb-6 flex flex-wrap items-center gap-3">
-        <h1 className="text-xl font-semibold">{booklet.title}</h1>
-        <StatusBadge status={booklet.status} />
-      </div>
-
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Pages</h2>
-        <Button type="button" disabled={addPage.isPending} onClick={() => addPage.mutate()}>
-          {addPage.isPending ? 'Adding…' : 'Add page'}
+    <div
+      id="admin-root"
+      className="flex h-screen flex-col overflow-hidden bg-background"
+    >
+      {/* ── Top header bar ────────────────────────────────────────────────── */}
+      <header className="flex shrink-0 items-center gap-3 border-b border-border bg-card px-4 py-2.5 shadow-[var(--shadow-card)]">
+        <Button asChild variant="ghost" size="icon" className="h-8 w-8 shrink-0">
+          <Link to="/admin/booklets" aria-label="Back to booklets">
+            <ArrowLeft className="h-4 w-4" />
+          </Link>
         </Button>
+
+        <div className="flex min-w-0 flex-1 items-center gap-2">
+          <h1 className="truncate text-sm font-semibold">{booklet.title}</h1>
+          <StatusBadge status={booklet.status} />
+        </div>
+
+        <div className="flex shrink-0 items-center gap-2">
+          <SaveIndicator status={saveStatus} />
+
+          {/* Publish / unpublish toggle */}
+          {booklet.status === 'draft' && (
+            <Button
+              size="sm"
+              disabled={updateStatus.isPending}
+              onClick={() => updateStatus.mutate({ id: booklet.id, status: 'published' })}
+            >
+              Publish
+            </Button>
+          )}
+          {booklet.status === 'published' && (
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={updateStatus.isPending}
+              onClick={() => updateStatus.mutate({ id: booklet.id, status: 'draft' })}
+            >
+              Unpublish
+            </Button>
+          )}
+
+          {/* Quiz embed */}
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => setShowQuizEditor(true)}
+          >
+            Quiz
+          </Button>
+        </div>
+      </header>
+
+      {/* ── 3-column body ─────────────────────────────────────────────────── */}
+      <div className="flex min-h-0 flex-1 overflow-hidden">
+        {/* Left: page thumbnails */}
+        <PagesSidebar
+          bookletId={booklet.id}
+          pages={pages}
+          selectedPageId={pageId}
+          isAddingPage={addPage.isPending}
+          onDeletePage={(page) => setDeletePageTarget(page)}
+          onAddPage={() => {
+            addPage.mutate(undefined, {
+              onSuccess: (newPage) => {
+                navigate(`/admin/booklets/${bookletId}/pages/${newPage.id}`);
+              },
+            });
+          }}
+        />
+
+        {/* Center + right: canvas + inspector (inside PageElementEditor) */}
+        <div className="min-w-0 flex-1 overflow-hidden">
+          {!pageId ? (
+            <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
+              <div className="flex h-14 w-14 items-center justify-center rounded-3xl bg-primary/10">
+                <BookOpen className="h-6 w-6 text-primary" />
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Select a page from the sidebar to start editing.
+              </p>
+            </div>
+          ) : (
+            // Keyed by pageId so switching pages remounts the editor — a fresh
+            // reducer/selection/undo-stack per page rather than one that's been
+            // reset out from under a still-mounted component.
+            <PageElementEditor
+              key={pageId}
+              pageId={pageId}
+              onSaveStatusChange={setSaveStatus}
+            />
+          )}
+        </div>
       </div>
 
-      {pages.length === 0 && <p className="text-muted-foreground">No pages yet.</p>}
+      {/* Quiz embed dialog */}
+      <Dialog open={showQuizEditor} onOpenChange={setShowQuizEditor}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Quiz Embed</DialogTitle>
+          </DialogHeader>
+          <QuizEmbedEditor booklet={booklet} />
+          {lastPage && (
+            <div className="mt-2 border-t border-border pt-4">
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={lastPage.is_quiz_page}
+                  onChange={(e) =>
+                    setQuizPage.mutate({ pageId: lastPage.id, isQuizPage: e.target.checked })
+                  }
+                />
+                <span>Show quiz on last page</span>
+              </label>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
-      <ul className="flex flex-col gap-2">
-        {pages.map((page, index) => (
-          <PageRowItem
-            key={page.id}
-            page={page}
-            index={index}
-            pageCount={pages.length}
-            isLast={index === lastIndex}
-            isSelected={pageId === page.id}
-            bookletId={booklet.id}
-            isReordering={reorderPages.isPending}
-            onMoveUp={() => movePage(index, index - 1)}
-            onMoveDown={() => movePage(index, index + 1)}
-            onDelete={() => handleDeletePage(page, index)}
-            onToggleQuizPage={(next) => setQuizPage.mutate({ pageId: page.id, isQuizPage: next })}
-          />
-        ))}
-      </ul>
-
-      <QuizEmbedEditor booklet={booklet} />
-
-      {/* Keyed by pageId so switching pages remounts the editor — a fresh
-          reducer/selection/undo-stack per page rather than one that's been
-          reset out from under a still-mounted component. */}
-      {pageId && <PageElementEditor key={pageId} pageId={pageId} />}
+      {/* Delete page confirmation dialog */}
+      <Dialog
+        open={!!deletePageTarget}
+        onOpenChange={(open) => !open && setDeletePageTarget(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete page?</DialogTitle>
+            <DialogDescription>
+              This permanently removes the page and all its elements. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeletePageTarget(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => deletePageTarget && handleDeletePage(deletePageTarget)}
+            >
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

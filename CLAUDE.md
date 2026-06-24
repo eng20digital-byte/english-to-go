@@ -169,6 +169,7 @@ src/
   App.tsx                       -- router: /admin/*, /admin/login, /b/:token
   config/                       -- canvas size, debounce timings, defaults, sandbox tokens, etc.
     reader.ts                    -- public reader-only constants: page-flip duration/easing/perspective, swipe thresholds, max canvas width
+    theme.ts                     -- brand palette (BRAND object); authoritative source for CSS custom properties in index.css and shadcn tokens
   lib/
     supabaseClient.ts
     queryClient.ts
@@ -197,7 +198,11 @@ src/
     editor/
       EditorCanvas.tsx
       EditorOverlay.tsx
+      EditorToolbar.tsx
       ElementInspector.tsx
+      PageElementEditor.tsx
+      PageThumbnail.tsx          -- miniature canvas preview used in PagesSidebar
+      PagesSidebar.tsx           -- left panel: page list, add/delete, navigate
       useEditorReducer.ts        -- element tree + undo/redo
       useAutosave.ts
       MediaLibraryPicker.tsx
@@ -211,6 +216,7 @@ src/
     PageFlip.tsx                   -- booklet-agnostic 3D page-turn (CSS-keyframe two-layer flip, swipe, keyboard, reduced-motion)
     PageNav.tsx
   components/                    -- generic shared UI
+    ui/                          -- shadcn/ui generated components (badge, card, dialog, dropdown-menu, separator, slider, tooltip, …)
   hooks/
     useBookletQuery.ts            -- React Query hooks
     useFontsQuery.ts               -- fonts list + register-font mutation

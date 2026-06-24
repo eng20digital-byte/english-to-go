@@ -22,11 +22,20 @@ import { EditorCanvas } from './EditorCanvas';
 import { EditorToolbar } from './EditorToolbar';
 import { ElementInspector } from './ElementInspector';
 import { MediaLibraryPicker } from './MediaLibraryPicker';
+import { Spinner } from '@/components/Spinner';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import type { PageElement, TextProps, BackgroundImageProps } from '@/types/elements';
 import type { MediaAssetRow } from '@/types/database';
 
 interface PageElementEditorProps {
   pageId: string;
+  // Exposed so BookletEditorPage can access save status for the header bar.
+  onSaveStatusChange?: (status: import('./useAutosave').SaveStatus) => void;
 }
 
 function nextZIndex(elements: PageElement[]): number {
@@ -38,21 +47,19 @@ function lowestZIndex(elements: PageElement[]): number {
 }
 
 // Top-level page editor: loads a page's elements once, owns the undo/redo
-// reducer and (separately) selection state, and hosts the add/delete
-// toolbar, the shared canvas, the style inspector, and autosave.
-export function PageElementEditor({ pageId }: PageElementEditorProps) {
+// reducer and (separately) selection + textEditingId UI state, and hosts the
+// toolbar, shared canvas, style inspector, and autosave.
+export function PageElementEditor({ pageId, onSaveStatusChange }: PageElementEditorProps) {
   const { data: loadedElements, isLoading, isError } = usePageElementsQuery(pageId);
   const { data: fonts } = useFontsQuery();
   const [state, dispatch] = useEditorReducer();
   const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
+  const [textEditingId, setTextEditingId] = useState<string | null>(null);
   const [showMediaPicker, setShowMediaPicker] = useState(false);
   const hasDispatchedLoadRef = useRef(false);
 
   // Seed the reducer exactly once per mounted page — a later background
   // refetch (e.g. window refocus) must not silently wipe in-memory edits.
-  // `state.loaded` (set by the SET_ELEMENTS reducer case, not a separate
-  // setState here) is what downstream code reads, so this effect only ever
-  // dispatches — it never calls setState directly.
   useEffect(() => {
     if (loadedElements && !hasDispatchedLoadRef.current) {
       hasDispatchedLoadRef.current = true;
@@ -60,17 +67,23 @@ export function PageElementEditor({ pageId }: PageElementEditorProps) {
     }
   }, [loadedElements, dispatch]);
 
-  // Persistence (M9): debounced save of the element array, only once the
-  // reducer has been seeded — see useAutosave's `enabled` doc comment.
   const { status: saveStatus, saveNow } = useAutosave(pageId, state.elements, state.loaded);
 
+  useEffect(() => {
+    onSaveStatusChange?.(saveStatus);
+  }, [saveStatus, onSaveStatusChange]);
+
   // If undo/redo (or delete) removes the selected element, derive selection
-  // from the current element array each render rather than syncing
-  // `selectedElementId` back to null via an effect — `effectiveSelectedId`
-  // is what's actually passed down, so a stale id never reaches the canvas.
+  // from the current element array each render rather than syncing back via effect.
   const effectiveSelectedId =
     selectedElementId && state.elements.some((element) => element.id === selectedElementId)
       ? selectedElementId
+      : null;
+
+  // Same pattern for textEditingId — clear if element no longer exists.
+  const effectiveTextEditingId =
+    textEditingId && state.elements.some((e) => e.id === textEditingId)
+      ? textEditingId
       : null;
 
   function resolveDefaultFontId(): string {
@@ -126,12 +139,6 @@ export function PageElementEditor({ pageId }: PageElementEditorProps) {
     setShowMediaPicker(false);
   }
 
-  function handleDeleteSelected() {
-    if (!effectiveSelectedId) return;
-    dispatch({ type: 'DELETE_ELEMENT', id: effectiveSelectedId });
-    setSelectedElementId(null);
-  }
-
   function handleUpdateTextProps(id: string, changes: Partial<TextProps>) {
     dispatch({ type: 'UPDATE_TEXT_PROPS', id, changes });
   }
@@ -141,19 +148,32 @@ export function PageElementEditor({ pageId }: PageElementEditorProps) {
   }
 
   if (isLoading) {
-    return <p className="text-muted-foreground">Loading page…</p>;
+    return (
+      <div className="flex h-full items-center justify-center">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Spinner />
+          <span>Loading page…</span>
+        </div>
+      </div>
+    );
   }
   if (isError) {
-    return <p className="text-destructive">Could not load this page's elements.</p>;
+    return (
+      <div className="flex h-full items-center justify-center">
+        <p className="text-sm text-destructive">Could not load this page's elements.</p>
+      </div>
+    );
   }
 
+  const selectedElement =
+    state.elements.find((element) => element.id === effectiveSelectedId) ?? null;
+
   return (
-    <div className="mt-8">
+    <div className="flex h-full flex-col overflow-hidden">
+      {/* Floating pill toolbar */}
       <EditorToolbar
         onAddText={handleAddText}
         onAddBackgroundImage={() => setShowMediaPicker(true)}
-        onDeleteSelected={handleDeleteSelected}
-        hasSelection={!!effectiveSelectedId}
         onUndo={() => dispatch({ type: 'UNDO' })}
         canUndo={state.past.length > 0}
         onRedo={() => dispatch({ type: 'REDO' })}
@@ -162,44 +182,59 @@ export function PageElementEditor({ pageId }: PageElementEditorProps) {
         onSaveNow={() => void saveNow()}
       />
 
-      <div className="flex flex-wrap items-start gap-4">
-        <EditorCanvas
-          pageId={pageId}
-          elements={state.elements}
-          selectedElementId={effectiveSelectedId}
-          onSelectElement={setSelectedElementId}
-          onCommitGeometry={(id, changes) => dispatch({ type: 'UPDATE_ELEMENT', id, changes })}
-        />
+      {/* Canvas + inspector */}
+      <div className="flex min-h-0 flex-1">
+        {/* Canvas area — flex-1, scrollable */}
+        <div className="flex flex-1 items-start justify-center overflow-y-auto bg-background p-6 pt-4">
+          <EditorCanvas
+            pageId={pageId}
+            elements={state.elements}
+            selectedElementId={effectiveSelectedId}
+            textEditingId={effectiveTextEditingId}
+            onSelectElement={setSelectedElementId}
+            onSetTextEditing={(id) => {
+              setSelectedElementId(id);
+              setTextEditingId(id);
+            }}
+            onClearTextEditing={() => setTextEditingId(null)}
+            onTextChange={(id, content) =>
+              dispatch({ type: 'UPDATE_TEXT_PROPS', id, changes: { content } })
+            }
+            onCommitGeometry={(id, changes) =>
+              dispatch({ type: 'UPDATE_ELEMENT', id, changes })
+            }
+            onDuplicate={(id) =>
+              dispatch({ type: 'DUPLICATE_ELEMENT', id, newId: crypto.randomUUID() })
+            }
+            onDelete={(id) => {
+              dispatch({ type: 'DELETE_ELEMENT', id });
+              setSelectedElementId(null);
+              setTextEditingId(null);
+            }}
+            onBringForward={(id) => dispatch({ type: 'BRING_FORWARD', id })}
+            onSendBackward={(id) => dispatch({ type: 'SEND_BACKWARD', id })}
+          />
+        </div>
 
-        <ElementInspector
-          element={state.elements.find((element) => element.id === effectiveSelectedId) ?? null}
-          onUpdateTextProps={handleUpdateTextProps}
-          onUpdateBackgroundImageProps={handleUpdateBackgroundImageProps}
-        />
+        {/* Right inspector panel */}
+        <aside className="w-[280px] shrink-0 overflow-hidden border-l border-border bg-card">
+          <ElementInspector
+            element={selectedElement}
+            onUpdateTextProps={handleUpdateTextProps}
+            onUpdateBackgroundImageProps={handleUpdateBackgroundImageProps}
+          />
+        </aside>
       </div>
 
-      {showMediaPicker && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-          onClick={(event) => {
-            if (event.target === event.currentTarget) setShowMediaPicker(false);
-          }}
-        >
-          <div className="max-h-[80vh] w-full max-w-2xl overflow-y-auto rounded-md bg-background p-6">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-lg font-semibold">Choose a background image</h2>
-              <button
-                type="button"
-                onClick={() => setShowMediaPicker(false)}
-                className="text-sm text-muted-foreground hover:underline"
-              >
-                Close
-              </button>
-            </div>
-            <MediaLibraryPicker onSelect={handleSelectBackgroundImage} />
-          </div>
-        </div>
-      )}
+      {/* Media picker dialog */}
+      <Dialog open={showMediaPicker} onOpenChange={setShowMediaPicker}>
+        <DialogContent className="max-h-[80vh] max-w-2xl overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Choose a background image</DialogTitle>
+          </DialogHeader>
+          <MediaLibraryPicker onSelect={handleSelectBackgroundImage} />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

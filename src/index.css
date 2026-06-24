@@ -26,84 +26,89 @@ body {
 }
 body {
   font:
-    18px/145% system-ui,
+    16px/150% system-ui,
     'Segoe UI',
     Roboto,
     sans-serif;
   color-scheme: light;
 }
 
-/* shadcn/ui theme tokens (style: new-york, base color: neutral) — standard
-   generated values from shadcn's own preset, not hand-picked. Declared
-   globally as CSS variables (inert outside of Tailwind utility classes,
-   which are themselves scoped to #admin-root via tailwind.config.js). */
+/* ─── Design Tokens ──────────────────────────────────────────────────────────
+   Brand palette: green #59B292 / yellow #FFC94D / cream #FAE7CB / pink #FA6781.
+   Authoritative hex values live in src/config/theme.ts (BRAND); the HSL
+   equivalents below are only here so shadcn components that read CSS custom
+   properties automatically inherit the correct colors. Keep in sync with
+   src/config/theme.ts whenever the palette changes. */
 :root {
-  --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
-}
+  --radius: 0.875rem;
 
-.dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.439 0 0);
+  /* ── Raw brand hex — referenced by custom components via var(--brand-*) */
+  --brand-green:      #59B292;
+  --brand-yellow:     #FFC94D;
+  --brand-cream:      #FAE7CB;
+  --brand-pink:       #FA6781;
+  --brand-text:       #1a1a1a;
+
+  /* ── shadcn semantic tokens ─────────────────────────────────────────────
+     Cream page background — admin content areas feel like warm paper */
+  --background: hsl(36 87% 89%);       /* #FAE7CB */
+  --foreground: hsl(20 10% 10%);
+
+  /* Cards sit slightly lighter than the cream page background */
+  --card: hsl(35 60% 94%);
+  --card-foreground: hsl(20 10% 10%);
+
+  --popover: hsl(35 60% 94%);
+  --popover-foreground: hsl(20 10% 10%);
+
+  /* Yellow primary — CTA buttons; dark foreground because yellow is light */
+  --primary: hsl(44 100% 65%);         /* #FFC94D */
+  --primary-foreground: hsl(20 10% 10%);
+
+  /* Muted warm tan for secondary / ghost actions */
+  --secondary: hsl(36 30% 82%);
+  --secondary-foreground: hsl(20 10% 20%);
+
+  /* Light cream muted surfaces */
+  --muted: hsl(36 40% 93%);
+  --muted-foreground: hsl(20 8% 45%);
+
+  /* Green accent — used for focus rings, hover highlights, badges */
+  --accent: hsl(158 37% 52%);          /* #59B292 */
+  --accent-foreground: hsl(0 0% 100%);
+
+  /* Pink destructive — errors, delete confirmations */
+  --destructive: hsl(350 94% 69%);     /* #FA6781 */
+
+  /* Warm tan borders */
+  --border: hsl(36 30% 80%);
+  --input: hsl(36 30% 80%);
+
+  /* Green focus ring */
+  --ring: hsl(158 37% 52%);            /* #59B292 */
+
+  /* Chart colors */
+  --chart-1: hsl(44 100% 65%);         /* yellow */
+  --chart-2: hsl(158 37% 52%);         /* green */
+  --chart-3: hsl(350 94% 69%);         /* pink */
+  --chart-4: hsl(36 60% 75%);          /* deeper cream/tan */
+  --chart-5: hsl(44 70% 45%);          /* dark amber */
+
+  /* Sidebar — green background (matches the admin nav when added) */
+  --sidebar: hsl(158 37% 52%);         /* #59B292 */
+  --sidebar-foreground: hsl(0 0% 100%);
+  --sidebar-primary: hsl(44 100% 65%); /* yellow */
+  --sidebar-primary-foreground: hsl(20 10% 10%);
+  --sidebar-accent: hsl(158 37% 62%);  /* lighter green */
+  --sidebar-accent-foreground: hsl(0 0% 100%);
+  --sidebar-border: hsl(158 30% 40%);  /* darker green */
+  --sidebar-ring: hsl(44 100% 65%);    /* yellow */
+
+  /* ── Shadow tokens ──────────────────────────────────────────────────────
+     Green-tinted shadows — cards read like paper sheets on a green desk. */
+  --shadow-card:   0 2px 8px hsl(158 30% 30% / 0.14), 0 0 1px hsl(158 30% 25% / 0.1);
+  --shadow-float:  0 8px 24px hsl(158 30% 25% / 0.18), 0 2px 6px hsl(158 30% 30% / 0.1);
+  --shadow-raised: 0 4px 16px hsl(158 30% 28% / 0.15), 0 1px 4px hsl(158 30% 35% / 0.1);
 }
 
 @theme inline {
@@ -229,4 +234,11 @@ body {
   50% {
     opacity: var(--page-flip-shadow-max, 0.35);
   }
+}
+
+/* Skeleton loading pulse — used by MediaLibraryPicker's skeleton cards.
+   Must be global (keyframes can't be scoped to a selector). */
+@keyframes sk-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
 }

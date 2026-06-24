@@ -11,8 +11,16 @@ interface EditorCanvasProps {
   pageId: string;
   elements: PageElement[];
   selectedElementId: string | null;
+  textEditingId: string | null;
   onSelectElement: (id: string | null) => void;
+  onSetTextEditing: (id: string) => void;
+  onClearTextEditing: () => void;
+  onTextChange: (id: string, content: string) => void;
   onCommitGeometry: (id: string, changes: GeometryChanges) => void;
+  onDuplicate: (id: string) => void;
+  onDelete: (id: string) => void;
+  onBringForward: (id: string) => void;
+  onSendBackward: (id: string) => void;
 }
 
 // Renders the same shared `PageCanvas` the reader uses (renderMode="editor")
@@ -23,8 +31,16 @@ export function EditorCanvas({
   pageId,
   elements,
   selectedElementId,
+  textEditingId,
   onSelectElement,
+  onSetTextEditing,
+  onClearTextEditing,
+  onTextChange,
   onCommitGeometry,
+  onDuplicate,
+  onDelete,
+  onBringForward,
+  onSendBackward,
 }: EditorCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const scale = useCanvasScale(containerRef);
@@ -59,6 +75,8 @@ export function EditorCanvas({
         aspectRatio: `${CANVAS_WIDTH} / ${CANVAS_HEIGHT}`,
         overflow: 'hidden',
         touchAction: 'none',
+        borderRadius: 12,
+        boxShadow: '0 8px 40px hsl(25 30% 55% / 0.25), 0 0 0 1px hsl(35 20% 88%)',
       }}
     >
       <PageCanvas page={page} scale={scale} renderMode="editor" />
@@ -66,9 +84,17 @@ export function EditorCanvas({
         elements={displayElements}
         scale={scale}
         selectedElementId={selectedElementId}
+        textEditingId={textEditingId}
         onSelectElement={onSelectElement}
+        onSetTextEditing={onSetTextEditing}
+        onClearTextEditing={onClearTextEditing}
+        onTextChange={onTextChange}
         onLiveChange={setLiveOverride}
         onCommit={handleCommit}
+        onDuplicate={onDuplicate}
+        onDelete={onDelete}
+        onBringForward={onBringForward}
+        onSendBackward={onSendBackward}
       />
     </div>
   );

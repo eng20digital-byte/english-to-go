@@ -10,6 +10,10 @@ import { CANVAS_WIDTH, CANVAS_HEIGHT } from '@/config/canvas';
 import { PageFlip } from './PageFlip';
 import { PageNav } from './PageNav';
 
+// Warm cream → peach → lavender gradient used on every reader background.
+const READER_BG =
+  'bg-gradient-to-b from-[hsl(38_55%_95%)] via-[hsl(22_60%_92%)] to-[hsl(260_40%_92%)]';
+
 // Booklet-shaped skeleton shown while data is fetching — mirrors the actual
 // rendered layout so the page feels stable rather than jumping on load.
 // Lives under #reader-root (see CLAUDE.md "UI component library — scope
@@ -18,36 +22,40 @@ function LoadingState() {
   return (
     <div
       id="reader-root"
-      className="flex min-h-screen flex-col items-center justify-center gap-6 bg-gradient-to-b from-neutral-100 to-neutral-200 p-4 py-10 sm:p-8"
+      className={`flex min-h-screen flex-col items-center justify-center gap-6 ${READER_BG} p-4 py-10 sm:p-8`}
     >
-      {/* Speech rate control placeholder */}
-      <div className="h-4 w-44 animate-pulse rounded-full bg-neutral-300/70" />
+      {/* Speech rate control placeholder — warm beige tint */}
+      <div className="h-10 w-56 animate-pulse rounded-full bg-white/60" />
 
       {/* Booklet card skeleton — matches the real card's shape exactly */}
-      <div className="w-full max-w-[640px] overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-black/5">
+      <div className="w-full max-w-[640px] overflow-hidden rounded-[2rem] bg-white/95 shadow-[var(--shadow-float)] ring-1 ring-white/80">
         {/* Canvas area — 1080/1920 aspect ratio */}
         <div
           style={{ aspectRatio: `${CANVAS_WIDTH} / ${CANVAS_HEIGHT}` }}
-          className="relative bg-neutral-100"
+          className="relative bg-[hsl(38_30%_94%)]"
         >
           <div className="absolute inset-0 animate-pulse">
-            <div className="absolute left-8 right-8 top-12 h-7 rounded-lg bg-neutral-200/80" />
-            <div className="absolute left-14 right-14 top-24 h-5 rounded-lg bg-neutral-200/70" />
-            <div className="absolute left-10 right-10 top-36 h-5 rounded-lg bg-neutral-200/60" />
-            <div className="absolute bottom-52 left-10 right-10 h-5 rounded-lg bg-neutral-200/70" />
-            <div className="absolute bottom-40 left-16 right-16 h-5 rounded-lg bg-neutral-200/60" />
+            <div className="absolute left-8 right-8 top-12 h-7 rounded-xl bg-[hsl(38_30%_87%)/80]" />
+            <div className="absolute left-14 right-14 top-24 h-5 rounded-xl bg-[hsl(38_30%_87%)/70]" />
+            <div className="absolute left-10 right-10 top-36 h-5 rounded-xl bg-[hsl(38_30%_87%)/60]" />
+            <div className="absolute bottom-52 left-10 right-10 h-5 rounded-xl bg-[hsl(38_30%_87%)/70]" />
+            <div className="absolute bottom-40 left-16 right-16 h-5 rounded-xl bg-[hsl(38_30%_87%)/60]" />
           </div>
         </div>
 
         {/* Nav area */}
-        <div className="flex justify-center border-t border-neutral-100 bg-white px-4 py-4">
+        <div className="flex justify-center border-t border-[hsl(35_20%_90%)] bg-white px-4 py-4">
           <div className="flex flex-col items-center gap-3">
-            <div className="flex items-center gap-5">
-              <div className="h-12 w-12 animate-pulse rounded-full bg-neutral-100" />
-              <div className="h-4 w-20 animate-pulse rounded-full bg-neutral-200" />
-              <div className="h-12 w-12 animate-pulse rounded-full bg-neutral-100" />
+            <div className="flex items-center gap-4">
+              <div className="h-12 w-12 animate-pulse rounded-2xl bg-[hsl(38_30%_93%)]" />
+              <div className="h-4 w-20 animate-pulse rounded-full bg-[hsl(38_30%_88%)]" />
+              <div className="h-12 w-12 animate-pulse rounded-2xl bg-[hsl(22_90%_62%)/20]" />
             </div>
-            <div className="h-1 w-40 animate-pulse rounded-full bg-neutral-200" />
+            <div className="flex items-center gap-1.5">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="h-2 w-2 animate-pulse rounded-full bg-[hsl(38_30%_88%)]" />
+              ))}
+            </div>
           </div>
         </div>
       </div>
@@ -64,9 +72,12 @@ function ReaderError({ icon, message }: ReaderErrorProps) {
   return (
     <div
       id="reader-root"
-      className="flex min-h-screen flex-col items-center justify-center gap-4 bg-gradient-to-b from-neutral-100 to-neutral-200 p-6 text-center"
+      className={`flex min-h-screen flex-col items-center justify-center gap-4 ${READER_BG} p-6 text-center`}
     >
-      <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white shadow-md">
+      <div
+        className="flex h-16 w-16 items-center justify-center rounded-3xl bg-white"
+        style={{ boxShadow: 'var(--shadow-raised)' }}
+      >
         {icon}
       </div>
       <p className="max-w-xs text-base text-neutral-500">{message}</p>
@@ -100,7 +111,7 @@ export function ReaderBookletPage() {
   if (isError) {
     return (
       <ReaderError
-        icon={<AlertTriangle className="h-7 w-7 text-neutral-400" />}
+        icon={<AlertTriangle className="h-7 w-7 text-amber-400" />}
         message="Something went wrong loading this booklet. Please try again."
       />
     );
@@ -130,13 +141,18 @@ export function ReaderBookletPage() {
   return (
     <div
       id="reader-root"
-      className="flex min-h-screen flex-col items-center justify-center gap-6 bg-gradient-to-b from-neutral-100 to-neutral-200 p-4 py-10 sm:p-8"
+      className={`flex min-h-screen flex-col items-center justify-center gap-6 ${READER_BG} p-4 py-10 sm:p-8`}
     >
       <WordSpeechProvider>
         {/* No speakable text on the quiz page, so the rate control would just
             be dead chrome — see CLAUDE.md "Quiz embed (final page)". */}
         {!currentPage?.is_quiz_page && <SpeechRateControl />}
-        <div className="w-full max-w-[640px] overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-black/5">
+
+        {/* Premium booklet card */}
+        <div
+          className="w-full max-w-[640px] overflow-hidden rounded-[2rem] bg-white/95 ring-1 ring-white/80"
+          style={{ boxShadow: 'var(--shadow-float)' }}
+        >
           <PageFlip
             pageCount={booklet.pages.length}
             currentIndex={clampedIndex}
@@ -158,7 +174,7 @@ export function ReaderBookletPage() {
             }}
           >
             {({ next, prev, isFlipping }) => (
-              <div className="flex justify-center border-t border-neutral-100 bg-white px-4 py-4">
+              <div className="flex justify-center border-t border-[hsl(35_20%_90%)] bg-white px-4 py-4">
                 <PageNav
                   currentIndex={clampedIndex}
                   pageCount={booklet.pages.length}
@@ -170,6 +186,9 @@ export function ReaderBookletPage() {
             )}
           </PageFlip>
         </div>
+
+        {/* Subtle booklet title below card */}
+        <p className="text-xs font-medium tracking-wide text-neutral-400/80">{booklet.title}</p>
       </WordSpeechProvider>
     </div>
   );
