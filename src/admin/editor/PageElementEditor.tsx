@@ -140,6 +140,10 @@ export function PageElementEditor({ pageId, onSaveStatusChange }: PageElementEdi
   const [textEditingId, setTextEditingId] = useState<string | null>(null);
   const [showMediaPicker, setShowMediaPicker] = useState(false);
   const hasDispatchedLoadRef = useRef(false);
+  // Refs so the keydown handler always sees latest values without re-registration.
+  const clipboardIdRef = useRef<string | null>(null);
+  const selectedIdRef = useRef<string | null>(null);
+  const textEditingIdRef = useRef<string | null>(null);
 
   // Seed the reducer exactly once per mounted page — a later background
   // refetch (e.g. window refocus) must not silently wipe in-memory edits.
@@ -168,6 +172,59 @@ export function PageElementEditor({ pageId, onSaveStatusChange }: PageElementEdi
     textEditingId && state.elements.some((e) => e.id === textEditingId)
       ? textEditingId
       : null;
+
+  // Keep refs current so the keydown handler always reads latest values without stale closures.
+  selectedIdRef.current = effectiveSelectedId;
+  textEditingIdRef.current = effectiveTextEditingId;
+
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      // Skip when focus is inside any text input (including the text-edit textarea).
+      const tag = (e.target as HTMLElement).tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      if (textEditingIdRef.current !== null) return;
+
+      const selectedId = selectedIdRef.current;
+      const ctrl = e.ctrlKey || e.metaKey;
+
+      // Undo / Redo — must come before Delete check to avoid conflict.
+      if (ctrl && e.code === 'KeyZ' && !e.shiftKey) {
+        e.preventDefault();
+        dispatch({ type: 'UNDO' });
+        return;
+      }
+      if (ctrl && (e.code === 'KeyY' || (e.code === 'KeyZ' && e.shiftKey))) {
+        e.preventDefault();
+        dispatch({ type: 'REDO' });
+        return;
+      }
+
+      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId) {
+        e.preventDefault();
+        dispatch({ type: 'DELETE_ELEMENT', id: selectedId });
+        setSelectedElementId(null);
+        setTextEditingId(null);
+        return;
+      }
+
+      // Use e.code for letter shortcuts so Caps Lock / locale don't break them.
+      if (ctrl && e.code === 'KeyC' && selectedId) {
+        clipboardIdRef.current = selectedId;
+        return;
+      }
+
+      if (ctrl && e.code === 'KeyV' && clipboardIdRef.current) {
+        e.preventDefault();
+        const newId = crypto.randomUUID();
+        dispatch({ type: 'DUPLICATE_ELEMENT', id: clipboardIdRef.current, newId });
+        setSelectedElementId(newId);
+        return;
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [dispatch]);
 
   function resolveDefaultFontId(): string {
     if (!fonts || fonts.length === 0) return '';

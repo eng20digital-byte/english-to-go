@@ -154,15 +154,16 @@ export function LoginPage() {
           }}>
             <h1 style={{
               margin: 0,
-              fontSize: 26,
+              fontSize: 24,
               fontWeight: 800,
               color: BRAND.text,
               letterSpacing: '-0.3px',
               lineHeight: 1.25,
-              direction: 'rtl',
+              direction: 'ltr',
               fontFamily: 'inherit',
             }}>
-              מערכת ליצירת ספרונים
+             BookLet. <br/>
+             Let your Book come alive.
             </h1>
             <p style={{
               margin: '6px 0 0',

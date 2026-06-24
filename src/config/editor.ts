@@ -17,7 +17,7 @@ export const DEFAULT_FONT: { name: string; weight: FontWeight } = {
 // Default geometry/content for a newly added text box.
 export const NEW_TEXT_ELEMENT_WIDTH = 600;
 export const NEW_TEXT_ELEMENT_HEIGHT = 200;
-export const NEW_TEXT_ELEMENT_CONTENT = 'טקסט לדוגמה';
+export const NEW_TEXT_ELEMENT_CONTENT = 'text for example';
 
 // Floor on element width/height while resizing, so a handle drag can't
 // collapse an element to zero (or negative) size.

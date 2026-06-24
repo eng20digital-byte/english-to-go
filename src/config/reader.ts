@@ -10,8 +10,10 @@
 // ultrawide monitors (>2560px-class screens).
 export const READER_MAX_WIDTH = 1920;
 
-export const PAGE_FLIP_DURATION_MS = 850;
-export const PAGE_FLIP_EASING = 'cubic-bezier(0.4, 0, 0.2, 1)';
+export const PAGE_FLIP_DURATION_MS = 1000;
+// Smooth ease-in-out-cubic: slight resistance at the start, flows through the
+// midpoint, then settles gently — mimics paper's physical inertia.
+export const PAGE_FLIP_EASING = 'cubic-bezier(0.37, 0, 0.63, 1)';
 // Scaled up from the portrait-era 2400 to keep the same perspective-to-width
 // ratio (~3.5×) now that the canvas is landscape and containers are wider.
 export const PAGE_FLIP_PERSPECTIVE_PX = 4800;

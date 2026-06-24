@@ -8,4 +8,4 @@ export const FONT_FILE_EXTENSION = '.woff2';
 
 // Hebrew sentence used in the admin font preview to visually confirm an
 // uploaded weight renders correctly (see M3 manual verification step).
-export const FONT_PREVIEW_TEXT = 'שלום, זהו משפט לדוגמה בעברית. and en';
+export const FONT_PREVIEW_TEXT = 'abcd | אבגד';

@@ -199,7 +199,11 @@ body {
   animation-name: page-flip-next;
 }
 .page-flip-layer--prev {
-  transform-origin: right center;
+  /* For backward navigation the flip layer shows the INCOMING previous page
+     (see PageFlip.tsx). It starts folded away at -180deg (backface hidden by
+     backface-visibility: hidden) and unfolds in, mirroring how a physical page
+     returns from the "already-read" stack on the left side of a book. */
+  transform-origin: left center;
   animation-name: page-flip-prev;
 }
 @keyframes page-flip-next {
@@ -211,11 +215,13 @@ body {
   }
 }
 @keyframes page-flip-prev {
+  /* Previous page sweeps in from the folded/left position. Invisible during the
+     first half (backface) — becomes visible past edge-on (~90deg) and settles flat. */
   from {
-    transform: rotateY(0deg);
+    transform: rotateY(-180deg);
   }
   to {
-    transform: rotateY(180deg);
+    transform: rotateY(0deg);
   }
 }
 .page-flip-shadow {

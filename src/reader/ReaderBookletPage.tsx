@@ -106,7 +106,6 @@ export function ReaderBookletPage() {
   if (booklet.pages.length === 0) return <ReaderError icon={<BookOpen size={26} color="rgba(255,255,255,0.7)" />} message="This booklet has no pages yet." />;
 
   const clampedIndex = Math.min(pageIndex, booklet.pages.length - 1);
-  const currentPage = booklet.pages[clampedIndex];
   const pageProgress = booklet.pages.length > 1
     ? (clampedIndex / (booklet.pages.length - 1)) * 100
     : 100;
@@ -144,8 +143,7 @@ export function ReaderBookletPage() {
                 Collapsed: only the rightmost 60px (speaker button) is visible.
                 Expanded: the full panel slides into view (translateX(0)).
                 left:0 so the panel emerges from the viewer's left edge. */}
-            {!currentPage?.is_quiz_page && (
-              <div
+            <div
                 style={{
                   position: 'absolute',
                   left: 0,
@@ -196,7 +194,6 @@ export function ReaderBookletPage() {
                   <Volume2 size={16} />
                 </button>
               </div>
-            )}
 
             {/* ── Flex row: prev | booklet | next ──────────────────────────
                 Buttons are flex siblings of the card so they always sit flush

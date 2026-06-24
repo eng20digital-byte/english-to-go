@@ -141,7 +141,20 @@ export function PageFlip({
     startFlip(deltaX < 0 ? 'next' : 'prev');
   }
 
-  const displayIndex = flip ? flip.toIndex : currentIndex;
+  // For "next": base = destination (toIndex), flip layer = current page sweeping away (fromIndex).
+  // For "prev": base = current page (fromIndex), flip layer = previous page sweeping in (toIndex).
+  // The two-layer trick relies on backface-visibility: hidden — the flip layer is invisible during
+  // the first half of the prev animation (backface facing viewer) then unfolds into view.
+  const baseIndex = flip
+    ? flip.direction === 'prev'
+      ? flip.fromIndex
+      : flip.toIndex
+    : currentIndex;
+  const flipPageIndex = flip
+    ? flip.direction === 'prev'
+      ? flip.toIndex
+      : flip.fromIndex
+    : null;
 
   return (
     <>
@@ -160,9 +173,9 @@ export function PageFlip({
           perspective: PAGE_FLIP_PERSPECTIVE_PX,
         }}
       >
-        <div style={{ position: 'absolute', inset: 0 }}>{renderPage(displayIndex, scale)}</div>
+        <div style={{ position: 'absolute', inset: 0 }}>{renderPage(baseIndex, scale)}</div>
 
-        {flip && (
+        {flip && flipPageIndex !== null && (
           <div
             key={`${flip.fromIndex}-${flip.direction}`}
             className={`page-flip-layer ${flip.direction === 'next' ? 'page-flip-layer--next' : 'page-flip-layer--prev'}`}
@@ -172,7 +185,7 @@ export function PageFlip({
             }}
             onAnimationEnd={finishFlip}
           >
-            {renderPage(flip.fromIndex, scale)}
+            {renderPage(flipPageIndex, scale)}
             <div
               className="page-flip-shadow"
               style={

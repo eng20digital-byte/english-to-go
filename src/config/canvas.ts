@@ -12,5 +12,5 @@ export const CANVAS_BACKGROUND_COLOR = '#ffffff';
 export const DEFAULT_FONT_SIZE = 48;
 export const DEFAULT_TEXT_COLOR = '#1a1a1a';
 export const DEFAULT_LINE_HEIGHT = 1.4;
-export const DEFAULT_TEXT_ALIGN: TextAlign = 'right';
+export const DEFAULT_TEXT_ALIGN: TextAlign = 'left';
 export const DEFAULT_TEXT_DIRECTION: TextDirection = 'auto';

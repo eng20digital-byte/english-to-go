@@ -131,15 +131,15 @@ export function DashboardPage() {
           }}>
             <h1 style={{
               margin: 0,
-              fontSize: 17,
+              fontSize: 19,
               fontWeight: 800,
               color: BRAND.text,
               letterSpacing: '-0.2px',
-              direction: 'rtl',
+              direction: 'ltr',
               fontFamily: 'inherit',
               whiteSpace: 'nowrap',
             }}>
-              מערכת ליצירת ספרונים
+             BookLet. Let your Book come alive.
             </h1>
           </div>
 
