@@ -1,6 +1,11 @@
 import { useReducer } from 'react';
 import { UNDO_HISTORY_LIMIT } from '@/config/editor';
-import type { PageElement, TextProps, BackgroundImageProps } from '@/types/elements';
+import type {
+  PageElement,
+  TextProps,
+  BackgroundImageProps,
+  VocabularyProps,
+} from '@/types/elements';
 
 export interface GeometryChanges {
   x: number;
@@ -28,6 +33,7 @@ export type EditorAction =
   | { type: 'UPDATE_ELEMENT'; id: string; changes: GeometryChanges }
   | { type: 'UPDATE_TEXT_PROPS'; id: string; changes: Partial<TextProps> }
   | { type: 'UPDATE_BACKGROUND_IMAGE_PROPS'; id: string; changes: Partial<BackgroundImageProps> }
+  | { type: 'UPDATE_VOCABULARY_PROPS'; id: string; changes: Partial<VocabularyProps> }
   | { type: 'BRING_FORWARD'; id: string }
   | { type: 'SEND_BACKWARD'; id: string }
   | { type: 'UNDO' }
@@ -111,6 +117,18 @@ function reducer(state: EditorState, action: EditorAction): EditorState {
         ...state,
         elements: state.elements.map((element) =>
           element.id === action.id && element.type === 'background_image'
+            ? { ...element, props: { ...element.props, ...action.changes } }
+            : element,
+        ),
+        past: pushHistory(state.past, state.elements),
+        future: [],
+      };
+
+    case 'UPDATE_VOCABULARY_PROPS':
+      return {
+        ...state,
+        elements: state.elements.map((element) =>
+          element.id === action.id && element.type === 'vocabulary'
             ? { ...element, props: { ...element.props, ...action.changes } }
             : element,
         ),

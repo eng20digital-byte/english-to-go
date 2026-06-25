@@ -9,6 +9,7 @@ import { QuizEmbed } from '@/quiz/QuizEmbed';
 import { CANVAS_WIDTH, CANVAS_HEIGHT } from '@/config/canvas';
 import { READER_MAX_WIDTH } from '@/config/reader';
 import { PageFlip } from './PageFlip';
+import { VocabularyPanel } from './VocabularyPanel';
 import { BRAND } from '@/config/theme';
 
 // Dots for ≤12 pages; progress bar for longer booklets.
@@ -194,6 +195,12 @@ export function ReaderBookletPage() {
                   <Volume2 size={16} />
                 </button>
               </div>
+
+            {/* ── Left edge: collapsible page-aware vocabulary panel ───────
+                Vertically centered, below the top-anchored speech tab so the
+                two peeking tabs don't overlap. Shows only the current page's
+                vocabulary and re-renders as clampedIndex changes on flip. */}
+            <VocabularyPanel page={booklet.pages[clampedIndex]} />
 
             {/* ── Flex row: prev | booklet | next ──────────────────────────
                 Buttons are flex siblings of the card so they always sit flush

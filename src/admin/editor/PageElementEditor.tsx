@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ImageIcon, Redo2, RotateCcw, Save, Type } from 'lucide-react';
+import { ImageIcon, Languages, Redo2, RotateCcw, Save, Type } from 'lucide-react';
 import { usePageElementsQuery } from '@/hooks/usePageElementsQuery';
 import { useFontsQuery } from '@/hooks/useFontsQuery';
 import {
@@ -17,6 +17,21 @@ import {
   NEW_TEXT_ELEMENT_HEIGHT,
   NEW_TEXT_ELEMENT_CONTENT,
 } from '@/config/editor';
+import {
+  NEW_VOCABULARY_ELEMENT_WIDTH,
+  NEW_VOCABULARY_ELEMENT_HEIGHT,
+  NEW_VOCABULARY_WORDS,
+  DEFAULT_VOCABULARY_SHOW_ON_PAGE,
+  DEFAULT_VOCABULARY_FONT_SIZE,
+  DEFAULT_VOCABULARY_TEXT_COLOR,
+  DEFAULT_VOCABULARY_BUBBLE_BACKGROUND,
+  DEFAULT_VOCABULARY_BUBBLE_BORDER_COLOR,
+  DEFAULT_VOCABULARY_BUBBLE_BORDER_WIDTH,
+  DEFAULT_VOCABULARY_BUBBLE_BORDER_RADIUS,
+  DEFAULT_VOCABULARY_BUBBLE_PADDING_X,
+  DEFAULT_VOCABULARY_BUBBLE_PADDING_Y,
+  DEFAULT_VOCABULARY_BUBBLE_SPACING,
+} from '@/config/vocabulary';
 import { useEditorReducer } from './useEditorReducer';
 import { useAutosave } from './useAutosave';
 import { EditorCanvas } from './EditorCanvas';
@@ -31,7 +46,12 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { BRAND } from '@/config/theme';
-import type { PageElement, TextProps, BackgroundImageProps } from '@/types/elements';
+import type {
+  PageElement,
+  TextProps,
+  BackgroundImageProps,
+  VocabularyProps,
+} from '@/types/elements';
 import type { MediaAssetRow } from '@/types/database';
 
 interface PageElementEditorProps {
@@ -260,6 +280,40 @@ export function PageElementEditor({ pageId, onSaveStatusChange }: PageElementEdi
     setSelectedElementId(id);
   }
 
+  function handleAddVocabulary() {
+    const id = crypto.randomUUID();
+    const defaultFontId = resolveDefaultFontId();
+    const newElement: PageElement = {
+      id,
+      page_id: pageId,
+      type: 'vocabulary',
+      z_index: nextZIndex(state.elements),
+      x: (CANVAS_WIDTH - NEW_VOCABULARY_ELEMENT_WIDTH) / 2,
+      y: (CANVAS_HEIGHT - NEW_VOCABULARY_ELEMENT_HEIGHT) / 2,
+      w: NEW_VOCABULARY_ELEMENT_WIDTH,
+      h: NEW_VOCABULARY_ELEMENT_HEIGHT,
+      rotation: 0,
+      props: {
+        // Fresh copy of the seed array so later edits never mutate the shared const.
+        words: NEW_VOCABULARY_WORDS.map((word) => ({ ...word })),
+        show_on_page: DEFAULT_VOCABULARY_SHOW_ON_PAGE,
+        english_font_id: defaultFontId,
+        hebrew_font_id: defaultFontId,
+        font_size: DEFAULT_VOCABULARY_FONT_SIZE,
+        text_color: DEFAULT_VOCABULARY_TEXT_COLOR,
+        bubble_background_color: DEFAULT_VOCABULARY_BUBBLE_BACKGROUND,
+        bubble_border_color: DEFAULT_VOCABULARY_BUBBLE_BORDER_COLOR,
+        bubble_border_width: DEFAULT_VOCABULARY_BUBBLE_BORDER_WIDTH,
+        bubble_border_radius: DEFAULT_VOCABULARY_BUBBLE_BORDER_RADIUS,
+        bubble_padding_x: DEFAULT_VOCABULARY_BUBBLE_PADDING_X,
+        bubble_padding_y: DEFAULT_VOCABULARY_BUBBLE_PADDING_Y,
+        bubble_spacing: DEFAULT_VOCABULARY_BUBBLE_SPACING,
+      },
+    };
+    dispatch({ type: 'ADD_ELEMENT', element: newElement });
+    setSelectedElementId(id);
+  }
+
   function handleSelectBackgroundImage(asset: MediaAssetRow) {
     const id = crypto.randomUUID();
     const newElement: PageElement = {
@@ -285,6 +339,10 @@ export function PageElementEditor({ pageId, onSaveStatusChange }: PageElementEdi
 
   function handleUpdateBackgroundImageProps(id: string, changes: Partial<BackgroundImageProps>) {
     dispatch({ type: 'UPDATE_BACKGROUND_IMAGE_PROPS', id, changes });
+  }
+
+  function handleUpdateVocabularyProps(id: string, changes: Partial<VocabularyProps>) {
+    dispatch({ type: 'UPDATE_VOCABULARY_PROPS', id, changes });
   }
 
   if (isLoading) {
@@ -388,7 +446,7 @@ export function PageElementEditor({ pageId, onSaveStatusChange }: PageElementEdi
           </p>
 
           {/* Primary action buttons */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 12 }}>
             <QuickActionBtn
               icon={<Type size={18} />}
               label="Text"
@@ -402,6 +460,13 @@ export function PageElementEditor({ pageId, onSaveStatusChange }: PageElementEdi
               bgColor={BRAND.green}
               textColor="#fff"
               onClick={() => setShowMediaPicker(true)}
+            />
+            <QuickActionBtn
+              icon={<Languages size={18} />}
+              label="Vocab"
+              bgColor={BRAND.pink}
+              textColor="#fff"
+              onClick={handleAddVocabulary}
             />
           </div>
 
@@ -456,6 +521,7 @@ export function PageElementEditor({ pageId, onSaveStatusChange }: PageElementEdi
             element={selectedElement}
             onUpdateTextProps={handleUpdateTextProps}
             onUpdateBackgroundImageProps={handleUpdateBackgroundImageProps}
+            onUpdateVocabularyProps={handleUpdateVocabularyProps}
           />
         </div>
       </div>

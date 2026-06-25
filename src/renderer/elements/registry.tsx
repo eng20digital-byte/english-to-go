@@ -2,6 +2,7 @@ import type { ComponentType, ReactElement } from 'react';
 import type { PageElement } from '@/types/elements';
 import { TextElement } from './TextElement';
 import { BackgroundImageElement } from './BackgroundImageElement';
+import { VocabularyElement } from './VocabularyElement';
 
 // 'editor' vs 'reader' only toggles behavior intrinsic to rendering — e.g.
 // word-spans are click-active for TTS in 'reader' only — see CLAUDE.md
@@ -20,6 +21,7 @@ const elementRegistry: {
 } = {
   text: TextElement,
   background_image: BackgroundImageElement,
+  vocabulary: VocabularyElement,
 };
 
 // Dynamically indexing elementRegistry by `element.type` loses the

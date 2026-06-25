@@ -51,12 +51,22 @@ function prefersReducedMotion(): boolean {
   );
 }
 
-// Booklet-agnostic 3D page-turn: takes an index + a renderPage(index, scale)
-// callback, knows nothing about PageCanvas/booklet data. Two-layer CSS-flip
-// trick — a static base layer (the destination page) sits under an animated
-// flip layer (the source page) that rotates away via @keyframes defined in
-// src/index.css; `backface-visibility: hidden` lets the base layer show
-// through once the flip layer passes 90deg. Pure CSS animation, no library.
+// Booklet-agnostic 3D book page-turn: takes an index + renderPage callback and
+// turns one FULL page as a single rigid leaf hinged at the spine (the left
+// edge), the Western/LTR convention (next = leaf swings leftward off the spine).
+//
+// Layers (see src/index.css):
+//   • base   — the full page revealed behind the leaf (destination on a
+//              next-flip, the still-current page on a prev-flip).
+//   • sheet  — the turning leaf, transform-origin at the left edge,
+//              transform-style: preserve-3d, two backface-hidden faces:
+//                front = the page leaving the viewer (source on next),
+//                back  = the SAME page the base shows.
+//
+// Because the back face always matches the base, once the leaf passes 90deg
+// (front becomes invisible) the whole frame reads as one coherent destination
+// page — no half-page seams, no wrong backside covering the view. Pure CSS
+// keyframes, no library.
 export function PageFlip({
   pageCount,
   currentIndex,
@@ -141,20 +151,33 @@ export function PageFlip({
     startFlip(deltaX < 0 ? 'next' : 'prev');
   }
 
-  // For "next": base = destination (toIndex), flip layer = current page sweeping away (fromIndex).
-  // For "prev": base = current page (fromIndex), flip layer = previous page sweeping in (toIndex).
-  // The two-layer trick relies on backface-visibility: hidden — the flip layer is invisible during
-  // the first half of the prev animation (backface facing viewer) then unfolds into view.
+  // base  — full page revealed behind the leaf.
+  // front — the page on the front of the turning leaf (visible < 90deg).
+  // back  — the page on the back of the leaf; always equals `base`, so the
+  //         frame stays a single coherent page once the leaf passes 90deg.
   const baseIndex = flip
-    ? flip.direction === 'prev'
+    ? flip.direction === 'next'
+      ? flip.toIndex
+      : flip.fromIndex
+    : currentIndex;
+  const frontIndex = flip
+    ? flip.direction === 'next'
       ? flip.fromIndex
       : flip.toIndex
-    : currentIndex;
-  const flipPageIndex = flip
-    ? flip.direction === 'prev'
+    : null;
+  const backIndex = flip
+    ? flip.direction === 'next'
       ? flip.toIndex
       : flip.fromIndex
     : null;
+
+  // Shared by both faces: same opacity ramp (peaks edge-on at 90deg), so only
+  // the currently-visible face's shade is ever seen.
+  const shadeStyle = {
+    animationDuration: `${PAGE_FLIP_DURATION_MS}ms`,
+    animationTimingFunction: PAGE_FLIP_EASING,
+    '--page-flip-shade-max': PAGE_FLIP_SHADOW_MAX_OPACITY,
+  } as CSSProperties;
 
   return (
     <>
@@ -173,30 +196,45 @@ export function PageFlip({
           perspective: PAGE_FLIP_PERSPECTIVE_PX,
         }}
       >
+        {/* Base — full page revealed behind the turning leaf */}
         <div style={{ position: 'absolute', inset: 0 }}>{renderPage(baseIndex, scale)}</div>
 
-        {flip && flipPageIndex !== null && (
-          <div
-            key={`${flip.fromIndex}-${flip.direction}`}
-            className={`page-flip-layer ${flip.direction === 'next' ? 'page-flip-layer--next' : 'page-flip-layer--prev'}`}
-            style={{
-              animationDuration: `${PAGE_FLIP_DURATION_MS}ms`,
-              animationTimingFunction: PAGE_FLIP_EASING,
-            }}
-            onAnimationEnd={finishFlip}
-          >
-            {renderPage(flipPageIndex, scale)}
+        {flip && frontIndex !== null && backIndex !== null && (
+          <>
+            {/* Gutter shadow cast into the spine as the leaf lifts off it */}
             <div
-              className="page-flip-shadow"
-              style={
-                {
-                  animationDuration: `${PAGE_FLIP_DURATION_MS}ms`,
-                  animationTimingFunction: PAGE_FLIP_EASING,
-                  '--page-flip-shadow-max': PAGE_FLIP_SHADOW_MAX_OPACITY,
-                } as CSSProperties
-              }
+              className="page-flip-gutter"
+              style={{
+                animationDuration: `${PAGE_FLIP_DURATION_MS}ms`,
+                animationTimingFunction: PAGE_FLIP_EASING,
+              }}
             />
-          </div>
+
+            {/* The turning leaf: one rigid sheet hinged at the spine (left
+                edge), holding both faces in the same 3D space */}
+            <div
+              key={`${flip.fromIndex}-${flip.direction}`}
+              className={`page-flip-sheet page-flip-sheet--${flip.direction}`}
+              style={{
+                animationDuration: `${PAGE_FLIP_DURATION_MS}ms`,
+                animationTimingFunction: PAGE_FLIP_EASING,
+              }}
+              onAnimationEnd={finishFlip}
+            >
+              {/* Front face — the page leaving the viewer (< 90deg turned) */}
+              <div className="page-flip-face page-flip-face--front">
+                {renderPage(frontIndex, scale)}
+                <div className="page-flip-shade" style={shadeStyle} />
+              </div>
+
+              {/* Back face — the reverse of the leaf; same page as the base,
+                  so the view stays coherent once past 90deg */}
+              <div className="page-flip-face page-flip-face--back">
+                {renderPage(backIndex, scale)}
+                <div className="page-flip-shade page-flip-shade--back" style={shadeStyle} />
+              </div>
+            </div>
+          </>
         )}
       </div>
 
