@@ -51,22 +51,26 @@ function prefersReducedMotion(): boolean {
   );
 }
 
-// Booklet-agnostic 3D book page-turn: takes an index + renderPage callback and
-// turns one FULL page as a single rigid leaf hinged at the spine (the left
-// edge), the Western/LTR convention (next = leaf swings leftward off the spine).
+// Booklet-agnostic 3D book page-turn (book-in-centre fold). Each booklet page
+// index is a full 1920x1080 canvas (renderPage(index, scale)); the flip treats
+// each canvas as a two-page spread by isolating its halves around the centre
+// spine. Only the RIGHT HALF turns, as a rigid half-width leaf hinged on the
+// spine — the Western/LTR convention (next = leaf swings leftward off the spine).
 //
-// Layers (see src/index.css):
-//   • base   — the full page revealed behind the leaf (destination on a
-//              next-flip, the still-current page on a prev-flip).
-//   • sheet  — the turning leaf, transform-origin at the left edge,
-//              transform-style: preserve-3d, two backface-hidden faces:
-//                front = the page leaving the viewer (source on next),
-//                back  = the SAME page the base shows.
+// Layers (see src/index.css and docs/flip-milestones/):
+//   • base   — two full-canvas divs, each clip-path'd to one side of the spine:
+//              the left half stays put; the right half is the page revealed
+//              under the lifting leaf.
+//   • sheet  — the turning leaf (left:50%; width:50%; transform-style:
+//              preserve-3d), with two backface-hidden faces. The front face
+//              always presents a RIGHT half, the back always a LEFT half; which
+//              page index feeds each flips with direction (see the table in
+//              docs/flip-milestones/README.md).
 //
-// Because the back face always matches the base, once the leaf passes 90deg
-// (front becomes invisible) the whole frame reads as one coherent destination
-// page — no half-page seams, no wrong backside covering the view. Pure CSS
-// keyframes, no library.
+// The back face matches the destination's left half, so once the leaf passes
+// 90deg (front becomes invisible) the whole frame reads as one coherent spread
+// — in both directions, no half-page seams, no wrong backside covering the
+// view. Pure CSS keyframes, no library.
 export function PageFlip({
   pageCount,
   currentIndex,
@@ -151,25 +155,32 @@ export function PageFlip({
     startFlip(deltaX < 0 ? 'next' : 'prev');
   }
 
-  // base  — full page revealed behind the leaf.
-  // front — the page on the front of the turning leaf (visible < 90deg).
-  // back  — the page on the back of the leaf; always equals `base`, so the
-  //         frame stays a single coherent page once the leaf passes 90deg.
-  const baseIndex = flip
+  // Book-in-centre split. The left half is always static; the right half is the
+  // folding leaf revealing the page underneath.
+  //   leftBaseIndex  — left half always shows the LEFT side of the page that
+  //                    stays on the left (source on a next-flip, destination on
+  //                    a prev-flip).
+  //   rightBaseIndex — shown under the folding leaf: the right half of the page
+  //                    being revealed.
+  const leftBaseIndex = flip
+    ? flip.direction === 'next'
+      ? flip.fromIndex
+      : flip.toIndex
+    : currentIndex;
+  const rightBaseIndex = flip
     ? flip.direction === 'next'
       ? flip.toIndex
       : flip.fromIndex
     : currentIndex;
-  const frontIndex = flip
-    ? flip.direction === 'next'
-      ? flip.fromIndex
-      : flip.toIndex
-    : null;
-  const backIndex = flip
-    ? flip.direction === 'next'
-      ? flip.toIndex
-      : flip.fromIndex
-    : null;
+  // The folding leaf's two faces. The front face ALWAYS presents a RIGHT half,
+  // the back face ALWAYS a LEFT half — only which page index feeds each face
+  // flips with direction (see the table in docs/flip-milestones/README.md):
+  //   next: front = fromIndex (leaving), back = toIndex   (arriving)
+  //   prev: front = toIndex   (arriving), back = fromIndex (leaving)
+  // The back face matches the left base panel's destination, so once the leaf
+  // passes 90deg the frame reads as one coherent page — in both directions.
+  const frontIndex = flip ? (flip.direction === 'next' ? flip.fromIndex : flip.toIndex) : null;
+  const backIndex = flip ? (flip.direction === 'next' ? flip.toIndex : flip.fromIndex) : null;
 
   // Shared by both faces: same opacity ramp (peaks edge-on at 90deg), so only
   // the currently-visible face's shade is ever seen.
@@ -196,12 +207,27 @@ export function PageFlip({
           perspective: PAGE_FLIP_PERSPECTIVE_PX,
         }}
       >
-        {/* Base — full page revealed behind the turning leaf */}
-        <div style={{ position: 'absolute', inset: 0 }}>{renderPage(baseIndex, scale)}</div>
+        {/* Base layer — two full-canvas pages, each isolated to one side of the
+            spine by clip-path (replacing the old 50%-panel + shifted-200%-wrapper
+            trick). renderPage always emits a full-width page; clip-path crops it
+            to the half that belongs on that side, lined up exactly on the spine.
+            clip-path is safe here: these are flat divs, not preserve-3d parents. */}
+        {/* LEFT background — left half of the page staying on the left. */}
+        <div style={{ position: 'absolute', inset: 0, clipPath: 'inset(0 50% 0 0)' }}>
+          {renderPage(leftBaseIndex, scale)}
+        </div>
+
+        {/* RIGHT background — right half of the page revealed under the leaf. */}
+        <div style={{ position: 'absolute', inset: 0, clipPath: 'inset(0 0 0 50%)' }}>
+          {renderPage(rightBaseIndex, scale)}
+        </div>
+
+        {/* Permanent book spine shadow down the canvas midpoint */}
+        <div className="book-spine" />
 
         {flip && frontIndex !== null && backIndex !== null && (
           <>
-            {/* Gutter shadow cast into the spine as the leaf lifts off it */}
+            {/* Gutter shadow cast into the spine (right half) as the leaf lifts */}
             <div
               className="page-flip-gutter"
               style={{
@@ -210,8 +236,10 @@ export function PageFlip({
               }}
             />
 
-            {/* The turning leaf: one rigid sheet hinged at the spine (left
-                edge), holding both faces in the same 3D space */}
+            {/* The folding leaf: half-width sheet hinged on the spine (its own
+                left edge = canvas centre), holding both faces in the same 3D
+                space. Each face renders a full page inside an offset wrapper so
+                only the correct half is visible. */}
             <div
               key={`${flip.fromIndex}-${flip.direction}`}
               className={`page-flip-sheet page-flip-sheet--${flip.direction}`}
@@ -221,16 +249,50 @@ export function PageFlip({
               }}
               onAnimationEnd={finishFlip}
             >
-              {/* Front face — the page leaving the viewer (< 90deg turned) */}
+              {/* Front face — RIGHT half of the leaving/arriving page. The inner
+                  wrapper re-expands the page to true canvas size (left:-100%;
+                  width:200% of this 50%-canvas face) and clip-path isolates its
+                  right half into the face window. */}
               <div className="page-flip-face page-flip-face--front">
-                {renderPage(frontIndex, scale)}
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: '-100%',
+                    width: '200%',
+                    height: '100%',
+                    clipPath: 'inset(0 0 0 50%)',
+                  }}
+                >
+                  {renderPage(frontIndex, scale)}
+                </div>
                 <div className="page-flip-shade" style={shadeStyle} />
               </div>
 
-              {/* Back face — the reverse of the leaf; same page as the base,
-                  so the view stays coherent once past 90deg */}
+              {/* Back face — the reverse of the leaf. The leaf hinges on the
+                  spine and at -180deg lays over the canvas's LEFT half, so this
+                  face ends up covering the left half at completion; to stay
+                  coherent it must present the arriving page's LEFT half there.
+                  The face is CSS-pre-rotated 180deg (its own centre), which
+                  mirrors its content; a 200%-wide wrapper anchored at left:0
+                  (no shift) puts the page's left half into the face, and that
+                  mirror + the leaf's -180deg rotation together land it
+                  un-mirrored over the canvas left half — exactly matching the
+                  destination page the left base panel will show once the flip
+                  finishes. clip-path isolates the LEFT half into the face. */}
               <div className="page-flip-face page-flip-face--back">
-                {renderPage(backIndex, scale)}
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '200%',
+                    height: '100%',
+                    clipPath: 'inset(0 50% 0 0)',
+                  }}
+                >
+                  {renderPage(backIndex, scale)}
+                </div>
                 <div className="page-flip-shade page-flip-shade--back" style={shadeStyle} />
               </div>
             </div>

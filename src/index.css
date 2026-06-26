@@ -184,18 +184,29 @@ body {
   color: inherit;
 }
 
-/* Reader page-turn animation (src/reader/PageFlip.tsx). A full page turns as
-   one rigid leaf hinged at the spine (left edge). The leaf is a single
-   preserve-3d element whose left edge is the rotation pivot; it carries two
-   backface-hidden faces (front = leaving page, back = the page also shown by
-   the base layer), so exactly one face is visible at any angle and the frame
-   reads as a single coherent page once the leaf passes edge-on (90deg). */
+/* Reader page-turn animation (src/reader/PageFlip.tsx). Book-in-centre fold:
+   only the RIGHT HALF of the canvas turns as a rigid leaf, pivoting around the
+   canvas midpoint (the spine). The leaf is a single preserve-3d element whose
+   left edge sits on the spine (left: 50%, width: 50%) and is the rotation
+   pivot; it carries two backface-hidden faces (front = right half of the
+   leaving page, back = the right half also shown by the base layer's right
+   panel), so exactly one face is visible at any angle and the frame reads as a
+   single coherent open book once the leaf passes edge-on (90deg). The left
+   half is always static (rendered by the base layer).
+
+   HARD RULE: never put overflow / clip-path / opacity / filter (or clip) on
+   this element. Per the CSS spec any of them silently forces
+   transform-style: flat, collapsing the 3D space the two faces live in and
+   flattening the fold into a 2D slide. Half-clipping the right panel happens
+   on flat child wrappers instead (see docs/flip-milestones/F3), never here. */
 .page-flip-sheet {
   position: absolute;
-  inset: 0;
+  top: 0;
+  left: 50%; /* starts at the spine = canvas centre */
+  width: 50%; /* only the right half folds */
+  height: 100%;
   z-index: 2;
-  /* Pivot on the spine (left edge), not the centre — a full single page is
-     bound on its left, so the free (right) edge sweeps the arc. */
+  /* Pivot = the leaf's own left edge = canvas midpoint = the spine. */
   transform-origin: left center;
   transform-style: preserve-3d;
   animation-fill-mode: forwards;
@@ -215,8 +226,12 @@ body {
   to   { transform: rotateY(0deg); }
 }
 
-/* Faces fill the whole leaf (no half-page clipping — each renders a full
-   page). backface-visibility:hidden hands off cleanly at edge-on. */
+/* Faces fill the half-width leaf; each renders a full page inside an offset
+   inner wrapper (see PageFlip.tsx) whose clip-path isolates the correct half.
+   The overflow:hidden here is just a harmless safety clip — a face is a flat
+   3D leaf (not a preserve-3d parent), so clipping it can't flatten the fold;
+   the real half-isolation lives on the inner wrapper's clip-path.
+   backface-visibility:hidden hands off cleanly at edge-on. */
 .page-flip-face {
   position: absolute;
   inset: 0;
@@ -262,14 +277,18 @@ body {
   50% { opacity: var(--page-flip-shade-max, 0.35); }
 }
 
-/* Gutter shadow: a soft shadow cast into the spine on the base page as the
-   leaf lifts off it, giving the turn depth where the page meets the binding. */
+/* Gutter shadow: a soft shadow cast into the spine on the revealed right-half
+   base page as the leaf lifts off it, giving the turn depth where the page
+   meets the binding. Scoped to the right half only (the folding side). */
 .page-flip-gutter {
   position: absolute;
-  inset: 0;
+  top: 0;
+  left: 50%;
+  width: 50%;
+  height: 100%;
   z-index: 1;
   pointer-events: none;
-  background: linear-gradient(to right, rgba(0, 0, 0, 0.45) 0%, rgba(0, 0, 0, 0) 12%);
+  background: linear-gradient(to right, rgba(0, 0, 0, 0.45) 0%, rgba(0, 0, 0, 0) 18%);
   opacity: 0;
   animation-name: page-flip-gutter;
   animation-fill-mode: forwards;
@@ -277,6 +296,26 @@ body {
 @keyframes page-flip-gutter {
   0%, 100% { opacity: 0; }
   45% { opacity: 0.3; }
+}
+
+/* Permanent book spine: a soft vertical shadow down the canvas midpoint,
+   always present (open-book look), independent of any flip in progress. */
+.book-spine {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 3px;
+  height: 100%;
+  transform: translateX(-50%);
+  z-index: 3;
+  pointer-events: none;
+  background: linear-gradient(
+    to right,
+    rgba(0, 0, 0, 0.1) 0%,
+    rgba(0, 0, 0, 0.28) 50%,
+    rgba(0, 0, 0, 0.1) 100%
+  );
+  box-shadow: 0 0 10px 4px rgba(0, 0, 0, 0.1);
 }
 
 /* Skeleton loading pulse — used by MediaLibraryPicker's skeleton cards.

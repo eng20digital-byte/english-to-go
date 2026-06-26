@@ -14,15 +14,16 @@ export const PAGE_FLIP_DURATION_MS = 1000;
 // Smooth ease-in-out-cubic: slight resistance at the start, flows through the
 // midpoint, then settles gently — mimics paper's physical inertia.
 export const PAGE_FLIP_EASING = 'cubic-bezier(0.37, 0, 0.63, 1)';
-// Perspective depth for the page turn. The leaf is a full-width page hinged on
-// the spine (left edge), so its free edge sweeps a wide arc — a moderate
-// perspective (~1.25× the canvas width) gives a believable curl/depth without
-// over-distorting the page into an extreme wide-angle warp. Smaller = more
-// dramatic 3D; larger = flatter/orthographic.
-export const PAGE_FLIP_PERSPECTIVE_PX = 2400;
+// Perspective depth for the page turn. The leaf is now a HALF-width page (only
+// the right half folds around the centre spine), so its free edge sweeps a
+// tighter arc — a smaller perspective gives more realistic depth for the
+// half-page turn without flattening it. Smaller = more dramatic 3D; larger =
+// flatter/orthographic.
+export const PAGE_FLIP_PERSPECTIVE_PX = 1400;
 // Peak opacity of the shading overlay on the turning leaf, reached at the
 // edge-on midpoint (90deg) where the page tilts furthest from the light.
-export const PAGE_FLIP_SHADOW_MAX_OPACITY = 0.35;
+// Slightly stronger now — the half-page fold reads more dramatically.
+export const PAGE_FLIP_SHADOW_MAX_OPACITY = 0.45;
 
 // A swipe commits to a page turn once it crosses either threshold (absolute
 // px, useful on small screens; or a ratio of container width, useful on

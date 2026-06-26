@@ -126,6 +126,14 @@ export function VocabularyPanel({ page }: { page: ReaderBookletPage | undefined 
   // Measured body width drives the collapse distance, so the slide always
   // matches the panel's actual (column-count-dependent) width.
   const [contentWidth, setContentWidth] = useState(0);
+  // The slide transition must fire ONLY for a user-initiated expand/collapse —
+  // never as a side effect of a page change. On flip, the panel's measured
+  // width (and thus its collapsed offset `translateX(-contentWidth)`) can
+  // change, which would otherwise animate the panel into place on every page
+  // turn (the distracting "entry animation"). So the transition is off by
+  // default, armed for exactly one toggle by the handle's onClick, and disarmed
+  // again whenever the page's words change (the layout effect below).
+  const [slideEnabled, setSlideEnabled] = useState(false);
 
   const words = useMemo(() => collectPageVocabulary(page), [page]);
 
@@ -148,6 +156,10 @@ export function VocabularyPanel({ page }: { page: ReaderBookletPage | undefined 
   // first paint — no flash of the open panel. Re-measures when the column
   // layout changes (e.g. book data updates add/remove words).
   useLayoutEffect(() => {
+    // A new page's words changed the column layout — disarm the slide so the
+    // re-measured collapsed offset applies instantly (no entry animation on
+    // page change), then re-measure.
+    setSlideEnabled(false);
     if (contentRef.current) setContentWidth(contentRef.current.offsetWidth);
   }, [columns]);
 
@@ -162,7 +174,9 @@ export function VocabularyPanel({ page }: { page: ReaderBookletPage | undefined 
         // translateY centers vertically; translateX hides the body, leaving
         // only the handle tab visible when collapsed.
         transform: `translateY(-50%) translateX(${expanded ? 0 : -contentWidth}px)`,
-        transition: `transform ${VOCABULARY_PANEL_SLIDE_MS}ms cubic-bezier(0.4, 0, 0.2, 1)`,
+        transition: slideEnabled
+          ? `transform ${VOCABULARY_PANEL_SLIDE_MS}ms cubic-bezier(0.4, 0, 0.2, 1)`
+          : 'none',
         display: 'flex',
         // Center the short handle tab against the tall body, so when collapsed
         // it peeks at mid-height — well clear of the speech tab up at top:16.
@@ -238,7 +252,12 @@ export function VocabularyPanel({ page }: { page: ReaderBookletPage | undefined 
         type="button"
         aria-label={expanded ? 'Close vocabulary' : 'Open vocabulary'}
         aria-expanded={expanded}
-        onClick={() => setExpanded((v) => !v)}
+        onClick={() => {
+          // Arm the slide for this one toggle; the layout effect disarms it
+          // again on the next page change.
+          setSlideEnabled(true);
+          setExpanded((v) => !v);
+        }}
         style={{
           flexShrink: 0,
           width: VOCABULARY_PANEL_HANDLE_WIDTH,
