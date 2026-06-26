@@ -1,6 +1,6 @@
 import { useState, type CSSProperties } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { BookOpen, Check, Copy, ExternalLink, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, BookOpen, Check, Copy, ExternalLink, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -549,6 +549,8 @@ export function BookletListPage() {
           marginBottom: 28,
           boxShadow: '0 8px 28px rgba(0,0,0,0.14), 0 2px 6px rgba(0,0,0,0.08)',
         }}>
+          {/* Same pill treatment as the Font Library back link, but in the
+              brand pink (rgba of BRAND.pink #FA6781) instead of green. */}
           <Link
             to="/admin"
             onMouseEnter={() => setBackLinkHover(true)}
@@ -556,16 +558,21 @@ export function BookletListPage() {
             style={{
               display: 'inline-flex',
               alignItems: 'center',
-              gap: 4,
+              gap: 7,
+              padding: '7px 14px 7px 10px',
+              borderRadius: 10,
               fontSize: 13,
-              fontWeight: 600,
-              color: backLinkHover ? BRAND.text : BRAND.textMuted,
+              fontWeight: 700,
+              color: backLinkHover ? BRAND.text : BRAND.pink,
+              backgroundColor: backLinkHover ? 'rgba(250,103,129,0.14)' : 'rgba(250,103,129,0.08)',
+              border: `1.5px solid ${backLinkHover ? 'rgba(250,103,129,0.4)' : 'rgba(250,103,129,0.2)'}`,
               textDecoration: 'none',
               marginBottom: 18,
-              transition: 'color 0.15s',
+              transition: 'all 0.15s',
             }}
           >
-            ← Back to dashboard
+            <ArrowLeft size={14} />
+            Back to Dashboard
           </Link>
 
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
@@ -590,11 +597,11 @@ export function BookletListPage() {
                 Create and manage your digital booklets. Each booklet gets a unique public link.
               </p>
             </div>
-            {/* Icon badge */}
+            {/* Icon badge — pink to match the pink back-to-dashboard link */}
             <div style={{
               width: 52, height: 52,
               borderRadius: 16,
-              backgroundColor: BRAND.green,
+              backgroundColor: BRAND.pink,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               flexShrink: 0,
               marginLeft: 20,

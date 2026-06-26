@@ -25,7 +25,10 @@ export function DashboardPage() {
     <div
       id="admin-root"
       style={{
-        minHeight: '100vh',
+        // Fixed viewport height + overflow:hidden keeps the dashboard a single
+        // non-scrolling hub screen (minHeight would let the box grow past the
+        // viewport and re-introduce page scroll).
+        height: '100vh',
         backgroundColor: BRAND.green,
         position: 'relative',
         overflow: 'hidden',
@@ -170,7 +173,7 @@ export function DashboardPage() {
         </header>
 
         {/* ── Welcome section ── */}
-        <div style={{ marginBottom: 44, paddingLeft: 4 }}>
+        <div style={{ marginBottom: 34, paddingLeft: 4 }}>
           <p style={{
             margin: 0,
             fontSize: 11,
