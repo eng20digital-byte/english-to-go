@@ -178,6 +178,23 @@ export function useUpdateBookletStatusMutation() {
   });
 }
 
+// Title is admin-facing only (CLAUDE.md booklets table). Edited explicitly via
+// the inline header field in the editor, not autosaved like page_elements.
+export function useUpdateBookletTitleMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, title }: { id: string; title: string }): Promise<void> => {
+      const { error } = await supabase.from('booklets').update({ title }).eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: (_data, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ADMIN_BOOKLETS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: adminBookletQueryKey(id) });
+    },
+  });
+}
+
 // QuizEmbedEditor (M11) — booklet-level fields, saved explicitly (not
 // autosaved like page_elements) since they're a small, infrequently-edited
 // pair of fields rather than continuous drag/type edits.

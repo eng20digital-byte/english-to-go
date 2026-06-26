@@ -1,6 +1,6 @@
-import { useState, type CSSProperties } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, BookOpen } from 'lucide-react';
+import { ArrowLeft, BookOpen, Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -12,7 +12,11 @@ import {
 } from '@/components/ui/dialog';
 import { Spinner } from '@/components/Spinner';
 import { StatusBadge } from '@/components/StatusBadge';
-import { useBookletDetailQuery, useUpdateBookletStatusMutation } from '@/hooks/useBookletQuery';
+import {
+  useBookletDetailQuery,
+  useUpdateBookletStatusMutation,
+  useUpdateBookletTitleMutation,
+} from '@/hooks/useBookletQuery';
 import {
   useAddPageMutation,
   useDeletePageMutation,
@@ -64,11 +68,113 @@ function SaveIndicator({ status }: { status: SaveStatus }) {
   return <span style={{ fontSize: 12, fontWeight: 600, color: BRAND.pink }}>Save failed</span>;
 }
 
+// Inline-editable booklet title in the header. Click the title (or its pencil)
+// to edit; Enter/blur commits, Escape cancels. Title is admin-facing only, so
+// this is a plain explicit save — no autosave/undo plumbing like page_elements.
+function EditableTitle({
+  title,
+  onSave,
+}: {
+  title: string;
+  onSave: (next: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(title);
+  const [hover, setHover] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (editing) {
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    }
+  }, [editing]);
+
+  function commit() {
+    const next = draft.trim();
+    if (next && next !== title) onSave(next);
+    setEditing(false);
+  }
+
+  function cancel() {
+    setDraft(title);
+    setEditing(false);
+  }
+
+  if (editing) {
+    return (
+      <input
+        ref={inputRef}
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') commit();
+          else if (e.key === 'Escape') cancel();
+        }}
+        aria-label="Booklet title"
+        style={{
+          margin: 0,
+          flex: 1,
+          minWidth: 0,
+          fontSize: 15,
+          fontWeight: 700,
+          color: BRAND.text,
+          fontFamily: 'inherit',
+          backgroundColor: '#fff',
+          border: `2px solid ${BRAND.green}`,
+          borderRadius: 8,
+          padding: '3px 8px',
+          outline: 'none',
+        }}
+      />
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        setDraft(title);
+        setEditing(true);
+      }}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      title="Rename booklet"
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 6,
+        flex: 1,
+        minWidth: 0,
+        border: 'none',
+        background: hover ? 'rgba(0,0,0,0.05)' : 'transparent',
+        borderRadius: 8,
+        padding: '3px 8px',
+        margin: '0 -8px',
+        cursor: 'pointer',
+        textAlign: 'left',
+        fontFamily: 'inherit',
+        transition: 'background-color 0.16s',
+      }}
+    >
+      <span style={{
+        margin: 0, fontSize: 15, fontWeight: 700, color: BRAND.text,
+        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+      }}>
+        {title}
+      </span>
+      <Pencil size={13} color={BRAND.textMuted} style={{ flexShrink: 0, opacity: hover ? 1 : 0.5, transition: 'opacity 0.16s' }} />
+    </button>
+  );
+}
+
 export function BookletEditorPage() {
   const { bookletId, pageId } = useParams<{ bookletId: string; pageId?: string }>();
   const navigate = useNavigate();
   const { data: booklet, isLoading } = useBookletDetailQuery(bookletId);
   const updateStatus = useUpdateBookletStatusMutation();
+  const updateTitle = useUpdateBookletTitleMutation();
 
   const addPage = useAddPageMutation(bookletId ?? '');
   const deletePage = useDeletePageMutation(bookletId ?? '');
@@ -159,14 +265,12 @@ export function BookletEditorPage() {
 
           <div style={{ width: 1, height: 22, backgroundColor: 'rgba(0,0,0,0.1)', flexShrink: 0 }} />
 
-          {/* Title + status */}
+          {/* Title (inline-editable) + status */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 }}>
-            <h1 style={{
-              margin: 0, fontSize: 15, fontWeight: 700, color: BRAND.text,
-              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-            }}>
-              {booklet.title}
-            </h1>
+            <EditableTitle
+              title={booklet.title}
+              onSave={(next) => updateTitle.mutate({ id: booklet.id, title: next })}
+            />
             <StatusBadge status={booklet.status} />
           </div>
 
