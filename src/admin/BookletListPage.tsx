@@ -34,6 +34,7 @@ type CardPalette = {
   iconBg: string;
   iconColor: string;
   separatorColor: string;
+  chipBg: string; // inset surface for the public-link chip
   neutralBtnBg: string;
   neutralBtnBgHover: string;
   neutralBtnText: string;
@@ -47,6 +48,7 @@ const CARD_COLORS: CardPalette[] = [
     iconBg: BRAND.green,
     iconColor: '#fff',
     separatorColor: 'rgba(0,0,0,0.08)',
+    chipBg: 'rgba(0,0,0,0.045)',
     neutralBtnBg: 'rgba(0,0,0,0.07)',
     neutralBtnBgHover: 'rgba(0,0,0,0.13)',
     neutralBtnText: BRAND.text,
@@ -58,6 +60,7 @@ const CARD_COLORS: CardPalette[] = [
     iconBg: 'rgba(0,0,0,0.09)',
     iconColor: BRAND.text,
     separatorColor: 'rgba(0,0,0,0.1)',
+    chipBg: 'rgba(0,0,0,0.06)',
     neutralBtnBg: 'rgba(0,0,0,0.09)',
     neutralBtnBgHover: 'rgba(0,0,0,0.16)',
     neutralBtnText: BRAND.text,
@@ -69,6 +72,7 @@ const CARD_COLORS: CardPalette[] = [
     iconBg: 'rgba(255,255,255,0.22)',
     iconColor: '#fff',
     separatorColor: 'rgba(255,255,255,0.2)',
+    chipBg: 'rgba(255,255,255,0.16)',
     neutralBtnBg: 'rgba(255,255,255,0.2)',
     neutralBtnBgHover: 'rgba(255,255,255,0.32)',
     neutralBtnText: '#fff',
@@ -229,59 +233,85 @@ function BookletCard({
         {booklet.title}
       </h3>
 
-      {/* Reader URL row: link + copy button */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 24, overflow: 'hidden' }}>
-        <a
-          href={readerUrl(booklet.public_token)}
-          target="_blank"
-          rel="noreferrer"
-          onClick={stop}
-          onMouseEnter={() => setLinkHover(true)}
-          onMouseLeave={() => setLinkHover(false)}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 4,
-            fontSize: 12,
-            color: linkHover ? palette.text : palette.textMuted,
-            textDecoration: linkHover ? 'underline' : 'none',
-            transition: 'color 0.15s',
-            overflow: 'hidden',
-            flex: 1,
-            minWidth: 0,
-          }}
-        >
-          <ExternalLink size={12} style={{ flexShrink: 0 }} />
-          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+      {/* Public reader link — contained "share link" chip. The token is the only
+          way to reach the published booklet, so it gets a clear label and its own
+          surface rather than being a muted afterthought under the title. */}
+      <div style={{ marginBottom: 24 }}>
+        <p style={{
+          margin: '0 0 7px',
+          fontSize: 10,
+          fontWeight: 700,
+          color: palette.textMuted,
+          letterSpacing: '0.6px',
+          textTransform: 'uppercase',
+        }}>
+          Public link
+        </p>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          padding: '7px 7px 7px 12px',
+          borderRadius: 12,
+          backgroundColor: palette.chipBg,
+          border: `1px solid ${palette.separatorColor}`,
+          overflow: 'hidden',
+        }}>
+          <ExternalLink size={13} style={{ flexShrink: 0, color: palette.textMuted }} />
+          <a
+            href={readerUrl(booklet.public_token)}
+            target="_blank"
+            rel="noreferrer"
+            onClick={stop}
+            onMouseEnter={() => setLinkHover(true)}
+            onMouseLeave={() => setLinkHover(false)}
+            style={{
+              flex: 1,
+              minWidth: 0,
+              fontSize: 13,
+              fontWeight: 600,
+              color: palette.text,
+              textDecoration: linkHover ? 'underline' : 'none',
+              transition: 'color 0.15s',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
             {readerUrl(booklet.public_token)}
-          </span>
-        </a>
+          </a>
 
-        {/* Copy URL button */}
-        <button
-          type="button"
-          onClick={handleCopy}
-          title="Copy link"
-          style={{
-            flexShrink: 0,
-            width: 28, height: 28,
-            borderRadius: 8,
-            border: 'none',
-            backgroundColor: copied
-              ? 'rgba(89,178,146,0.18)'
-              : btnHover === 'copy' ? palette.neutralBtnBgHover : palette.neutralBtnBg,
-            color: copied ? BRAND.green : palette.textMuted,
-            cursor: 'pointer',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            transition: 'background-color 0.16s, color 0.16s',
-            padding: 0,
-            fontFamily: 'inherit',
-          }}
-          onMouseEnter={() => setBtnHover('copy')}
-          onMouseLeave={() => setBtnHover(null)}
-        >
-          {copied ? <Check size={13} /> : <Copy size={13} />}
-        </button>
+          {/* Copy URL button — labeled so it reads as the primary affordance */}
+          <button
+            type="button"
+            onClick={handleCopy}
+            title="Copy link"
+            onMouseEnter={() => setBtnHover('copy')}
+            onMouseLeave={() => setBtnHover(null)}
+            style={{
+              flexShrink: 0,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 5,
+              height: 30,
+              padding: '0 12px',
+              borderRadius: 9,
+              border: 'none',
+              backgroundColor: copied
+                ? 'rgba(89,178,146,0.18)'
+                : btnHover === 'copy' ? palette.neutralBtnBgHover : palette.neutralBtnBg,
+              color: copied ? BRAND.green : palette.neutralBtnText,
+              cursor: 'pointer',
+              fontSize: 12,
+              fontWeight: 700,
+              transition: 'background-color 0.16s, color 0.16s',
+              fontFamily: 'inherit',
+            }}
+          >
+            {copied ? <Check size={13} /> : <Copy size={13} />}
+            {copied ? 'Copied' : 'Copy'}
+          </button>
+        </div>
       </div>
 
       {/* Separator */}
