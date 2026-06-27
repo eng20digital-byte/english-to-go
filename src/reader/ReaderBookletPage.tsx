@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { useParams } from 'react-router-dom';
 import { AlertTriangle, BookOpen, BookX, Volume2 } from 'lucide-react';
 import { useBookletByToken } from '@/hooks/useBookletQuery';
@@ -7,7 +7,10 @@ import { WordSpeechProvider } from '@/tts/useWordSpeech';
 import { SpeechRateControl } from '@/tts/SpeechRateControl';
 import { QuizEmbed } from '@/quiz/QuizEmbed';
 import { CANVAS_WIDTH, CANVAS_HEIGHT } from '@/config/canvas';
-import { READER_MAX_WIDTH } from '@/config/reader';
+import {
+  READER_MAX_WIDTH,
+  BOOK_SHEET_THICKNESS_PX,
+} from '@/config/reader';
 import { PageFlip } from './PageFlip';
 import { VocabularyPanel } from './VocabularyPanel';
 import { BRAND } from '@/config/theme';
@@ -113,6 +116,21 @@ export function ReaderBookletPage() {
 
   const prevDisabled = isFlipping || clampedIndex === 0;
   const nextDisabled = isFlipping || clampedIndex === booklet.pages.length - 1;
+
+  // Physical book thickness: page-stack edges flanking the open book, one thin
+  // sheet per page. leftSheets = pages already turned, rightSheets = pages still
+  // ahead; each stack's width is its sheet count × BOOK_SHEET_THICKNESS_PX, so
+  // it thickens gradually and accurately as pages move from one side to the
+  // other. Driven by the settled page (clampedIndex); each edge is rendered only
+  // when its side has sheets (no transition), so a sheet shifts from the right
+  // stack to the left the instant a page settles. The shared `--book-sheet-
+  // thickness` var lets the fore-edge gradient draw one cut-line per sheet.
+  // See src/config/reader.ts.
+  const leftSheets = clampedIndex;
+  const rightSheets = booklet.pages.length - 1 - clampedIndex;
+  const sheetVar = {
+    '--book-sheet-thickness': `${BOOK_SHEET_THICKNESS_PX}px`,
+  } as CSSProperties;
 
   return (
     <div
@@ -240,15 +258,62 @@ export function ReaderBookletPage() {
               ‹
             </button>
 
-            {/* ── Booklet card ─────────────────────────────────────────────
-                overflow:hidden clips the 3D page-flip and gives rounded
-                corners. flex:1 + maxWidth gives contain-style scaling. */}
+            {/* ── Book wrapper ─────────────────────────────────────────────
+                Non-clipping positioned box that owns the contain-style scaling
+                (flex:1 + maxWidth). The card child is the single in-flow sizing
+                element, so the page-stack edges (absolute, translated fully
+                outside the card) add depth without touching the canvas geometry
+                or the existing scale math. */}
             <div style={{
               position: 'relative',
               flex: 1,
               maxWidth: `min(${READER_MAX_WIDTH}px, calc((100vh - 40px) * ${(CANVAS_WIDTH / CANVAS_HEIGHT).toFixed(4)}))`,
+            }}>
+
+            {/* Left page stack (pages already turned): one thin sheet per turned
+                page, so it grows a sheet at a time. Full page height (top:0/
+                bottom:0); rendered only when there are sheets, no transition. */}
+            {leftSheets > 0 && (
+              <div
+                className="book-edge book-edge--left"
+                style={{
+                  ...sheetVar,
+                  position: 'absolute',
+                  left: 0,
+                  transform: 'translateX(-100%)',
+                  top: 0,
+                  bottom: 0,
+                  width: leftSheets * BOOK_SHEET_THICKNESS_PX,
+                }}
+              />
+            )}
+
+            {/* Right page stack (unread pages): one thin sheet per remaining
+                page, shrinking a sheet at a time as the reader advances. Full
+                page height; rendered only when there are sheets, no transition. */}
+            {rightSheets > 0 && (
+              <div
+                className="book-edge book-edge--right"
+                style={{
+                  ...sheetVar,
+                  position: 'absolute',
+                  right: 0,
+                  transform: 'translateX(100%)',
+                  top: 0,
+                  bottom: 0,
+                  width: rightSheets * BOOK_SHEET_THICKNESS_PX,
+                }}
+              />
+            )}
+
+            {/* ── Booklet card ─────────────────────────────────────────────
+                overflow:hidden clips the 3D page-flip and gives rounded
+                corners. width:100% fills the sizing wrapper above. */}
+            <div style={{
+              position: 'relative',
+              width: '100%',
               aspectRatio: `${CANVAS_WIDTH} / ${CANVAS_HEIGHT}`,
-              borderRadius: 20,
+              borderRadius: 1,
               overflow: 'hidden',
               boxShadow: '0 24px 64px rgba(0,0,0,0.28), 0 8px 24px rgba(0,0,0,0.16)',
             }}>
@@ -327,6 +392,7 @@ export function ReaderBookletPage() {
                 )}
               </PageFlip>
             </div>{/* booklet card */}
+            </div>{/* book wrapper */}
 
             {/* ── Next arrow ───────────────────────────────────────────── */}
             <button

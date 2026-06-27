@@ -38,3 +38,17 @@ export const SWIPE_THRESHOLD_RATIO = 0.15;
 // pointerdown would redirect the resulting `click` event to this container
 // instead of the element under the pointer.
 export const DRAG_CAPTURE_THRESHOLD_PX = 10;
+
+// ── Physical book thickness (page-stack edges) ─────────────────────────────
+// Stacked-paper edges drawn just OUTSIDE the open book's left/right sides (see
+// ReaderBookletPage.tsx + the `.book-edge` rule in src/index.css). Every page
+// contributes exactly ONE extremely thin sheet, so a stack's width is simply
+// its sheet count × this thickness: the LEFT stack grows by a sheet for each
+// page turned while the RIGHT stack shrinks by one, so both sides accurately
+// reflect how many pages sit on each. Kept tiny so the stack thickens gradually,
+// page by page, rather than reading as one solid block. The same value is
+// exposed to CSS as the `--book-sheet-thickness` custom property so the
+// fore-edge gradient draws exactly one cut-line per sheet. Edges run the full
+// page height (top to bottom) and switch with no transition — see
+// ReaderBookletPage.tsx.
+export const BOOK_SHEET_THICKNESS_PX = 2;
