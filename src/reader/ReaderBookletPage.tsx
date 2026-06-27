@@ -62,7 +62,7 @@ function ReaderError({ icon, message }: { icon: React.ReactNode; message: string
         <div style={{ width: 64, height: 64, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.18)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           {icon}
         </div>
-        <p style={{ margin: 0, color: 'rgba(255,255,255,0.82)', fontSize: 15, maxWidth: 320, lineHeight: 1.5 }}>{message}</p>
+        <p style={{ margin: 0, color: 'rgba(255,255,255,0.82)', fontSize: 15, maxWidth: 225, lineHeight: 1.5 }}>{message}</p>
       </div>
     </div>
   );
@@ -103,7 +103,7 @@ export function ReaderBookletPage() {
 
   if (isLoading) return <LoadingState />;
   if (isError) return <ReaderError icon={<AlertTriangle size={26} color="rgba(255,193,77,0.9)" />} message="Something went wrong loading this booklet. Please try again." />;
-  if (!booklet) return <ReaderError icon={<BookX size={26} color="rgba(255,255,255,0.7)" />} message="This booklet could not be found." />;
+  if (!booklet) return <ReaderError icon={<BookX size={26} color="rgba(255,255,255,0.7)" />} message="This booklet could not be found. It may not be published or disabled" />;
   if (booklet.pages.length === 0) return <ReaderError icon={<BookOpen size={26} color="rgba(255,255,255,0.7)" />} message="This booklet has no pages yet." />;
 
   const clampedIndex = Math.min(pageIndex, booklet.pages.length - 1);
