@@ -722,37 +722,42 @@ export function BookletListPage() {
           </div>
         </header>
 
+        {/* ── Create + library controls row ──
+            Side by side on wide screens, stacked on narrow ones. Create takes
+            ~38% and the toolbar ~62% via flex-grow on a zero basis; the
+            minWidths are what force the wrap to a vertical stack when there's
+            no longer room for both. */}
+        <div style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          alignItems: 'stretch',
+          gap: 28,
+          marginBottom: 36,
+        }}>
+
         {/* ── Create booklet — cream paper card ── */}
         <div style={{
           backgroundColor: BRAND.cream,
           borderRadius: 24,
           padding: '32px 36px 36px',
-          marginBottom: 36,
+          flexGrow: 38,
+          flexBasis: 0,
+          minWidth: 280,
           boxShadow: '0 8px 28px rgba(0,0,0,0.13), 0 2px 6px rgba(0,0,0,0.08)',
         }}>
-          <p style={{
-            margin: '0 0 20px',
-            fontSize: 11,
-            fontWeight: 700,
-            color: BRAND.textMuted,
-            letterSpacing: '0.6px',
-            textTransform: 'uppercase',
-          }}>
-            New Booklet
-          </p>
 
           <form onSubmit={handleSubmit}>
             <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12, flexWrap: 'wrap' }}>
               <label style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1, minWidth: 200 }}>
-                <span style={{
+                <p style={{
                   fontSize: 11,
                   fontWeight: 700,
                   color: BRAND.text,
                   letterSpacing: '0.5px',
                   textTransform: 'uppercase',
                 }}>
-                  Title
-                </span>
+                  New Booklet
+                </p>
                 <input
                   type="text"
                   value={title}
@@ -816,7 +821,7 @@ export function BookletListPage() {
           </form>
         </div>
 
-        {/* ── Search / filter / sort toolbar ── */}
+        {/* ── Search / filter / sort toolbar — fills the wider ~62% column ── */}
         {!isLoading && hasBooklets && (
           <BookletLibraryToolbar
             search={search}
@@ -826,8 +831,10 @@ export function BookletListPage() {
             sort={sort}
             onSortChange={setSort}
             counts={counts}
+            style={{ flexGrow: 62, flexBasis: 0, minWidth: 340, marginBottom: 0 }}
           />
         )}
+        </div>{/* end create + controls row */}
 
         {/* ── Gallery section label (with result count while filtering) ── */}
         {!isLoading && hasBooklets && (

@@ -16,6 +16,9 @@ interface BookletLibraryToolbarProps {
   sort: BookletSortValue;
   onSortChange: (value: BookletSortValue) => void;
   counts: Record<BookletStatusFilter, number>;
+  // Layout overrides from the parent (e.g. flex sizing when sat beside the
+  // create-booklet card). Merged last so the caller controls placement.
+  style?: CSSProperties;
 }
 
 // Active-pill color per status, mirroring the StatusBadge color language so the
@@ -52,6 +55,7 @@ export function BookletLibraryToolbar({
   sort,
   onSortChange,
   counts,
+  style,
 }: BookletLibraryToolbarProps) {
   const [searchFocused, setSearchFocused] = useState(false);
   const [sortFocused, setSortFocused] = useState(false);
@@ -66,6 +70,13 @@ export function BookletLibraryToolbar({
         padding: '22px 24px',
         marginBottom: 24,
         boxShadow: '0 8px 28px rgba(0,0,0,0.13), 0 2px 6px rgba(0,0,0,0.08)',
+        // Flex column so, when stretched taller than its content beside the
+        // create card, the search row pins to the top and the filter pills to
+        // the bottom — keeping the two cards' baselines visually aligned.
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'space-between',
+        ...style,
       }}
     >
       {/* Row 1: search field + sort select */}
