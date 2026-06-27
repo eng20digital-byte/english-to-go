@@ -4,6 +4,7 @@ import { useCanvasScale } from '@/renderer/useCanvasScale';
 import { CANVAS_WIDTH, CANVAS_HEIGHT } from '@/config/canvas';
 import { EDITOR_CANVAS_MAX_WIDTH } from '@/config/editor';
 import { EditorOverlay, type GeometryOverride } from './EditorOverlay';
+import { useTextMeasurements } from './useTextMeasurements';
 import type { GeometryChanges } from './useEditorReducer';
 import type { PageElement } from '@/types/elements';
 
@@ -60,6 +61,11 @@ export function EditorCanvas({
 
   const page: PageCanvasPage = { id: pageId, elements: displayElements };
 
+  // Real rendered glyph bounds per text element (drives the tight selection box
+  // in EditorOverlay). Measured from `displayElements` so the box matches the
+  // live-overridden text during a drag/resize, not the last committed state.
+  const textMeasurements = useTextMeasurements(containerRef, displayElements, scale);
+
   function handleCommit(id: string, changes: GeometryChanges) {
     setLiveOverride(null);
     onCommitGeometry(id, changes);
@@ -83,6 +89,7 @@ export function EditorCanvas({
       <EditorOverlay
         elements={displayElements}
         scale={scale}
+        textMeasurements={textMeasurements}
         selectedElementId={selectedElementId}
         textEditingId={textEditingId}
         onSelectElement={onSelectElement}

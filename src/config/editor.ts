@@ -27,6 +27,25 @@ export const EDITOR_MIN_ELEMENT_SIZE = 40;
 export const EDITOR_HANDLE_SIZE = 16;
 export const EDITOR_SELECTION_COLOR = '#2563eb';
 
+// ── Text selection measurement ──────────────────────────────────────────────
+// A text element's selection box is derived from the *actually rendered* glyph
+// bounds (a DOM Range over the text node), not the stored frame w/h — so it
+// hugs the text on all sides and reflects font / size / weight / line breaks /
+// line height / alignment / wrapping exactly as painted (see
+// useTextMeasurements). These tune that measurement:
+
+// Sub-pixel threshold (canvas px) below which two measured boxes count as
+// equal — prevents re-render churn — and below which a box is degenerate.
+export const TEXT_MEASURE_EPSILON = 0.5;
+// Caps how many animation frames we keep re-measuring after a text/style change
+// to catch async web-font loads (the `fonts` table loads over the network, so
+// the first paint may use a fallback face). Re-measuring stops early once the
+// result stabilizes.
+export const TEXT_MEASURE_MAX_ATTEMPTS = 60;
+// Fallback selectable width (canvas px) for an empty text box, which has no
+// rendered glyphs to measure.
+export const TEXT_EMPTY_MIN_WIDTH = 16;
+
 // Caps how wide the editor canvas grows on large desktop viewports. The center
 // column takes remaining space after the sidebar, so this cap rarely triggers
 // except on very wide monitors — mirroring the intent of the reader's READER_MAX_WIDTH.

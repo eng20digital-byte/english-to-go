@@ -35,6 +35,13 @@ export function PageCanvas({ page, scale, renderMode }: PageCanvasProps) {
       {sortedElements.map((element) => (
         <div
           key={element.id}
+          // Stable, mode-agnostic identifiers so the editor overlay can locate
+          // each rendered node (e.g. to measure a text element's real glyph
+          // bounds for its selection box — see useTextMeasurements). Harmless,
+          // inert markers in the reader; they don't change rendering, so this
+          // stays a pure { page, scale, renderMode } component (CLAUDE.md #1).
+          data-element-id={element.id}
+          data-element-type={element.type}
           style={{
             position: 'absolute',
             left: element.x,

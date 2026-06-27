@@ -32,7 +32,13 @@ Single app, client-side route split — not two separate deployments:
 
 - Reader (`src/reader/ReaderBookletPage.tsx`) renders `PageCanvas` directly.
 - Editor (`src/admin/editor/EditorCanvas.tsx`) renders the _same_ `PageCanvas` plus a sibling `EditorOverlay` (selection/drag/resize handles) positioned in the same canvas-space coordinates via the same `useCanvasScale` instance — no duplicate layout math, alignment is guaranteed by construction, not by careful coding.
-- `renderMode: 'reader' | 'editor'` only toggles behavior intrinsic to rendering — e.g. word-spans are click-active for TTS in `reader` mode only; in `editor` mode the whole text box is the drag/select target.
+- `renderMode: 'reader' | 'editor'` only toggles behavior intrinsic to rendering — e.g. word-spans are click-active for TTS in `reader` mode only; in `editor` mode the text box is the drag/select target.
+
+PageCanvas tags every element wrapper with `data-element-id`/`data-element-type` — inert, mode-agnostic markers (no effect on rendering, so it's still a pure component and still never forked) that let the editor overlay locate rendered nodes.
+
+**Text selection geometry is measured, not assumed.** A text element's stored `w`/`h` is only its wrapping width plus a now-unused height — its selection box (border, hit-area, resize handles, action bubble) is sized to the _actually rendered_ glyph bounds via `src/admin/editor/useTextMeasurements.ts` (a DOM `Range` over the rendered text node), so it hugs the text and reflects font/size/weight/line-breaks/line-height/alignment/wrapping exactly, updating whenever any of those change. Consequences: a text box auto-fits its height to the rendered lines and exposes **two side handles** (left/right = wrapping width) instead of corner handles; resizing still writes the stored frame `w`/`x` (height stays content-driven, so stored `h` is vestigial for text). Non-text elements (image, vocabulary) keep stored-frame geometry and corner handles unchanged. Measurement re-runs for a few animation frames until it stabilizes, specifically to catch async web-font loads that change metrics after first paint.
+
+The inline-edit textarea (`TextEditOverlay`) follows the same principle: it overlays the rendered text faithfully — real `@font-face` family (not the admin chrome font), `font_size × scale`, matching line-height/align/direction, **zero padding**, and a `box-shadow` frame (not a `border`, which would shift the text off the rendered glyphs) — and auto-grows its height to the content (the stored `h` is ignored). It wraps at the element's `w` so its line breaks, and therefore the caret, match the canvas exactly. Focus + caret-to-end runs **once on mount**, never per-keystroke: keying that effect on content length is what previously forced the caret to the end after every character (append-only editing); leaving the textarea to manage its own caret/selection restores normal click-to-place / select / mid-text editing.
 
 If a future change seems to require a second rendering path for the editor vs. reader, stop — that almost certainly means the change belongs in `PageCanvas`/the registry, not a fork.
 
@@ -205,6 +211,7 @@ src/
       PagesSidebar.tsx           -- left panel: page list, add/delete, navigate
       useEditorReducer.ts        -- element tree + undo/redo
       useAutosave.ts
+      useTextMeasurements.ts     -- measures rendered text glyph bounds -> selection box geometry
       MediaLibraryPicker.tsx
       QuizEmbedEditor.tsx
     fonts/
