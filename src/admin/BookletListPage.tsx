@@ -739,7 +739,7 @@ export function BookletListPage() {
         <div style={{
           backgroundColor: BRAND.cream,
           borderRadius: 24,
-          padding: '32px 36px 36px',
+          padding: '22px 36px 36px',
           flexGrow: 38,
           flexBasis: 0,
           minWidth: 280,
@@ -749,15 +749,6 @@ export function BookletListPage() {
           <form onSubmit={handleSubmit}>
             <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12, flexWrap: 'wrap' }}>
               <label style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1, minWidth: 200 }}>
-                <p style={{
-                  fontSize: 11,
-                  fontWeight: 700,
-                  color: BRAND.text,
-                  letterSpacing: '0.5px',
-                  textTransform: 'uppercase',
-                }}>
-                  New Booklet
-                </p>
                 <input
                   type="text"
                   value={title}

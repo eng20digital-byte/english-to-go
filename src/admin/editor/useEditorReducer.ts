@@ -28,6 +28,7 @@ export interface EditorState {
 export type EditorAction =
   | { type: 'SET_ELEMENTS'; elements: PageElement[] }
   | { type: 'ADD_ELEMENT'; element: PageElement }
+  | { type: 'ADD_ELEMENTS'; elements: PageElement[] }
   | { type: 'DELETE_ELEMENT'; id: string }
   | { type: 'DUPLICATE_ELEMENT'; id: string; newId: string }
   | { type: 'UPDATE_ELEMENT'; id: string; changes: GeometryChanges }
@@ -59,6 +60,19 @@ function reducer(state: EditorState, action: EditorAction): EditorState {
       return {
         ...state,
         elements: [...state.elements, action.element],
+        past: pushHistory(state.past, state.elements),
+        future: [],
+      };
+
+    // Append several pre-built elements in ONE undo step — used by paste so a
+    // multi-element paste (and every paste, for consistency) is a single
+    // undo/redo unit rather than one per element. The elements arrive already
+    // shaped for this page (new ids, page_id, z_index) by the caller.
+    case 'ADD_ELEMENTS':
+      if (action.elements.length === 0) return state;
+      return {
+        ...state,
+        elements: [...state.elements, ...action.elements],
         past: pushHistory(state.past, state.elements),
         future: [],
       };

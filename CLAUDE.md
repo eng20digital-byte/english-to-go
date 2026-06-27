@@ -154,6 +154,19 @@ Plain React, no Redux/Zustand:
 - **Undo/redo**: in-memory snapshot stack of the element array (capped size, constant in `src/config/editor.ts`), per editing session only — not persisted, no CRDT/OT (single admin, no realtime collaboration requirement).
 - **Autosave**: debounced (constant in `src/config/editor.ts`, default ~1500ms) save via the `save_page_elements(page_id, elements)` RPC, wrapped in a transaction so a save can't half-write. UI shows `idle/saving/saved/error`; manual "Save now" + save-on-navigate-away as a safety net.
 
+## Clipboard system
+
+Two independent editor-wide clipboards (`src/admin/editor/clipboard/`), both **owned by `BookletEditorPage`, not `PageElementEditor`** — that placement is the whole design. `PageElementEditor` is `key={pageId}` and remounts (fresh reducer + undo stack) on every page switch, so a clipboard living inside it could never survive a page change. Owning it one level up is what makes copy-on-page-A / paste-on-page-B work.
+
+- **Element clipboard** (`useElementClipboard`): `copy` deep-clones (`structuredClone`) the selected element(s) so later edits to the live originals never mutate the clipboard; `takePaste(targetPageId, baseZIndex)` mints new `crypto.randomUUID()` ids, sets `page_id` to the target page, stacks z-index on top, and applies a cascading `CLIPBOARD_PASTE_OFFSET` (so consecutive pastes don't stack invisibly), cloning again so each paste is independent. Paste dispatches the **`ADD_ELEMENTS`** reducer action (one undo step for the whole paste) and selects the result. Cut = `copy` + existing `DELETE_ELEMENT`. New element ids guarantee no collisions across pages.
+- **Page clipboard** (`usePageClipboard`): holds a copied page's *content in memory* (`{ elements, isQuizPage }`) — not just a page id — because Cut deletes the source from the DB and Paste must still recreate it afterwards.
+
+**Keyboard split (two `window` keydown listeners, disjoint combos, no conflict):** element ops are plain `Ctrl` (`C`/`X`/`V`, bare `Delete`/`Backspace`, `Ctrl+Z`/`Y`/`Shift+Z`) handled in `PageElementEditor`; page ops are `Ctrl+Shift` (`C`/`X`/`V`/`D`, `Ctrl+Shift+Delete`) handled in `BookletEditorPage`. Both handlers ignore events while an `INPUT`/`TEXTAREA`/`SELECT` (or inline text-edit) is focused, so they never disrupt typing. Use `e.code` (physical key) for letters so the Hebrew admin layout / Caps Lock don't break them. Page actions are also exposed via a per-page dropdown menu in `PagesSidebar`.
+
+**Page ops persist via RPCs** (`supabase/migrations/0003_page_clipboard_ops.sql`): `duplicate_page` and `insert_page_with_elements` follow the 0002 pattern (defer the `unique(booklet_id, page_order)` check, renumber, re-enforce "only the last page may be `is_quiz_page`") and reuse `save_page_elements`'s element-insert shape (incoming element `id`/`page_id` ignored, fresh ids minted). Before copying/cutting/duplicating the page **currently open** in the editor, `BookletEditorPage` first calls that page's `flushIfDirty` (parked in a ref by `PageElementEditor`) so the DB read isn't stale relative to un-debounced in-memory edits.
+
+**Scope decision — no page-structural undo/redo.** Element ops are fully undoable via the per-page reducer, but page add/delete/duplicate/paste are server mutations with no in-memory history store, and `Ctrl+Z` is already element-undo inside the open page. A parallel page-history stack was deliberately *not* built (it cuts against the React-Query-as-source-of-truth design and "no premature abstraction"). Instead, page delete is guarded by a confirm dialog and Cut/Delete capture the page to the clipboard, so **Paste Page is the recovery path**. Revisit only with an explicit decision.
+
 ## Code-quality bar (applies to every milestone)
 
 - **No magic numbers/hardcoded values in components.** Canvas size, debounce timings, default font size/colors, z-index ranges, sandbox tokens, etc. live in `src/config/`, not inline.
@@ -208,12 +221,15 @@ src/
       ElementInspector.tsx
       PageElementEditor.tsx
       PageThumbnail.tsx          -- miniature canvas preview used in PagesSidebar
-      PagesSidebar.tsx           -- left panel: page list, add/delete, navigate
+      PagesSidebar.tsx           -- left panel: page list, add/duplicate/copy/cut/paste/delete, navigate
       useEditorReducer.ts        -- element tree + undo/redo
       useAutosave.ts
       useTextMeasurements.ts     -- measures rendered text glyph bounds -> selection box geometry
       MediaLibraryPicker.tsx
       QuizEmbedEditor.tsx
+      clipboard/                 -- editor-wide clipboards (see "Clipboard system")
+        useElementClipboard.ts   -- copy/cut/paste elements, cross-page, new ids on paste
+        usePageClipboard.ts      -- copy/cut/paste whole pages (payload held in memory)
     fonts/
       FontManagerPage.tsx
       FontPreview.tsx
@@ -235,6 +251,8 @@ public/
 supabase/
   migrations/
     0001_init.sql
+    0002_page_management.sql        -- add/delete/reorder page RPCs
+    0003_page_clipboard_ops.sql     -- duplicate_page + insert_page_with_elements RPCs
 docs/
   milestones/                      -- M0..M12, one file per milestone
 CLAUDE.md
@@ -318,7 +336,7 @@ RLS: SELECT public only where `status = 'published'`; `is_admin()` sees all. Wri
 
 RLS: SELECT public if parent booklet is published; `is_admin()` sees all. Writes `is_admin()` (via `add_page`/`delete_page`/`reorder_pages` RPCs in practice — see below).
 
-`page_order` is renumbered across multiple rows at once on add/delete/reorder (e.g. swapping two pages' order, or compacting the gap left by a delete). A plain `unique(booklet_id, page_order)` constraint is checked per-row immediately, even within a single multi-row `UPDATE`, so that renumbering would transiently collide. The constraint is `deferrable initially immediate` specifically so `add_page`/`delete_page`/`reorder_pages` (`supabase/migrations/0002_page_management.sql`) can `set constraints ... deferred` and renumber freely within the transaction. Those same RPCs also re-enforce "only the last page may be `is_quiz_page`" after every structural change, since adding/deleting/reordering pages can silently demote the page that used to be last.
+`page_order` is renumbered across multiple rows at once on add/delete/reorder (e.g. swapping two pages' order, or compacting the gap left by a delete). A plain `unique(booklet_id, page_order)` constraint is checked per-row immediately, even within a single multi-row `UPDATE`, so that renumbering would transiently collide. The constraint is `deferrable initially immediate` specifically so `add_page`/`delete_page`/`reorder_pages` (`supabase/migrations/0002_page_management.sql`) — and the clipboard RPCs `duplicate_page`/`insert_page_with_elements` (`0003_page_clipboard_ops.sql`), which also open a gap by shifting later pages down one — can `set constraints ... deferred` and renumber freely within the transaction. All of those RPCs re-enforce "only the last page may be `is_quiz_page`" after every structural change, since adding/deleting/reordering/inserting pages can silently demote the page that used to be last.
 
 ### `page_elements`
 

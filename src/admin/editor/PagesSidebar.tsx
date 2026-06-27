@@ -1,7 +1,22 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Trash2 } from 'lucide-react';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import {
+  ClipboardPaste,
+  Copy,
+  CopyPlus,
+  MoreVertical,
+  Plus,
+  Scissors,
+  Trash2,
+} from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuShortcut,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Spinner } from '@/components/Spinner';
 import { PageThumbnail } from './PageThumbnail';
 import type { PageRow } from '@/types/database';
@@ -12,8 +27,15 @@ interface PagesSidebarProps {
   pages: PageRow[];
   selectedPageId: string | undefined;
   isAddingPage: boolean;
+  // Enables the "Paste page" item — true once a page has been copied/cut.
+  hasPageClipboard: boolean;
   onAddPage: () => void;
   onDeletePage: (page: PageRow) => void;
+  onDuplicatePage: (page: PageRow) => void;
+  onCopyPage: (page: PageRow) => void;
+  onCutPage: (page: PageRow) => void;
+  // Pastes the page clipboard immediately after the given page.
+  onPastePage: (afterPage: PageRow) => void;
   onReorderPages: (orderedPageIds: string[]) => void;
 }
 
@@ -24,12 +46,20 @@ export function PagesSidebar({
   pages,
   selectedPageId,
   isAddingPage,
+  hasPageClipboard,
   onAddPage,
   onDeletePage,
+  onDuplicatePage,
+  onCopyPage,
+  onCutPage,
+  onPastePage,
   onReorderPages,
 }: PagesSidebarProps) {
   const navigate = useNavigate();
   const [hoveredPageId, setHoveredPageId] = useState<string | null>(null);
+  // Page whose action menu is open — keeps its trigger button visible even after
+  // the pointer leaves the thumbnail (the menu renders in a portal).
+  const [openMenuPageId, setOpenMenuPageId] = useState<string | null>(null);
   const [addHover, setAddHover] = useState(false);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dropIndex, setDropIndex] = useState<number | null>(null);
@@ -135,70 +165,104 @@ export function PagesSidebar({
           </p>
         )}
         <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {pages.map((page, index) => (
-            <li
-              key={page.id}
-              draggable
-              onDragStart={() => handleDragStart(index)}
-              onDragOver={(e) => handleDragOver(e, index)}
-              onDrop={handleDrop}
-              onDragEnd={handleDragEnd}
-              onMouseEnter={() => setHoveredPageId(page.id)}
-              onMouseLeave={() => setHoveredPageId(null)}
-              style={{
-                position: 'relative',
-                opacity: dragIndex === index ? 0.4 : 1,
-                transition: 'opacity 0.15s',
-                borderRadius: 12,
-                outline: dropIndex === index && dragIndex !== index
-                  ? `2px solid ${BRAND.green}`
-                  : '2px solid transparent',
-              }}
-            >
-              <PageThumbnail
-                page={page}
-                pageIndex={index}
-                bookletId={bookletId}
-                isSelected={page.id === selectedPageId}
-                onClick={() => navigate(`/admin/booklets/${bookletId}/pages/${page.id}`)}
-              />
+          {pages.map((page, index) => {
+            const showMenuButton =
+              hoveredPageId === page.id ||
+              openMenuPageId === page.id ||
+              page.id === selectedPageId;
+            return (
+              <li
+                key={page.id}
+                draggable
+                onDragStart={() => handleDragStart(index)}
+                onDragOver={(e) => handleDragOver(e, index)}
+                onDrop={handleDrop}
+                onDragEnd={handleDragEnd}
+                onMouseEnter={() => setHoveredPageId(page.id)}
+                onMouseLeave={() => setHoveredPageId(null)}
+                style={{
+                  position: 'relative',
+                  opacity: dragIndex === index ? 0.4 : 1,
+                  transition: 'opacity 0.15s',
+                  borderRadius: 12,
+                  outline: dropIndex === index && dragIndex !== index
+                    ? `2px solid ${BRAND.green}`
+                    : '2px solid transparent',
+                }}
+              >
+                <PageThumbnail
+                  page={page}
+                  pageIndex={index}
+                  bookletId={bookletId}
+                  isSelected={page.id === selectedPageId}
+                  onClick={() => navigate(`/admin/booklets/${bookletId}/pages/${page.id}`)}
+                />
 
-              {/* Delete button — appears on hover */}
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDeletePage(page);
-                    }}
-                    style={{
-                      position: 'absolute',
-                      top: -6, right: -6,
-                      width: 20, height: 20,
-                      borderRadius: '50%',
-                      border: 'none',
-                      backgroundColor: BRAND.pink,
-                      color: '#fff',
-                      cursor: 'pointer',
-                      display: hoveredPageId === page.id ? 'flex' : 'none',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      padding: 0,
-                      boxShadow: '0 2px 6px rgba(250,103,129,0.4)',
-                      fontFamily: 'inherit',
-                    }}
-                    aria-label={`Delete page ${index + 1}`}
-                  >
-                    <Trash2 size={10} />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="right" className="text-xs">
-                  Delete page {index + 1}
-                </TooltipContent>
-              </Tooltip>
-            </li>
-          ))}
+                {/* Page actions menu — duplicate / copy / cut / paste / delete */}
+                <DropdownMenu
+                  open={openMenuPageId === page.id}
+                  onOpenChange={(open) => setOpenMenuPageId(open ? page.id : null)}
+                >
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      type="button"
+                      onClick={(e) => e.stopPropagation()}
+                      onPointerDown={(e) => e.stopPropagation()}
+                      style={{
+                        position: 'absolute',
+                        top: -6, right: -6,
+                        width: 22, height: 22,
+                        borderRadius: '50%',
+                        border: 'none',
+                        backgroundColor: BRAND.text,
+                        color: '#fff',
+                        cursor: 'pointer',
+                        display: showMenuButton ? 'flex' : 'none',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: 0,
+                        boxShadow: '0 2px 6px rgba(0,0,0,0.3)',
+                        fontFamily: 'inherit',
+                      }}
+                      aria-label={`Actions for page ${index + 1}`}
+                    >
+                      <MoreVertical size={12} />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" side="right" className="w-44">
+                    <DropdownMenuItem onSelect={() => onDuplicatePage(page)}>
+                      <CopyPlus />
+                      Duplicate
+                      {/* <DropdownMenuShortcut>⇧⌃D</DropdownMenuShortcut> */}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => onCopyPage(page)}>
+                      <Copy />
+                      Copy
+                      {/* <DropdownMenuShortcut>⇧⌃C</DropdownMenuShortcut> */}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => onCutPage(page)}>
+                      <Scissors />
+                      Cut
+                      {/* <DropdownMenuShortcut>⇧⌃X</DropdownMenuShortcut> */}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      disabled={!hasPageClipboard}
+                      onSelect={() => onPastePage(page)}
+                    >
+                      <ClipboardPaste />
+                      Paste after
+                      {/* <DropdownMenuShortcut>⇧⌃V</DropdownMenuShortcut> */}
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem variant="destructive" onSelect={() => onDeletePage(page)}>
+                      <Trash2 />
+                      Delete
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </li>
+            );
+          })}
         </ul>
       </div>
     </aside>

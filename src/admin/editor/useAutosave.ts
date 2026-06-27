@@ -75,5 +75,14 @@ export function useAutosave(pageId: string | undefined, elements: PageElement[],
     };
   }, [performSave]);
 
-  return { status, saveNow: performSave };
+  // Awaitable flush used before page-level operations (copy/cut/duplicate of the
+  // page currently open in the editor) read this page's elements back from the
+  // DB: it guarantees the latest in-memory edits are persisted first, so those
+  // ops never capture a stale, pre-debounce snapshot. No-op when nothing is
+  // pending, so calling it defensively before every such op is cheap.
+  const flushIfDirty = useCallback(async () => {
+    if (dirtyRef.current) await performSave();
+  }, [performSave]);
+
+  return { status, saveNow: performSave, flushIfDirty };
 }

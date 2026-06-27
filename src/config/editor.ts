@@ -23,6 +23,12 @@ export const NEW_TEXT_ELEMENT_CONTENT = 'text for example';
 // collapse an element to zero (or negative) size.
 export const EDITOR_MIN_ELEMENT_SIZE = 40;
 
+// Canvas-space px each successive paste of the SAME clipboard content is offset
+// by, so consecutive Ctrl+V (or a paste landing on top of its source) cascades
+// instead of stacking pixel-perfectly and hiding the copies. Reset whenever new
+// content is copied (see useElementClipboard).
+export const CLIPBOARD_PASTE_OFFSET = 24;
+
 // Selection chrome — fixed screen-space size/color, independent of canvas scale.
 export const EDITOR_HANDLE_SIZE = 16;
 export const EDITOR_SELECTION_COLOR = '#2563eb';

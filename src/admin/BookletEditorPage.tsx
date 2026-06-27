@@ -20,12 +20,17 @@ import {
 import {
   useAddPageMutation,
   useDeletePageMutation,
+  useDuplicatePageMutation,
+  usePastePageMutation,
   useReorderPagesMutation,
   useSetQuizPageMutation,
 } from '@/hooks/usePagesQuery';
+import { fetchPageElements } from '@/hooks/usePageElementsQuery';
 import { PageElementEditor } from '@/admin/editor/PageElementEditor';
 import { PagesSidebar } from '@/admin/editor/PagesSidebar';
 import { QuizEmbedEditor } from '@/admin/editor/QuizEmbedEditor';
+import { useElementClipboard } from '@/admin/editor/clipboard/useElementClipboard';
+import { usePageClipboard } from '@/admin/editor/clipboard/usePageClipboard';
 import type { SaveStatus } from '@/admin/editor/useAutosave';
 import type { PageRow } from '@/types/database';
 import { BRAND } from '@/config/theme';
@@ -178,8 +183,23 @@ export function BookletEditorPage() {
 
   const addPage = useAddPageMutation(bookletId ?? '');
   const deletePage = useDeletePageMutation(bookletId ?? '');
+  const duplicatePage = useDuplicatePageMutation(bookletId ?? '');
+  const pastePage = usePastePageMutation(bookletId ?? '');
   const reorderPages = useReorderPagesMutation(bookletId ?? '');
   const setQuizPage = useSetQuizPageMutation(bookletId ?? '');
+
+  // Editor-wide clipboards. Owned here (not inside PageElementEditor, which
+  // remounts per page) so a copy survives page navigation — the whole point of
+  // a "global" clipboard. PageElementEditor receives the element clipboard;
+  // page ops below use the page clipboard directly.
+  const elementClipboard = useElementClipboard();
+  const pageClipboard = usePageClipboard();
+  // The open page parks its "flush pending autosave" callback here so page-level
+  // copy/cut/duplicate of that page persist before we read its elements back.
+  const flushRef = useRef<(() => Promise<void>) | null>(null);
+  // Latest page-shortcut handler, reassigned each render with fresh closures so
+  // the window listener (registered once below) always runs current logic.
+  const pageShortcutRef = useRef<((e: KeyboardEvent) => void) | null>(null);
 
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const [deletePageTarget, setDeletePageTarget] = useState<PageRow | null>(null);
@@ -187,6 +207,112 @@ export function BookletEditorPage() {
   const [backHover, setBackHover] = useState(false);
   const [publishHover, setPublishHover] = useState(false);
   const [quizHover, setQuizHover] = useState(false);
+
+  // ── Page data + operations. Derived before the early returns so the
+  // keyboard-shortcut hooks below keep a stable call order; safe before the
+  // booklet has loaded (pages is empty and the handlers simply aren't invoked).
+  const pages = booklet?.pages ?? [];
+  const bookletPath = booklet ? `/admin/booklets/${booklet.id}` : '';
+  const currentPage = pages.find((page) => page.id === pageId) ?? null;
+
+  function goToPage(targetPageId: string) {
+    navigate(`${bookletPath}/pages/${targetPageId}`);
+  }
+
+  // After removing a page, select its previous sibling (or next, or the empty
+  // state) so the editor never lingers on a route whose page no longer exists.
+  function selectNeighborOf(removed: PageRow) {
+    const index = pages.findIndex((page) => page.id === removed.id);
+    const neighbor = pages[index - 1] ?? pages[index + 1] ?? null;
+    navigate(neighbor ? `${bookletPath}/pages/${neighbor.id}` : bookletPath);
+  }
+
+  // Flush the open page's pending edits before reading a page's elements back
+  // from the DB, but only when the target IS the open page (others have no live
+  // in-memory state — the DB is already authoritative for them).
+  async function flushIfOpen(page: PageRow) {
+    if (page.id === pageId) await flushRef.current?.();
+  }
+
+  async function handleDuplicatePage(page: PageRow) {
+    await flushIfOpen(page);
+    const newPage = await duplicatePage.mutateAsync(page.id);
+    goToPage(newPage.id);
+  }
+
+  async function handleCopyPage(page: PageRow) {
+    await flushIfOpen(page);
+    const elements = await fetchPageElements(page.id);
+    pageClipboard.copy({ elements, isQuizPage: page.is_quiz_page });
+  }
+
+  async function handleCutPage(page: PageRow) {
+    await flushIfOpen(page);
+    // Capture before deleting so Paste Page can restore it (cut == copy + remove).
+    const elements = await fetchPageElements(page.id);
+    pageClipboard.copy({ elements, isQuizPage: page.is_quiz_page });
+    await deletePage.mutateAsync(page.id);
+    if (pageId === page.id) selectNeighborOf(page);
+  }
+
+  async function handlePastePage(afterPage: PageRow | null) {
+    const data = pageClipboard.data;
+    if (!data) return;
+    const after = afterPage ?? currentPage ?? pages[pages.length - 1] ?? null;
+    const newPage = await pastePage.mutateAsync({
+      afterPageId: after?.id ?? null,
+      isQuizPage: data.isQuizPage,
+      elements: data.elements,
+    });
+    goToPage(newPage.id);
+  }
+
+  async function handleDeletePage(page: PageRow) {
+    await deletePage.mutateAsync(page.id);
+    if (pageId === page.id) selectNeighborOf(page);
+    setDeletePageTarget(null);
+  }
+
+  // Page-level keyboard shortcuts (Ctrl+Shift+C/X/V/D/Delete). Ctrl+Shift only,
+  // and ignored while a text field is focused so it never disrupts text editing
+  // (or collides with the element-level plain-Ctrl shortcuts in the editor).
+  function handlePageShortcut(e: KeyboardEvent) {
+    const ctrl = e.ctrlKey || e.metaKey;
+    if (!ctrl || !e.shiftKey) return;
+    const tag = (e.target as HTMLElement).tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+
+    if (e.code === 'KeyC' && currentPage) {
+      e.preventDefault();
+      void handleCopyPage(currentPage);
+    } else if (e.code === 'KeyX' && currentPage) {
+      e.preventDefault();
+      void handleCutPage(currentPage);
+    } else if (e.code === 'KeyV' && pageClipboard.hasPage) {
+      e.preventDefault();
+      void handlePastePage(currentPage);
+    } else if (e.code === 'KeyD' && currentPage) {
+      e.preventDefault();
+      void handleDuplicatePage(currentPage);
+    } else if (e.key === 'Delete' && currentPage) {
+      e.preventDefault();
+      setDeletePageTarget(currentPage);
+    }
+  }
+
+  // Keep the ref pointing at the latest closure (assigning a ref during render
+  // is disallowed; an effect is timely enough since key events fire after
+  // commit), then register the window listener once, delegating through it.
+  useEffect(() => {
+    pageShortcutRef.current = handlePageShortcut;
+  });
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      pageShortcutRef.current?.(e);
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
 
   if (isLoading) {
     return (
@@ -213,16 +339,6 @@ export function BookletEditorPage() {
         </div>
       </div>
     );
-  }
-
-  const pages = booklet.pages;
-
-  async function handleDeletePage(page: PageRow) {
-    await deletePage.mutateAsync(page.id);
-    if (pageId === page.id) {
-      navigate(`/admin/booklets/${bookletId}`);
-    }
-    setDeletePageTarget(null);
   }
 
   const lastPage = pages[pages.length - 1];
@@ -346,7 +462,12 @@ export function BookletEditorPage() {
             pages={pages}
             selectedPageId={pageId}
             isAddingPage={addPage.isPending}
+            hasPageClipboard={pageClipboard.hasPage}
             onDeletePage={(page) => setDeletePageTarget(page)}
+            onDuplicatePage={(page) => void handleDuplicatePage(page)}
+            onCopyPage={(page) => void handleCopyPage(page)}
+            onCutPage={(page) => void handleCutPage(page)}
+            onPastePage={(afterPage) => void handlePastePage(afterPage)}
             onReorderPages={(ids) => reorderPages.mutate(ids)}
             onAddPage={() => {
               addPage.mutate(undefined, {
@@ -382,6 +503,8 @@ export function BookletEditorPage() {
               <PageElementEditor
                 key={pageId}
                 pageId={pageId}
+                elementClipboard={elementClipboard}
+                flushRef={flushRef}
                 onSaveStatusChange={setSaveStatus}
               />
             )}

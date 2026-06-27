@@ -34,6 +34,7 @@ import {
 } from '@/config/vocabulary';
 import { useEditorReducer } from './useEditorReducer';
 import { useAutosave } from './useAutosave';
+import type { ElementClipboard } from './clipboard/useElementClipboard';
 import { EditorCanvas } from './EditorCanvas';
 import { ElementInspector } from './ElementInspector';
 import { MediaLibraryPicker } from './MediaLibraryPicker';
@@ -56,6 +57,13 @@ import type { MediaAssetRow } from '@/types/database';
 
 interface PageElementEditorProps {
   pageId: string;
+  // Editor-wide element clipboard (owned by BookletEditorPage so it survives the
+  // per-page remount of this component) — drives Ctrl+C / Ctrl+X / Ctrl+V.
+  elementClipboard: ElementClipboard;
+  // BookletEditorPage parks this page's "flush pending autosave" callback here so
+  // page-level copy/cut/duplicate of the open page persist edits before reading
+  // them back from the DB. Cleared on unmount.
+  flushRef: React.MutableRefObject<(() => Promise<void>) | null>;
   // Exposed so BookletEditorPage can access save status for the header bar.
   onSaveStatusChange?: (status: import('./useAutosave').SaveStatus) => void;
 }
@@ -152,7 +160,12 @@ const PANEL_SHADOW = '0 8px 28px rgba(0,0,0,0.14), 0 2px 6px rgba(0,0,0,0.08)';
 // Top-level page editor: loads a page's elements once, owns the undo/redo
 // reducer and (separately) selection + textEditingId UI state, and hosts the
 // shared canvas, style inspector, and autosave.
-export function PageElementEditor({ pageId, onSaveStatusChange }: PageElementEditorProps) {
+export function PageElementEditor({
+  pageId,
+  elementClipboard,
+  flushRef,
+  onSaveStatusChange,
+}: PageElementEditorProps) {
   const { data: loadedElements, isLoading, isError } = usePageElementsQuery(pageId);
   const { data: fonts } = useFontsQuery();
   const [state, dispatch] = useEditorReducer();
@@ -160,10 +173,12 @@ export function PageElementEditor({ pageId, onSaveStatusChange }: PageElementEdi
   const [textEditingId, setTextEditingId] = useState<string | null>(null);
   const [showMediaPicker, setShowMediaPicker] = useState(false);
   const hasDispatchedLoadRef = useRef(false);
-  // Refs so the keydown handler always sees latest values without re-registration.
-  const clipboardIdRef = useRef<string | null>(null);
+  // Refs so the single keydown handler always sees latest values without
+  // re-registering on every render (it's registered once, keyed to [dispatch]).
   const selectedIdRef = useRef<string | null>(null);
   const textEditingIdRef = useRef<string | null>(null);
+  const elementsRef = useRef<PageElement[]>(state.elements);
+  const clipboardRef = useRef<ElementClipboard>(elementClipboard);
 
   // Seed the reducer exactly once per mounted page — a later background
   // refetch (e.g. window refocus) must not silently wipe in-memory edits.
@@ -174,11 +189,24 @@ export function PageElementEditor({ pageId, onSaveStatusChange }: PageElementEdi
     }
   }, [loadedElements, dispatch]);
 
-  const { status: saveStatus, saveNow } = useAutosave(pageId, state.elements, state.loaded);
+  const { status: saveStatus, saveNow, flushIfDirty } = useAutosave(
+    pageId,
+    state.elements,
+    state.loaded,
+  );
 
   useEffect(() => {
     onSaveStatusChange?.(saveStatus);
   }, [saveStatus, onSaveStatusChange]);
+
+  // Expose this page's flush to BookletEditorPage so page-level ops on the
+  // currently-open page persist edits before reading them back from the DB.
+  useEffect(() => {
+    flushRef.current = flushIfDirty;
+    return () => {
+      if (flushRef.current === flushIfDirty) flushRef.current = null;
+    };
+  }, [flushRef, flushIfDirty]);
 
   // If undo/redo (or delete) removes the selected element, derive selection
   // from the current element array each render rather than syncing back via effect.
@@ -193,9 +221,17 @@ export function PageElementEditor({ pageId, onSaveStatusChange }: PageElementEdi
       ? textEditingId
       : null;
 
-  // Keep refs current so the keydown handler always reads latest values without stale closures.
-  selectedIdRef.current = effectiveSelectedId;
-  textEditingIdRef.current = effectiveTextEditingId;
+  // Keep the refs the (once-registered) keydown handler reads in sync after each
+  // render. Done in an effect rather than during render (react-hooks/refs
+  // forbids the latter); key events fire after commit, so the refs are always
+  // current by the time the handler runs. The clipboard ref matters because
+  // `takePaste`'s identity changes whenever clipboard content changes.
+  useEffect(() => {
+    clipboardRef.current = elementClipboard;
+    elementsRef.current = state.elements;
+    selectedIdRef.current = effectiveSelectedId;
+    textEditingIdRef.current = effectiveTextEditingId;
+  });
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -204,8 +240,17 @@ export function PageElementEditor({ pageId, onSaveStatusChange }: PageElementEdi
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
       if (textEditingIdRef.current !== null) return;
 
-      const selectedId = selectedIdRef.current;
       const ctrl = e.ctrlKey || e.metaKey;
+      // Page-level shortcuts (Ctrl+Shift+…) are owned by BookletEditorPage; the
+      // only Shift combo we handle here is redo (Ctrl+Shift+Z), special-cased
+      // below. Everything else element-level is plain Ctrl, so bail on Shift to
+      // avoid stealing the page combos that also share the same window listener.
+      const isRedo = ctrl && e.code === 'KeyZ' && e.shiftKey;
+      if (e.shiftKey && !isRedo) return;
+
+      const selectedId = selectedIdRef.current;
+      const elements = elementsRef.current;
+      const clipboard = clipboardRef.current;
 
       // Undo / Redo — must come before Delete check to avoid conflict.
       if (ctrl && e.code === 'KeyZ' && !e.shiftKey) {
@@ -213,13 +258,14 @@ export function PageElementEditor({ pageId, onSaveStatusChange }: PageElementEdi
         dispatch({ type: 'UNDO' });
         return;
       }
-      if (ctrl && (e.code === 'KeyY' || (e.code === 'KeyZ' && e.shiftKey))) {
+      if (ctrl && (e.code === 'KeyY' || isRedo)) {
         e.preventDefault();
         dispatch({ type: 'REDO' });
         return;
       }
 
-      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId) {
+      // Delete — bare Delete/Backspace only (Ctrl+Shift+Delete is "delete page").
+      if ((e.key === 'Delete' || e.key === 'Backspace') && !ctrl && selectedId) {
         e.preventDefault();
         dispatch({ type: 'DELETE_ELEMENT', id: selectedId });
         setSelectedElementId(null);
@@ -227,24 +273,45 @@ export function PageElementEditor({ pageId, onSaveStatusChange }: PageElementEdi
         return;
       }
 
+      // Copy — capture the selected element into the editor-wide clipboard.
       // Use e.code for letter shortcuts so Caps Lock / locale don't break them.
       if (ctrl && e.code === 'KeyC' && selectedId) {
-        clipboardIdRef.current = selectedId;
+        const el = elements.find((element) => element.id === selectedId);
+        if (el) clipboard.copy([el]);
         return;
       }
 
-      if (ctrl && e.code === 'KeyV' && clipboardIdRef.current) {
+      // Cut — copy then remove (one delete = one undo step; the copy lives in
+      // the clipboard so it can be pasted back, here or on another page).
+      if (ctrl && e.code === 'KeyX' && selectedId) {
         e.preventDefault();
-        const newId = crypto.randomUUID();
-        dispatch({ type: 'DUPLICATE_ELEMENT', id: clipboardIdRef.current, newId });
-        setSelectedElementId(newId);
+        const el = elements.find((element) => element.id === selectedId);
+        if (el) clipboard.copy([el]);
+        dispatch({ type: 'DELETE_ELEMENT', id: selectedId });
+        setSelectedElementId(null);
+        setTextEditingId(null);
+        return;
+      }
+
+      // Paste — onto THIS page (cross-page works because the clipboard is owned
+      // above the per-page remount). New ids/z-index are produced by takePaste.
+      if (ctrl && e.code === 'KeyV' && clipboard.hasElements) {
+        e.preventDefault();
+        const baseZ = nextZIndex(elements);
+        const pasted = clipboard.takePaste(pageId, baseZ);
+        if (pasted.length > 0) {
+          dispatch({ type: 'ADD_ELEMENTS', elements: pasted });
+          setSelectedElementId(pasted[0].id);
+        }
         return;
       }
     }
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [dispatch]);
+    // pageId is stable for a given mount (this component is keyed by it), so the
+    // handler is safely registered once; everything mutable is read via refs.
+  }, [dispatch, pageId]);
 
   function resolveDefaultFontId(): string {
     if (!fonts || fonts.length === 0) return '';
