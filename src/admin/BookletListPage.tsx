@@ -1,7 +1,18 @@
-import { useState, type CSSProperties } from 'react';
+import { useMemo, useState, type CSSProperties } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, BookOpen, Check, Copy, ExternalLink, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, BookOpen, Check, Copy, ExternalLink, Plus, SearchX, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { BookletLibraryToolbar } from '@/admin/BookletLibraryToolbar';
+import {
+  countBookletsByStatus,
+  filterAndSortBooklets,
+} from '@/admin/bookletLibraryFilters';
+import {
+  DEFAULT_BOOKLET_SORT,
+  DEFAULT_BOOKLET_STATUS_FILTER,
+  type BookletSortValue,
+  type BookletStatusFilter,
+} from '@/config/booklets';
 import {
   Dialog,
   DialogContent,
@@ -142,6 +153,55 @@ function EmptyBooklets() {
           Create your first booklet using the form above.
         </p>
       </div>
+    </div>
+  );
+}
+
+// Shown when the library has booklets but the active search/filter hides them
+// all — distinct from EmptyBooklets ("no booklets exist") so the admin knows
+// to loosen the filters rather than create something.
+function NoMatchingBooklets({ onClear }: { onClear: () => void }) {
+  const [hover, setHover] = useState(false);
+  return (
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      gap: 16,
+      padding: '52px 24px',
+      backgroundColor: BRAND.cream,
+      borderRadius: 24,
+      border: '2px dashed rgba(250,103,129,0.4)',
+      textAlign: 'center',
+    }}>
+      <div style={{
+        width: 56, height: 56, borderRadius: '50%',
+        backgroundColor: 'rgba(250,103,129,0.12)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}>
+        <SearchX size={24} color={BRAND.pink} />
+      </div>
+      <div>
+        <p style={{ margin: 0, fontSize: 16, fontWeight: 700, color: BRAND.text }}>
+          No booklets match your filters
+        </p>
+        <p style={{ margin: '5px 0 0', fontSize: 14, color: BRAND.textMuted }}>
+          Try a different search term or status.
+        </p>
+      </div>
+      <button
+        type="button"
+        onClick={onClear}
+        onMouseEnter={() => setHover(true)}
+        onMouseLeave={() => setHover(false)}
+        style={{
+          ...BTN_BASE,
+          backgroundColor: hover ? BRAND.greenDark : BRAND.green,
+          color: '#fff',
+        }}
+      >
+        Clear filters
+      </button>
     </div>
   );
 }
@@ -454,6 +514,26 @@ export function BookletListPage() {
   const [deleteTarget, setDeleteTarget] = useState<BookletRow | null>(null);
   const [reenableTarget, setReenableTarget] = useState<BookletRow | null>(null);
 
+  // Search / filter / sort — pure view state, never persisted.
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<BookletStatusFilter>(
+    DEFAULT_BOOKLET_STATUS_FILTER,
+  );
+  const [sort, setSort] = useState<BookletSortValue>(DEFAULT_BOOKLET_SORT);
+
+  const counts = useMemo(() => countBookletsByStatus(booklets ?? []), [booklets]);
+  const visibleBooklets = useMemo(
+    () => filterAndSortBooklets(booklets ?? [], { search, status: statusFilter, sort }),
+    [booklets, search, statusFilter, sort],
+  );
+  const isFiltering = search.trim() !== '' || statusFilter !== DEFAULT_BOOKLET_STATUS_FILTER;
+  const hasBooklets = !!booklets && booklets.length > 0;
+
+  function clearFilters() {
+    setSearch('');
+    setStatusFilter(DEFAULT_BOOKLET_STATUS_FILTER);
+  }
+
   // Styling states
   const [titleFocused, setTitleFocused] = useState(false);
   const [submitHover, setSubmitHover] = useState(false);
@@ -736,18 +816,38 @@ export function BookletListPage() {
           </form>
         </div>
 
-        {/* ── Gallery section label ── */}
-        {!isLoading && booklets && booklets.length > 0 && (
-          <p style={{
-            margin: '0 0 20px',
-            fontSize: 11,
-            fontWeight: 700,
-            color: BRAND.yellow,
-            letterSpacing: '0.7px',
-            textTransform: 'uppercase',
-          }}>
-            Your booklets
-          </p>
+        {/* ── Search / filter / sort toolbar ── */}
+        {!isLoading && hasBooklets && (
+          <BookletLibraryToolbar
+            search={search}
+            onSearchChange={setSearch}
+            statusFilter={statusFilter}
+            onStatusFilterChange={setStatusFilter}
+            sort={sort}
+            onSortChange={setSort}
+            counts={counts}
+          />
+        )}
+
+        {/* ── Gallery section label (with result count while filtering) ── */}
+        {!isLoading && hasBooklets && (
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, margin: '0 0 20px' }}>
+            <p style={{
+              margin: 0,
+              fontSize: 11,
+              fontWeight: 700,
+              color: BRAND.yellow,
+              letterSpacing: '0.7px',
+              textTransform: 'uppercase',
+            }}>
+              Your booklets
+            </p>
+            {isFiltering && (
+              <span style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.85)' }}>
+                {visibleBooklets.length} of {booklets!.length}
+              </span>
+            )}
+          </div>
         )}
 
         {/* Loading skeletons */}
@@ -763,14 +863,19 @@ export function BookletListPage() {
 
         {!isLoading && booklets?.length === 0 && <EmptyBooklets />}
 
+        {/* Library has booklets but the active filters hide them all */}
+        {!isLoading && hasBooklets && visibleBooklets.length === 0 && (
+          <NoMatchingBooklets onClear={clearFilters} />
+        )}
+
         {/* Booklet gallery */}
-        {!isLoading && booklets && booklets.length > 0 && (
+        {!isLoading && visibleBooklets.length > 0 && (
           <div style={{
             display: 'grid',
             gridTemplateColumns: '1fr 1fr',
             gap: 24,
           }}>
-            {booklets.map((booklet, index) => (
+            {visibleBooklets.map((booklet, index) => (
               <BookletCard
                 key={booklet.id}
                 booklet={booklet}
