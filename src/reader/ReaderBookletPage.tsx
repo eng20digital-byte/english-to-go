@@ -10,13 +10,22 @@ import { CANVAS_WIDTH, CANVAS_HEIGHT } from '@/config/canvas';
 import {
   READER_MAX_WIDTH,
   BOOK_SHEET_THICKNESS_PX,
+  SWIPE_THRESHOLD_PX,
+  SWIPE_THRESHOLD_RATIO,
 } from '@/config/reader';
 import { PageFlip } from './PageFlip';
 import { VocabularyPanel } from './VocabularyPanel';
+import { BookCover } from './BookCover';
+import { prefersReducedMotion } from './prefersReducedMotion';
 import { BRAND } from '@/config/theme';
 
 // Dots for ≤12 pages; progress bar for longer booklets.
 const DOT_NAV_MAX = 12;
+
+// Closed-cover lifecycle. C3.2 ships only the instant 'closed' → 'open' path
+// (which doubles as the prefers-reduced-motion path); 'opening'/'closing' are
+// reserved for the animated transitions layered on in C3.3/C3.4.
+type CoverState = 'closed' | 'opening' | 'closing' | 'open';
 
 // Decorative paper-cut background shapes — same visual language as admin pages.
 function BgShapes() {
@@ -94,28 +103,144 @@ export function ReaderBookletPage() {
   const [nextHover, setNextHover] = useState(false);
   const [speechExpanded, setSpeechExpanded] = useState(false);
   const [isFlipping, setIsFlipping] = useState(false);
+  const [coverState, setCoverState] = useState<CoverState>('closed');
+  // Reset to closed whenever the booklet changes (new token / refetch), via the
+  // render-phase "adjust state on prop change" pattern — no setState-in-effect.
+  const [prevBookletId, setPrevBookletId] = useState(booklet?.id);
+  if (booklet?.id !== prevBookletId) {
+    setPrevBookletId(booklet?.id);
+    setCoverState('closed');
+  }
   const flipControlsRef = useRef<{ next: () => void; prev: () => void } | null>(null);
+  // Tracks a pointer drag on the book wrapper, used only to detect a
+  // swipe-right-to-close gesture at spread 0 (see handleWrapperPointerUp).
+  const coverSwipeRef = useRef<{ pointerId: number; x: number } | null>(null);
   const handleControlsChange = useCallback(
     (controls: { next: () => void; prev: () => void }) => { flipControlsRef.current = controls; },
     [],
   );
+  // Reduced motion (or no support) jumps straight to the open book — the C3.2
+  // baseline; otherwise play the C3.3 open animation via the 'opening' stage,
+  // which BookCover ends by calling onOpenEnd → 'open'.
+  const openCover = useCallback(() => {
+    setCoverState(prefersReducedMotion() ? 'open' : 'opening');
+  }, []);
+  const finishOpen = useCallback(() => setCoverState('open'), []);
+  // Re-close from spread 0 (C3.4): reverse of openCover. Reduced motion jumps
+  // straight back to 'closed'; otherwise the 'closing' stage plays BookCover's
+  // reverse animation, ended by onCloseEnd → 'closed'.
+  const closeCover = useCallback(() => {
+    setCoverState(prefersReducedMotion() ? 'closed' : 'closing');
+  }, []);
+  const finishClose = useCallback(() => setCoverState('closed'), []);
 
   useEffect(() => {
     if (booklet) document.title = booklet.title;
   }, [booklet]);
+
+  // While the cover is closed, ArrowRight / Enter open it. Declared before the
+  // early returns (hooks rule), so `showCover` is recomputed inline from the
+  // currently-loaded booklet. PageFlip isn't mounted while closed, so its own
+  // ArrowRight handler can't conflict.
+  useEffect(() => {
+    if (!booklet) return;
+    const cover = booklet.pages.find((p) => p.is_cover) ?? null;
+    const showCover = cover !== null && coverState !== 'open';
+    if (!showCover) return;
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'ArrowRight' || event.key === 'Enter') {
+        event.preventDefault();
+        openCover();
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [booklet, coverState, openCover]);
+
+  // While open AT spread 0 of a cover booklet, ArrowLeft re-closes the cover.
+  // Same hooks-before-early-returns constraint as the open handler: `canClose`
+  // is recomputed inline from the loaded booklet + pageIndex. PageFlip's own
+  // ArrowLeft also fires but no-ops at index 0, so there's no conflict.
+  useEffect(() => {
+    if (!booklet) return;
+    const cover = booklet.pages.find((p) => p.is_cover) ?? null;
+    const spreads = cover ? booklet.pages.slice(1) : booklet.pages;
+    const clampedIndex = Math.min(pageIndex, Math.max(0, spreads.length - 1));
+    const canClose = cover !== null && coverState === 'open' && clampedIndex === 0;
+    if (!canClose) return;
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'ArrowLeft') {
+        event.preventDefault();
+        closeCover();
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [booklet, coverState, pageIndex, closeCover]);
 
   if (isLoading) return <LoadingState />;
   if (isError) return <ReaderError icon={<AlertTriangle size={26} color="rgba(255,193,77,0.9)" />} message="Something went wrong loading this booklet. Please try again." />;
   if (!booklet) return <ReaderError icon={<BookX size={26} color="rgba(255,255,255,0.7)" />} message="This booklet could not be found. It may not be published or disabled" />;
   if (booklet.pages.length === 0) return <ReaderError icon={<BookOpen size={26} color="rgba(255,255,255,0.7)" />} message="This booklet has no pages yet." />;
 
-  const clampedIndex = Math.min(pageIndex, booklet.pages.length - 1);
-  const pageProgress = booklet.pages.length > 1
-    ? (clampedIndex / (booklet.pages.length - 1)) * 100
+  // Split the cover (pinned to index 0 by C1) from the spreads. All open-book
+  // logic below drives on `spreads` only — the cover is excluded and uncounted.
+  // No closed stage yet (C3.2+): a cover booklet just opens straight to spread 0.
+  const cover = booklet.pages.find((p) => p.is_cover) ?? null;
+  const spreads = cover ? booklet.pages.slice(1) : booklet.pages;
+
+  // No-cover booklets ⇒ showCover is always false ⇒ they open straight to spread
+  // 0 exactly as before, no flash, no init effect needed.
+  const hasCover = cover !== null;
+  const showCover = hasCover && coverState !== 'open';
+
+  // Cover-only booklet: reuse the existing "no pages" empty state for now
+  // (proper closed-only handling is left to C3.2).
+  if (spreads.length === 0) return <ReaderError icon={<BookOpen size={26} color="rgba(255,255,255,0.7)" />} message="This booklet has no pages yet." />;
+
+  const clampedIndex = Math.min(pageIndex, spreads.length - 1);
+  const pageProgress = spreads.length > 1
+    ? (clampedIndex / (spreads.length - 1)) * 100
     : 100;
 
-  const prevDisabled = isFlipping || clampedIndex === 0;
-  const nextDisabled = isFlipping || clampedIndex === booklet.pages.length - 1;
+  // Open at spread 0 of a cover booklet ⇒ prev re-closes the cover instead of
+  // being a dead end. This is the one case where prev is enabled at index 0.
+  const canClose = hasCover && coverState === 'open' && clampedIndex === 0;
+
+  // While closed, prev is meaningless (nothing before the cover) and next opens
+  // the cover rather than turning a page (see handleNext). At spread 0, prev is
+  // disabled UNLESS it can re-close the cover.
+  const prevDisabled = isFlipping || showCover || (clampedIndex === 0 && !canClose);
+  const nextDisabled = isFlipping || (!showCover && clampedIndex === spreads.length - 1);
+
+  const handleNext = () => {
+    if (showCover) return openCover();
+    flipControlsRef.current?.next();
+  };
+
+  const handlePrev = () => {
+    if (canClose) return closeCover();
+    flipControlsRef.current?.prev();
+  };
+
+  // Swipe-right-to-close. PageFlip owns swipe and can't be touched, so we listen
+  // on the book wrapper (an ancestor of PageFlip's container — pointer-capture
+  // events still bubble up). Only act when `canClose` and the gesture is a
+  // rightward swipe past the threshold; otherwise do nothing and let PageFlip
+  // handle the gesture normally (no regression). Leftward/next swipes are always
+  // ignored here.
+  const handleWrapperPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    coverSwipeRef.current = { pointerId: event.pointerId, x: event.clientX };
+  };
+  const handleWrapperPointerUp = (event: React.PointerEvent<HTMLDivElement>) => {
+    const drag = coverSwipeRef.current;
+    coverSwipeRef.current = null;
+    if (!canClose || !drag || drag.pointerId !== event.pointerId) return;
+    const deltaX = event.clientX - drag.x;
+    const width = event.currentTarget.clientWidth;
+    const threshold = Math.min(SWIPE_THRESHOLD_PX, width * SWIPE_THRESHOLD_RATIO);
+    if (deltaX > threshold) closeCover();
+  };
 
   // Physical book thickness: page-stack edges flanking the open book, one thin
   // sheet per page. leftSheets = pages already turned, rightSheets = pages still
@@ -127,7 +252,7 @@ export function ReaderBookletPage() {
   // thickness` var lets the fore-edge gradient draw one cut-line per sheet.
   // See src/config/reader.ts.
   const leftSheets = clampedIndex;
-  const rightSheets = booklet.pages.length - 1 - clampedIndex;
+  const rightSheets = spreads.length - 1 - clampedIndex;
   const sheetVar = {
     '--book-sheet-thickness': `${BOOK_SHEET_THICKNESS_PX}px`,
   } as CSSProperties;
@@ -218,7 +343,7 @@ export function ReaderBookletPage() {
                 Vertically centered, below the top-anchored speech tab so the
                 two peeking tabs don't overlap. Shows only the current page's
                 vocabulary and re-renders as clampedIndex changes on flip. */}
-            <VocabularyPanel page={booklet.pages[clampedIndex]} />
+            {!showCover && <VocabularyPanel page={spreads[clampedIndex]} />}
 
             {/* ── Flex row: prev | booklet | next ──────────────────────────
                 Buttons are flex siblings of the card so they always sit flush
@@ -232,7 +357,7 @@ export function ReaderBookletPage() {
             <button
               type="button"
               aria-label="Previous page"
-              onClick={() => flipControlsRef.current?.prev()}
+              onClick={handlePrev}
               disabled={prevDisabled}
               onMouseEnter={() => setPrevHover(true)}
               onMouseLeave={() => setPrevHover(false)}
@@ -258,13 +383,34 @@ export function ReaderBookletPage() {
               ‹
             </button>
 
+            {/* ── Middle slot: closed cover OR the open book ───────────────
+                While closed (cover booklet, not yet opened) the centered
+                portrait BookCover stands in for the whole open-book subtree —
+                PageFlip, its sheet edges and the indicator are all unmounted, so
+                they vanish automatically. While 'opening', BookCover plays the
+                C3.3 open animation, then onOpenEnd flips coverState to 'open'. */}
+            {showCover && cover ? (
+              <BookCover
+                cover={cover}
+                firstSpread={spreads[0]}
+                spreadCount={spreads.length}
+                coverState={coverState}
+                onOpen={openCover}
+                onOpenEnd={finishOpen}
+                onCloseEnd={finishClose}
+              />
+            ) : (
+            <>
             {/* ── Book wrapper ─────────────────────────────────────────────
                 Non-clipping positioned box that owns the contain-style scaling
                 (flex:1 + maxWidth). The card child is the single in-flow sizing
                 element, so the page-stack edges (absolute, translated fully
                 outside the card) add depth without touching the canvas geometry
                 or the existing scale math. */}
-            <div style={{
+            <div
+              onPointerDown={handleWrapperPointerDown}
+              onPointerUp={handleWrapperPointerUp}
+              style={{
               position: 'relative',
               flex: 1,
               maxWidth: `min(${READER_MAX_WIDTH}px, calc((100vh - 40px) * ${(CANVAS_WIDTH / CANVAS_HEIGHT).toFixed(4)}))`,
@@ -318,13 +464,13 @@ export function ReaderBookletPage() {
               boxShadow: '0 24px 64px rgba(0,0,0,0.28), 0 8px 24px rgba(0,0,0,0.16)',
             }}>
               <PageFlip
-                pageCount={booklet.pages.length}
+                pageCount={spreads.length}
                 currentIndex={clampedIndex}
                 onIndexChange={setPageIndex}
                 onControlsChange={handleControlsChange}
                 onIsFlippingChange={setIsFlipping}
                 renderPage={(index, scale) => {
-                  const page = booklet.pages[index];
+                  const page = spreads[index];
                   if (!page) return null;
                   if (page.is_quiz_page) {
                     return (
@@ -360,8 +506,8 @@ export function ReaderBookletPage() {
                     display: 'flex', alignItems: 'center', gap: 7,
                     whiteSpace: 'nowrap',
                   }}>
-                    {booklet.pages.length <= DOT_NAV_MAX
-                      ? Array.from({ length: booklet.pages.length }).map((_, i) => (
+                    {spreads.length <= DOT_NAV_MAX
+                      ? Array.from({ length: spreads.length }).map((_, i) => (
                           <div
                             key={i}
                             style={{
@@ -386,19 +532,21 @@ export function ReaderBookletPage() {
                       letterSpacing: '0.04em',
                       marginLeft: 1,
                     }}>
-                      {clampedIndex + 1} / {booklet.pages.length}
+                      {clampedIndex + 1} / {spreads.length}
                     </span>
                   </div>
                 )}
               </PageFlip>
             </div>{/* booklet card */}
             </div>{/* book wrapper */}
+            </>
+            )}
 
             {/* ── Next arrow ───────────────────────────────────────────── */}
             <button
               type="button"
               aria-label="Next page"
-              onClick={() => flipControlsRef.current?.next()}
+              onClick={handleNext}
               disabled={nextDisabled}
               onMouseEnter={() => setNextHover(true)}
               onMouseLeave={() => setNextHover(false)}

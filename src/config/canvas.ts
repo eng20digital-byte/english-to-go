@@ -7,6 +7,20 @@ export const CANVAS_WIDTH = 1920;
 export const CANVAS_HEIGHT = 1080;
 export const CANVAS_BACKGROUND_COLOR = '#ffffff';
 
+// Front cover canvas: a single portrait page, exactly the right half of a
+// 1920×1080 spread (960×1080) — see docs/cover-front-milestones. A cover's
+// canvas size is derived from its `is_cover` flag, never stored per page.
+export const COVER_CANVAS_WIDTH = CANVAS_WIDTH / 2;
+export const COVER_CANVAS_HEIGHT = CANVAS_HEIGHT;
+
+// Single source of truth for a page's canvas dimensions, so the editor and the
+// reader compute cover vs. spread dims exactly one way.
+export function pageCanvasSize(isCover: boolean): { width: number; height: number } {
+  return isCover
+    ? { width: COVER_CANVAS_WIDTH, height: COVER_CANVAS_HEIGHT }
+    : { width: CANVAS_WIDTH, height: CANVAS_HEIGHT };
+}
+
 // Defaults applied when a new text element is created (wired up by the
 // editor in M8/M9) and used as renderer fallbacks.
 export const DEFAULT_FONT_SIZE = 48;

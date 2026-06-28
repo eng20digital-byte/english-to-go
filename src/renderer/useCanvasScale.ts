@@ -5,7 +5,12 @@ import { CANVAS_WIDTH } from '@/config/canvas';
 // (16:9 landscape) aspect ratio itself (CSS `aspect-ratio`) — see CLAUDE.md
 // "Fixed virtual canvas, scaled to fit". Container width alone determines
 // the scale factor; height follows the same ratio automatically.
-export function useCanvasScale(containerRef: RefObject<HTMLElement | null>) {
+export function useCanvasScale(
+  containerRef: RefObject<HTMLElement | null>,
+  // Defaults to the full spread width; a cover passes COVER_CANVAS_WIDTH so the
+  // narrower portrait canvas scales to fill its (also narrower) container.
+  canvasWidth: number = CANVAS_WIDTH,
+) {
   const [scale, setScale] = useState(0);
 
   useEffect(() => {
@@ -13,12 +18,12 @@ export function useCanvasScale(containerRef: RefObject<HTMLElement | null>) {
     if (!element) return;
 
     const observer = new ResizeObserver(([entry]) => {
-      setScale(entry.contentRect.width / CANVAS_WIDTH);
+      setScale(entry.contentRect.width / canvasWidth);
     });
     observer.observe(element);
 
     return () => observer.disconnect();
-  }, [containerRef]);
+  }, [containerRef, canvasWidth]);
 
   return scale;
 }

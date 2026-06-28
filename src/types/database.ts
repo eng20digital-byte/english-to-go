@@ -39,5 +39,6 @@ export interface PageRow {
   booklet_id: string;
   page_order: number;
   is_quiz_page: boolean;
+  is_cover: boolean;
   created_at: string;
 }

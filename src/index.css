@@ -298,6 +298,39 @@ body {
   45% { opacity: 0.3; }
 }
 
+/* Reader open animation (C3.3): the closed cover expanding into the full spread.
+   The FLAT card (BookCover.tsx) — full-spread internally — animates from
+   clipped-to-its-right-half + shifted left (so it reads exactly as the centered
+   portrait cover) to the un-clipped, re-centered full spread. It runs over --dur
+   SIMULTANEOUSLY with the cover leaf (reused `.page-flip-sheet--next`, no delay)
+   flipping open: the cover slides into the right-page slot at the same time as it
+   folds open — the exact reverse of the close (book-cover-collapse), which the
+   shared simultaneity makes symmetric.
+   HARD RULE (mirrors `.page-flip-sheet`): clip-path / transform live on this
+   card only, NEVER on the leaf, where either would silently flatten the 3D
+   fold. --dur / --easing are passed inline from PAGE_FLIP_DURATION_MS /
+   PAGE_FLIP_EASING (config/reader.ts). */
+.book-cover-card--opening {
+  animation: book-cover-expand var(--dur, 1000ms) var(--easing, ease) forwards;
+}
+@keyframes book-cover-expand {
+  from { clip-path: inset(0 0 0 50%); transform: translateX(-25%); } /* right half, centered */
+  to   { clip-path: inset(0 0 0 0);   transform: translateX(0); }
+}
+
+/* Reader close animation (C3.4): the exact reverse of book-cover-expand — the
+   open spread collapses back to the clipped-to-its-right-half + shifted-left
+   centered portrait cover, while the cover leaf (reused `.page-flip-sheet--prev`)
+   flips shut over it (-180°→0°). Same HARD RULE as opening: clip-path /
+   transform live on this card only, never the leaf. */
+.book-cover-card--closing {
+  animation: book-cover-collapse var(--dur, 1000ms) var(--easing, ease) forwards;
+}
+@keyframes book-cover-collapse {
+  from { clip-path: inset(0 0 0 0);   transform: translateX(0); }
+  to   { clip-path: inset(0 0 0 50%); transform: translateX(-25%); } /* right half, centered */
+}
+
 /* Permanent book spine: a soft vertical shadow down the canvas midpoint,
    always present (open-book look), independent of any flip in progress. */
 .book-spine {
@@ -366,6 +399,28 @@ body {
       rgba(120, 100, 70, 0.22) var(--book-sheet-thickness, 2px)
     );
   box-shadow: 5px 7px 14px rgba(0, 0, 0, 0.22);
+}
+/* Closed-cover binding/spine shadow (C3.2 BookCover): a gradient hugging the
+   cover's LEFT (binding) edge so the shut book reads as bound on the spine side,
+   mirroring the fore-edge stack on the right. Since C4.1 the closed cover is the
+   clipped right half of a full-spread card, so this lives as a SIBLING over the
+   card (clip-path would otherwise remove it), positioned at the visible cover's
+   left edge (box 25%) via inline style — geometry comes from there, the `left:0`
+   below is just a fallback. Pointer-inert so the cover's click/swipe-to-open
+   still fires. Scoped to #reader-root per CLAUDE.md's chrome/canvas boundary. */
+#reader-root .book-cover-spine {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 28px;
+  pointer-events: none;
+  background-image: linear-gradient(
+    to right,
+    rgba(0, 0, 0, 0.28) 0%,
+    rgba(0, 0, 0, 0.1) 45%,
+    rgba(0, 0, 0, 0) 100%
+  );
 }
 /* Skeleton loading pulse — used by MediaLibraryPicker's skeleton cards.
    Must be global (keyframes can't be scoped to a selector). */

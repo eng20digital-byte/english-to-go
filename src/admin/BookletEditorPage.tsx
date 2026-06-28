@@ -18,6 +18,7 @@ import {
   useUpdateBookletTitleMutation,
 } from '@/hooks/useBookletQuery';
 import {
+  useAddCoverPageMutation,
   useAddPageMutation,
   useDeletePageMutation,
   useDuplicatePageMutation,
@@ -182,6 +183,7 @@ export function BookletEditorPage() {
   const updateTitle = useUpdateBookletTitleMutation();
 
   const addPage = useAddPageMutation(bookletId ?? '');
+  const addCoverPage = useAddCoverPageMutation(bookletId ?? '');
   const deletePage = useDeletePageMutation(bookletId ?? '');
   const duplicatePage = useDuplicatePageMutation(bookletId ?? '');
   const pastePage = usePastePageMutation(bookletId ?? '');
@@ -214,6 +216,7 @@ export function BookletEditorPage() {
   const pages = booklet?.pages ?? [];
   const bookletPath = booklet ? `/admin/booklets/${booklet.id}` : '';
   const currentPage = pages.find((page) => page.id === pageId) ?? null;
+  const hasCover = pages.some((page) => page.is_cover);
 
   function goToPage(targetPageId: string) {
     navigate(`${bookletPath}/pages/${targetPageId}`);
@@ -282,16 +285,18 @@ export function BookletEditorPage() {
     const tag = (e.target as HTMLElement).tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
 
-    if (e.code === 'KeyC' && currentPage) {
+    // Clipboard ops don't apply to the cover (it's pinned first and unique) —
+    // only Delete does, mirroring the cover's action menu.
+    if (e.code === 'KeyC' && currentPage && !currentPage.is_cover) {
       e.preventDefault();
       void handleCopyPage(currentPage);
-    } else if (e.code === 'KeyX' && currentPage) {
+    } else if (e.code === 'KeyX' && currentPage && !currentPage.is_cover) {
       e.preventDefault();
       void handleCutPage(currentPage);
-    } else if (e.code === 'KeyV' && pageClipboard.hasPage) {
+    } else if (e.code === 'KeyV' && pageClipboard.hasPage && currentPage && !currentPage.is_cover) {
       e.preventDefault();
       void handlePastePage(currentPage);
-    } else if (e.code === 'KeyD' && currentPage) {
+    } else if (e.code === 'KeyD' && currentPage && !currentPage.is_cover) {
       e.preventDefault();
       void handleDuplicatePage(currentPage);
     } else if (e.key === 'Delete' && currentPage) {
@@ -462,7 +467,16 @@ export function BookletEditorPage() {
             pages={pages}
             selectedPageId={pageId}
             isAddingPage={addPage.isPending}
+            isAddingCover={addCoverPage.isPending}
+            hasCover={hasCover}
             hasPageClipboard={pageClipboard.hasPage}
+            onAddCover={() => {
+              addCoverPage.mutate(undefined, {
+                onSuccess: (newPage) => {
+                  navigate(`/admin/booklets/${bookletId}/pages/${newPage.id}`);
+                },
+              });
+            }}
             onDeletePage={(page) => setDeletePageTarget(page)}
             onDuplicatePage={(page) => void handleDuplicatePage(page)}
             onCopyPage={(page) => void handleCopyPage(page)}
@@ -503,6 +517,7 @@ export function BookletEditorPage() {
               <PageElementEditor
                 key={pageId}
                 pageId={pageId}
+                isCover={currentPage?.is_cover ?? false}
                 elementClipboard={elementClipboard}
                 flushRef={flushRef}
                 onSaveStatusChange={setSaveStatus}

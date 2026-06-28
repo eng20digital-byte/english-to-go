@@ -253,6 +253,7 @@ supabase/
     0001_init.sql
     0002_page_management.sql        -- add/delete/reorder page RPCs
     0003_page_clipboard_ops.sql     -- duplicate_page + insert_page_with_elements RPCs
+    0004_cover_page.sql             -- is_cover column + add_cover_page RPC + cover pinned at order 0
 docs/
   milestones/                      -- M0..M12, one file per milestone
 CLAUDE.md
@@ -331,12 +332,19 @@ RLS: SELECT public only where `status = 'published'`; `is_admin()` sees all. Wri
 | booklet_id   | uuid not null references booklets(id) on delete cascade |                                                                                    |
 | page_order   | int not null                                            | 0-based sequence                                                                   |
 | is_quiz_page | boolean not null default false                          | flags the final page to render `quiz_embed_code` instead of elements               |
+| is_cover     | boolean not null default false                          | flags the booklet's front cover; pinned to `page_order = 0`, ≤1 per booklet        |
 | created_at   | timestamptz default now()                               |                                                                                    |
-|              |                                                         | unique(booklet_id, page_order) deferrable initially immediate, index on booklet_id |
+|              |                                                         | unique(booklet_id, page_order) deferrable initially immediate, index on booklet_id; partial unique index `pages_one_cover_per_booklet on (booklet_id) where is_cover` |
 
-RLS: SELECT public if parent booklet is published; `is_admin()` sees all. Writes `is_admin()` (via `add_page`/`delete_page`/`reorder_pages` RPCs in practice — see below).
+RLS: SELECT public if parent booklet is published; `is_admin()` sees all. Writes `is_admin()` (via `add_page`/`delete_page`/`reorder_pages`/`add_cover_page` RPCs in practice — see below).
 
 `page_order` is renumbered across multiple rows at once on add/delete/reorder (e.g. swapping two pages' order, or compacting the gap left by a delete). A plain `unique(booklet_id, page_order)` constraint is checked per-row immediately, even within a single multi-row `UPDATE`, so that renumbering would transiently collide. The constraint is `deferrable initially immediate` specifically so `add_page`/`delete_page`/`reorder_pages` (`supabase/migrations/0002_page_management.sql`) — and the clipboard RPCs `duplicate_page`/`insert_page_with_elements` (`0003_page_clipboard_ops.sql`), which also open a gap by shifting later pages down one — can `set constraints ... deferred` and renumber freely within the transaction. All of those RPCs re-enforce "only the last page may be `is_quiz_page`" after every structural change, since adding/deleting/reordering/inserting pages can silently demote the page that used to be last.
+
+### Front cover
+
+A booklet may have one **front cover**: a `pages` row flagged `is_cover`, pinned to `page_order = 0` (added by `add_cover_page(booklet_id)` in `supabase/migrations/0004_cover_page.sql`, which pushes existing pages down and inserts at order 0; a partial unique index enforces ≤1 cover per booklet). The cover is **not a separate table** — it reuses `page_elements`, `save_page_elements`, the editor, and the shared renderer. `reorder_pages` was updated to **pin the cover at order 0** regardless of the incoming array; `add_page`/`delete_page`/`insert_page_with_elements`/`duplicate_page` already leave it first. Booklets without a cover behave exactly as before (no auto-backfill).
+
+A cover's canvas size is **derived from `is_cover`, never stored** — `COVER_CANVAS_WIDTH × COVER_CANVAS_HEIGHT` = `CANVAS_WIDTH/2 × CANVAS_HEIGHT` (portrait 960×1080, exactly the right half of a spread). `pageCanvasSize(isCover)` in `src/config/canvas.ts` is the single source of truth for these dims. The shared renderer takes this as **optional props** (`PageCanvas`'s `canvasWidth`/`canvasHeight`, `useCanvasScale`'s `canvasWidth`), defaulting to the full spread — threaded through, never forked. Full design: `docs/cover-front-milestones/`.
 
 ### `page_elements`
 

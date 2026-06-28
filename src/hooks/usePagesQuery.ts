@@ -28,6 +28,24 @@ export function useAddPageMutation(bookletId: string) {
   });
 }
 
+// Add Cover — inserts the booklet's single front cover at page_order = 0,
+// pushing existing pages down, via the add_cover_page RPC (0004). The partial
+// unique index enforces ≤1 cover; the UI only offers this when none exists.
+export function useAddCoverPageMutation(bookletId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (): Promise<PageRow> => {
+      const { data, error } = await supabase.rpc('add_cover_page', { p_booklet_id: bookletId });
+      if (error) throw error;
+      return data as PageRow;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: adminBookletQueryKey(bookletId) });
+    },
+  });
+}
+
 export function useDeletePageMutation(bookletId: string) {
   const queryClient = useQueryClient();
 

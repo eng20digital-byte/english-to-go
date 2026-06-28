@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
+  BookImage,
   ClipboardPaste,
   Copy,
   CopyPlus,
@@ -27,9 +28,14 @@ interface PagesSidebarProps {
   pages: PageRow[];
   selectedPageId: string | undefined;
   isAddingPage: boolean;
+  isAddingCover: boolean;
+  // Whether the booklet already has a front cover — hides "Add Cover" when true
+  // (≤1 cover per booklet, enforced server-side too).
+  hasCover: boolean;
   // Enables the "Paste page" item — true once a page has been copied/cut.
   hasPageClipboard: boolean;
   onAddPage: () => void;
+  onAddCover: () => void;
   onDeletePage: (page: PageRow) => void;
   onDuplicatePage: (page: PageRow) => void;
   onCopyPage: (page: PageRow) => void;
@@ -46,8 +52,11 @@ export function PagesSidebar({
   pages,
   selectedPageId,
   isAddingPage,
+  isAddingCover,
+  hasCover,
   hasPageClipboard,
   onAddPage,
+  onAddCover,
   onDeletePage,
   onDuplicatePage,
   onCopyPage,
@@ -69,6 +78,10 @@ export function PagesSidebar({
   }
 
   function handleDragOver(e: React.DragEvent, index: number) {
+    // The cover is pinned first — never a valid drop target (dropping here would
+    // try to push a page before it). The server's reorder_pages re-pins it
+    // regardless, but blocking the drop keeps the UI honest.
+    if (pages[index]?.is_cover) return;
     e.preventDefault();
     setDropIndex(index);
   }
@@ -155,6 +168,37 @@ export function PagesSidebar({
           {isAddingPage ? <Spinner size="sm" /> : <Plus size={16} />}
           {isAddingPage ? 'Adding…' : 'Add Page'}
         </button>
+
+        {/* Add Cover — only offered when the booklet has no cover yet (≤1 per
+            booklet). A subtle secondary action vs. the primary Add Page. */}
+        {!hasCover && (
+          <button
+            type="button"
+            disabled={isAddingCover}
+            onClick={onAddCover}
+            style={{
+              width: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 7,
+              marginTop: 8,
+              padding: '9px 12px',
+              borderRadius: 14,
+              border: '1.5px solid rgba(0,0,0,0.12)',
+              backgroundColor: 'transparent',
+              color: BRAND.text,
+              fontSize: 12.5,
+              fontWeight: 700,
+              cursor: isAddingCover ? 'not-allowed' : 'pointer',
+              fontFamily: 'inherit',
+              opacity: isAddingCover ? 0.72 : 1,
+            }}
+          >
+            {isAddingCover ? <Spinner size="sm" /> : <BookImage size={15} />}
+            {isAddingCover ? 'Adding…' : 'Add Cover'}
+          </button>
+        )}
       </div>
 
       {/* Scrollable thumbnail list */}
@@ -173,7 +217,8 @@ export function PagesSidebar({
             return (
               <li
                 key={page.id}
-                draggable
+                // The cover is pinned first and can't be reordered.
+                draggable={!page.is_cover}
                 onDragStart={() => handleDragStart(index)}
                 onDragOver={(e) => handleDragOver(e, index)}
                 onDrop={handleDrop}
@@ -230,30 +275,36 @@ export function PagesSidebar({
                     </button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" side="right" className="w-44">
-                    <DropdownMenuItem onSelect={() => onDuplicatePage(page)}>
-                      <CopyPlus />
-                      Duplicate
-                      {/* <DropdownMenuShortcut>⇧⌃D</DropdownMenuShortcut> */}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onSelect={() => onCopyPage(page)}>
-                      <Copy />
-                      Copy
-                      {/* <DropdownMenuShortcut>⇧⌃C</DropdownMenuShortcut> */}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onSelect={() => onCutPage(page)}>
-                      <Scissors />
-                      Cut
-                      {/* <DropdownMenuShortcut>⇧⌃X</DropdownMenuShortcut> */}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      disabled={!hasPageClipboard}
-                      onSelect={() => onPastePage(page)}
-                    >
-                      <ClipboardPaste />
-                      Paste after
-                      {/* <DropdownMenuShortcut>⇧⌃V</DropdownMenuShortcut> */}
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
+                    {/* The cover is unique and pinned first — duplicate/copy/cut/
+                        paste don't apply to it, so only Delete is offered. */}
+                    {!page.is_cover && (
+                      <>
+                        <DropdownMenuItem onSelect={() => onDuplicatePage(page)}>
+                          <CopyPlus />
+                          Duplicate
+                          {/* <DropdownMenuShortcut>⇧⌃D</DropdownMenuShortcut> */}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => onCopyPage(page)}>
+                          <Copy />
+                          Copy
+                          {/* <DropdownMenuShortcut>⇧⌃C</DropdownMenuShortcut> */}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => onCutPage(page)}>
+                          <Scissors />
+                          Cut
+                          {/* <DropdownMenuShortcut>⇧⌃X</DropdownMenuShortcut> */}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          disabled={!hasPageClipboard}
+                          onSelect={() => onPastePage(page)}
+                        >
+                          <ClipboardPaste />
+                          Paste after
+                          {/* <DropdownMenuShortcut>⇧⌃V</DropdownMenuShortcut> */}
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                      </>
+                    )}
                     <DropdownMenuItem variant="destructive" onSelect={() => onDeletePage(page)}>
                       <Trash2 />
                       Delete

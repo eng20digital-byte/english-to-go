@@ -3,8 +3,7 @@ import { ImageIcon, Languages, Redo2, RotateCcw, Save, Type } from 'lucide-react
 import { usePageElementsQuery } from '@/hooks/usePageElementsQuery';
 import { useFontsQuery } from '@/hooks/useFontsQuery';
 import {
-  CANVAS_WIDTH,
-  CANVAS_HEIGHT,
+  pageCanvasSize,
   DEFAULT_FONT_SIZE,
   DEFAULT_TEXT_COLOR,
   DEFAULT_LINE_HEIGHT,
@@ -57,6 +56,10 @@ import type { MediaAssetRow } from '@/types/database';
 
 interface PageElementEditorProps {
   pageId: string;
+  // Whether this page is the booklet's front cover — selects the portrait
+  // 960×1080 canvas (vs. the 1920×1080 spread) for layout and new-element
+  // geometry. Derived from the page's is_cover flag by BookletEditorPage.
+  isCover: boolean;
   // Editor-wide element clipboard (owned by BookletEditorPage so it survives the
   // per-page remount of this component) — drives Ctrl+C / Ctrl+X / Ctrl+V.
   elementClipboard: ElementClipboard;
@@ -162,10 +165,12 @@ const PANEL_SHADOW = '0 8px 28px rgba(0,0,0,0.14), 0 2px 6px rgba(0,0,0,0.08)';
 // shared canvas, style inspector, and autosave.
 export function PageElementEditor({
   pageId,
+  isCover,
   elementClipboard,
   flushRef,
   onSaveStatusChange,
 }: PageElementEditorProps) {
+  const { width: canvasWidth, height: canvasHeight } = pageCanvasSize(isCover);
   const { data: loadedElements, isLoading, isError } = usePageElementsQuery(pageId);
   const { data: fonts } = useFontsQuery();
   const [state, dispatch] = useEditorReducer();
@@ -328,8 +333,8 @@ export function PageElementEditor({
       page_id: pageId,
       type: 'text',
       z_index: nextZIndex(state.elements),
-      x: (CANVAS_WIDTH - NEW_TEXT_ELEMENT_WIDTH) / 2,
-      y: (CANVAS_HEIGHT - NEW_TEXT_ELEMENT_HEIGHT) / 2,
+      x: (canvasWidth - NEW_TEXT_ELEMENT_WIDTH) / 2,
+      y: (canvasHeight - NEW_TEXT_ELEMENT_HEIGHT) / 2,
       w: NEW_TEXT_ELEMENT_WIDTH,
       h: NEW_TEXT_ELEMENT_HEIGHT,
       rotation: 0,
@@ -355,8 +360,8 @@ export function PageElementEditor({
       page_id: pageId,
       type: 'vocabulary',
       z_index: nextZIndex(state.elements),
-      x: (CANVAS_WIDTH - NEW_VOCABULARY_ELEMENT_WIDTH) / 2,
-      y: (CANVAS_HEIGHT - NEW_VOCABULARY_ELEMENT_HEIGHT) / 2,
+      x: (canvasWidth - NEW_VOCABULARY_ELEMENT_WIDTH) / 2,
+      y: (canvasHeight - NEW_VOCABULARY_ELEMENT_HEIGHT) / 2,
       w: NEW_VOCABULARY_ELEMENT_WIDTH,
       h: NEW_VOCABULARY_ELEMENT_HEIGHT,
       rotation: 0,
@@ -390,8 +395,8 @@ export function PageElementEditor({
       z_index: lowestZIndex(state.elements),
       x: 0,
       y: 0,
-      w: CANVAS_WIDTH,
-      h: CANVAS_HEIGHT,
+      w: canvasWidth,
+      h: canvasHeight,
       rotation: 0,
       props: { media_asset_id: asset.id, fit: 'cover' },
     };
@@ -449,17 +454,21 @@ export function PageElementEditor({
         padding: '12px 4px 16px',
         overflow: 'hidden',
       }}>
-        {/* Aspect-ratio constraint wrapper: limits canvas to available height,
-            so the page always fits in view — never requires scrolling.
-            maxHeight: 100% + aspect-ratio together produce "contain" semantics. */}
+        {/* Aspect-ratio constraint wrapper producing "contain" semantics so the
+            page always fits in view without scrolling. The landscape spread is
+            width-driven (clamped by height); the portrait cover is height-driven
+            (clamped by width) and centered by the flex parent above. */}
         <div style={{
-          width: '100%',
-          maxHeight: '100%',
-          aspectRatio: `${CANVAS_WIDTH} / ${CANVAS_HEIGHT}`,
+          ...(canvasHeight > canvasWidth
+            ? { height: '100%', maxWidth: '100%' }
+            : { width: '100%', maxHeight: '100%' }),
+          aspectRatio: `${canvasWidth} / ${canvasHeight}`,
           overflow: 'hidden',
         }}>
           <EditorCanvas
             pageId={pageId}
+            canvasWidth={canvasWidth}
+            canvasHeight={canvasHeight}
             elements={state.elements}
             selectedElementId={effectiveSelectedId}
             textEditingId={effectiveTextEditingId}

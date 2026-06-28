@@ -1,7 +1,6 @@
 import { useRef, useState } from 'react';
 import { PageCanvas, type PageCanvasPage } from '@/renderer/PageCanvas';
 import { useCanvasScale } from '@/renderer/useCanvasScale';
-import { CANVAS_WIDTH, CANVAS_HEIGHT } from '@/config/canvas';
 import { EDITOR_CANVAS_MAX_WIDTH } from '@/config/editor';
 import { EditorOverlay, type GeometryOverride } from './EditorOverlay';
 import { useTextMeasurements } from './useTextMeasurements';
@@ -10,6 +9,11 @@ import type { PageElement } from '@/types/elements';
 
 interface EditorCanvasProps {
   pageId: string;
+  // Page's canvas dims (cover = portrait 960×1080, normal = 1920×1080), derived
+  // from is_cover by the caller via pageCanvasSize. Threaded into useCanvasScale
+  // and PageCanvas so the cover reuses this exact editor path — never forked.
+  canvasWidth: number;
+  canvasHeight: number;
   elements: PageElement[];
   selectedElementId: string | null;
   textEditingId: string | null;
@@ -30,6 +34,8 @@ interface EditorCanvasProps {
 // and it never forks PageCanvas itself.
 export function EditorCanvas({
   pageId,
+  canvasWidth,
+  canvasHeight,
   elements,
   selectedElementId,
   textEditingId,
@@ -44,7 +50,7 @@ export function EditorCanvas({
   onSendBackward,
 }: EditorCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const scale = useCanvasScale(containerRef);
+  const scale = useCanvasScale(containerRef, canvasWidth);
   const [liveOverride, setLiveOverride] = useState<GeometryOverride | null>(null);
 
   // Drag/resize is previewed locally here (not dispatched to the reducer on
@@ -78,14 +84,20 @@ export function EditorCanvas({
         position: 'relative',
         width: '100%',
         maxWidth: EDITOR_CANVAS_MAX_WIDTH,
-        aspectRatio: `${CANVAS_WIDTH} / ${CANVAS_HEIGHT}`,
+        aspectRatio: `${canvasWidth} / ${canvasHeight}`,
         overflow: 'hidden',
         touchAction: 'none',
         borderRadius: 12,
         boxShadow: '0 8px 40px hsl(25 30% 55% / 0.25), 0 0 0 1px hsl(35 20% 88%)',
       }}
     >
-      <PageCanvas page={page} scale={scale} renderMode="editor" />
+      <PageCanvas
+        page={page}
+        scale={scale}
+        renderMode="editor"
+        canvasWidth={canvasWidth}
+        canvasHeight={canvasHeight}
+      />
       <EditorOverlay
         elements={displayElements}
         scale={scale}

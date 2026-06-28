@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { PageCanvas } from '@/renderer/PageCanvas';
 import { usePageElementsQuery } from '@/hooks/usePageElementsQuery';
-import { CANVAS_WIDTH, CANVAS_HEIGHT } from '@/config/canvas';
+import { CANVAS_WIDTH, CANVAS_HEIGHT, pageCanvasSize } from '@/config/canvas';
 import type { PageRow } from '@/types/database';
 import { BRAND } from '@/config/theme';
 
@@ -9,7 +9,18 @@ import { BRAND } from '@/config/theme';
 // 162×91 gives a crisp 16:9 landscape thumbnail that fits inside the sidebar.
 const THUMBNAIL_WIDTH = 162;
 const THUMBNAIL_HEIGHT = Math.round((THUMBNAIL_WIDTH / CANVAS_WIDTH) * CANVAS_HEIGHT);
-const THUMBNAIL_SCALE = THUMBNAIL_WIDTH / CANVAS_WIDTH;
+
+// A cover thumbnail is portrait (960×1080), so it's scaled to the SAME height as
+// the landscape thumbnails (keeping the list visually aligned) and ends up
+// narrower, centered in the row. Derived from pageCanvasSize, never hardcoded.
+function thumbnailMetrics(isCover: boolean) {
+  const { width, height } = pageCanvasSize(isCover);
+  if (isCover) {
+    const scale = THUMBNAIL_HEIGHT / height;
+    return { width: Math.round(width * scale), height: THUMBNAIL_HEIGHT, scale };
+  }
+  return { width: THUMBNAIL_WIDTH, height: THUMBNAIL_HEIGHT, scale: THUMBNAIL_WIDTH / width };
+}
 
 interface PageThumbnailProps {
   page: PageRow;
@@ -29,13 +40,16 @@ export function PageThumbnail({
   const containerRef = useRef<HTMLDivElement>(null);
   const [hovered, setHovered] = useState(false);
 
+  const { width: canvasWidth, height: canvasHeight } = pageCanvasSize(page.is_cover);
+  const { width: thumbWidth, height: thumbHeight, scale } = thumbnailMetrics(page.is_cover);
+
   return (
     <button
       type="button"
       onClick={onClick}
-      title={`Page ${pageIndex + 1}${page.is_quiz_page ? ' (quiz)' : ''}`}
+      title={`${page.is_cover ? 'Cover' : `Page ${pageIndex + 1}`}${page.is_quiz_page ? ' (quiz)' : ''}`}
       style={{
-        display: 'block', width: '100%', textAlign: 'left',
+        display: 'flex', width: '100%', justifyContent: 'center',
         background: 'none', border: 'none', padding: 0, cursor: 'pointer',
       }}
     >
@@ -47,8 +61,8 @@ export function PageThumbnail({
           position: 'relative',
           overflow: 'hidden',
           borderRadius: 10,
-          width: THUMBNAIL_WIDTH,
-          height: THUMBNAIL_HEIGHT,
+          width: thumbWidth,
+          height: thumbHeight,
           // Selected: green glow ring + elevation.
           // Hovered: lifted shadow.
           boxShadow: isSelected
@@ -70,8 +84,10 @@ export function PageThumbnail({
           // PageCanvas renders inline — no Tailwind inside the renderer per CLAUDE.md.
           <PageCanvas
             page={{ id: page.id, elements }}
-            scale={THUMBNAIL_SCALE}
+            scale={scale}
             renderMode="editor"
+            canvasWidth={canvasWidth}
+            canvasHeight={canvasHeight}
           />
         )}
 
@@ -88,7 +104,7 @@ export function PageThumbnail({
           color: '#fff',
           fontFamily: 'system-ui, sans-serif',
         }}>
-          {pageIndex + 1}{page.is_quiz_page && ' Q'}
+          {page.is_cover ? 'Cover' : pageIndex + 1}{page.is_quiz_page && ' Q'}
         </div>
       </div>
     </button>

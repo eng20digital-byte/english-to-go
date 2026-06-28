@@ -1,8 +1,8 @@
 // Word-click TTS constants (M10) — see CLAUDE.md "TTS (word-click)".
 
 export const DEFAULT_SPEECH_RATE = 0.9;
-export const MIN_SPEECH_RATE = 0.5;
-export const MAX_SPEECH_RATE = 1.5;
+export const MIN_SPEECH_RATE = 0.3;
+export const MAX_SPEECH_RATE = 1.7;
 export const SPEECH_RATE_STEP = 0.1;
 
 // Content is mixed-language in practice (English vocabulary inside

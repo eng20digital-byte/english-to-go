@@ -11,21 +11,34 @@ interface PageCanvasProps {
   page: PageCanvasPage;
   scale: number;
   renderMode: RenderMode;
+  // Per-page canvas size — defaults to the full 1920×1080 spread, overridden to
+  // the portrait cover dims for an is_cover page (see config/canvas.ts
+  // pageCanvasSize). Threaded through here rather than forked so the cover
+  // reuses this exact renderer (CLAUDE.md "Shared renderer — never fork this").
+  canvasWidth?: number;
+  canvasHeight?: number;
 }
 
 // Single shared rendering implementation used unmodified by both the editor
 // and the reader — see CLAUDE.md "Shared renderer — never fork this". Pure:
-// { page, scale, renderMode } in, JSX out. Dispatches per-element by `type`
-// via the registry, so a new element type never touches this file.
-export function PageCanvas({ page, scale, renderMode }: PageCanvasProps) {
+// { page, scale, renderMode, canvasWidth, canvasHeight } in, JSX out.
+// Dispatches per-element by `type` via the registry, so a new element type
+// never touches this file.
+export function PageCanvas({
+  page,
+  scale,
+  renderMode,
+  canvasWidth = CANVAS_WIDTH,
+  canvasHeight = CANVAS_HEIGHT,
+}: PageCanvasProps) {
   const sortedElements = [...page.elements].sort((a, b) => a.z_index - b.z_index);
 
   return (
     <div
       style={{
         position: 'relative',
-        width: CANVAS_WIDTH,
-        height: CANVAS_HEIGHT,
+        width: canvasWidth,
+        height: canvasHeight,
         backgroundColor: CANVAS_BACKGROUND_COLOR,
         transform: `scale(${scale})`,
         transformOrigin: 'top left',
