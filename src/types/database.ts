@@ -31,6 +31,7 @@ export interface BookletRow {
   background_color: string; // page-canvas background, hex #rrggbb (migration 0005)
   quiz_embed_code: string | null;
   quiz_embed_height: number | null;
+  show_quiz_on_last_spread: boolean; // booklet-level flag (migration 0008)
   created_at: string;
   updated_at: string;
 }

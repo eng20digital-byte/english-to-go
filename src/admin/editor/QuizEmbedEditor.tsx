@@ -12,10 +12,9 @@ interface QuizEmbedEditorProps {
 const inputCls =
   'w-full rounded-xl border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring';
 
-// Booklet-level settings (not per-page) for the Fillout snippet rendered, via
-// QuizEmbed, on whichever page has is_quiz_page = true — see CLAUDE.md "Quiz
-// embed (final page)". Explicit Save rather than autosave: these two fields
-// change rarely, unlike the continuous drag/type edits page_elements gets.
+// Booklet-level quiz settings. "Show on last spread" is stored on the booklet
+// (show_quiz_on_last_spread) so it is unaffected by adding/removing the back
+// cover — the quiz always lands on the last non-cover, non-back-cover page.
 //
 // No effect resyncing local state from `booklet` on change: BookletEditorPage
 // only renders this once `booklet` has loaded and unmounts it while loading a
@@ -26,16 +25,19 @@ export function QuizEmbedEditor({ booklet }: QuizEmbedEditorProps) {
   const updateQuiz = useUpdateBookletQuizMutation(booklet.id);
   const [embedCode, setEmbedCode] = useState(booklet.quiz_embed_code ?? '');
   const [height, setHeight] = useState(booklet.quiz_embed_height ?? DEFAULT_QUIZ_EMBED_HEIGHT);
+  const [showOnLastSpread, setShowOnLastSpread] = useState(booklet.show_quiz_on_last_spread);
 
   const isDirty =
     embedCode !== (booklet.quiz_embed_code ?? '') ||
-    height !== (booklet.quiz_embed_height ?? DEFAULT_QUIZ_EMBED_HEIGHT);
+    height !== (booklet.quiz_embed_height ?? DEFAULT_QUIZ_EMBED_HEIGHT) ||
+    showOnLastSpread !== booklet.show_quiz_on_last_spread;
 
   function handleSubmit(event: { preventDefault(): void }) {
     event.preventDefault();
     updateQuiz.mutate({
       quizEmbedCode: embedCode.trim() === '' ? null : embedCode,
       quizEmbedHeight: height,
+      showQuizOnLastSpread: showOnLastSpread,
     });
   }
 
@@ -44,8 +46,8 @@ export function QuizEmbedEditor({ booklet }: QuizEmbedEditorProps) {
       <CardHeader className="pb-3">
         <CardTitle className="text-base">Quiz embed</CardTitle>
         <CardDescription className="text-xs">
-          Paste the raw Fillout embed snippet here. It renders on whichever page is marked "Quiz
-          page", in place of the canvas.
+          Paste the raw Fillout embed snippet here. It renders on the last open spread (not the
+          back cover) when "Show on last spread" is checked.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -59,6 +61,15 @@ export function QuizEmbedEditor({ booklet }: QuizEmbedEditorProps) {
               placeholder={'<script ...></script>\n<button ...>Open quiz</button>'}
               className={`${inputCls} resize-y font-mono text-xs`}
             />
+          </label>
+
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={showOnLastSpread}
+              onChange={(e) => setShowOnLastSpread(e.target.checked)}
+            />
+            <span>Show quiz on last spread</span>
           </label>
 
           <div className="flex items-end gap-4">

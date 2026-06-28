@@ -259,6 +259,13 @@ export function ReaderBookletPage() {
   if (spreads.length === 0) return <ReaderError icon={<BookOpen size={26} color="rgba(255,255,255,0.7)" />} message="This booklet has no pages yet." />;
 
   const clampedIndex = Math.min(pageIndex, spreads.length - 1);
+  // Quiz shows on the last spread when the booklet-level flag is set.
+  // Derived here rather than from page.is_quiz_page so it is unaffected by
+  // adding/removing the back cover (migration 0008).
+  const isCurrentPageQuiz =
+    clampedIndex === spreads.length - 1 &&
+    booklet.show_quiz_on_last_spread &&
+    !!booklet.quiz_embed_code;
   const pageProgress = spreads.length > 1
     ? (clampedIndex / (spreads.length - 1)) * 100
     : 100;
@@ -555,26 +562,6 @@ export function ReaderBookletPage() {
                 renderPage={(index, scale) => {
                   const page = spreads[index];
                   if (!page) return null;
-                  if (page.is_quiz_page) {
-                    return (
-                      <>
-                        <PageCanvas page={page} scale={scale} renderMode="reader" />
-                        {booklet.quiz_embed_code && (
-                          <div style={{
-                            position: 'absolute',
-                            inset: 0,
-                            display: 'flex',
-                            justifyContent: 'center',
-                            alignItems: 'flex-start',
-                            paddingTop: '5%',
-                            zIndex: 10,
-                          }}>
-                            <QuizEmbed embedCode={booklet.quiz_embed_code} />
-                          </div>
-                        )}
-                      </>
-                    );
-                  }
                   return <PageCanvas page={page} scale={scale} renderMode="reader" />;
                 }}
               >
@@ -678,6 +665,25 @@ export function ReaderBookletPage() {
             </button>
 
             </div>{/* flex row */}
+
+            {/* QuizEmbed lives here — outside the PageFlip/card transform and
+                overflow:hidden contexts — so Fillout's slider can escape to
+                the viewport correctly. Shown only on the quiz page. */}
+            {isCurrentPageQuiz && booklet.quiz_embed_code && !showCover && !showBackCover && (
+              <div style={{
+                position: 'absolute',
+                inset: 0,
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                zIndex: 15,
+                pointerEvents: 'none',
+              }}>
+                <div style={{ pointerEvents: 'auto' }}>
+                  <QuizEmbed embedCode={booklet.quiz_embed_code} />
+                </div>
+              </div>
+            )}
           </div>{/* viewer area */}
         </div>
       </WordSpeechProvider>

@@ -20,6 +20,7 @@ export interface ReaderBooklet {
   background_color: string;
   quiz_embed_code: string | null;
   quiz_embed_height: number | null;
+  show_quiz_on_last_spread: boolean;
   pages: ReaderBookletPage[];
 }
 
@@ -31,6 +32,7 @@ interface BookletQueryRow {
   background_color: string;
   quiz_embed_code: string | null;
   quiz_embed_height: number | null;
+  show_quiz_on_last_spread: boolean;
   pages: {
     id: string;
     page_order: number;
@@ -59,7 +61,7 @@ export function useBookletByToken(token: string | undefined) {
       const { data, error } = await supabase
         .from('booklets')
         .select(
-          'id, title, canvas_width, canvas_height, background_color, quiz_embed_code, quiz_embed_height, pages(id, page_order, is_quiz_page, is_cover, is_back_cover, page_elements(id, page_id, type, z_index, x, y, w, h, rotation, props))',
+          'id, title, canvas_width, canvas_height, background_color, quiz_embed_code, quiz_embed_height, show_quiz_on_last_spread, pages(id, page_order, is_quiz_page, is_cover, is_back_cover, page_elements(id, page_id, type, z_index, x, y, w, h, rotation, props))',
         )
         .eq('public_token', token)
         .order('page_order', { referencedTable: 'pages' })
@@ -76,6 +78,7 @@ export function useBookletByToken(token: string | undefined) {
         background_color: booklet.background_color,
         quiz_embed_code: booklet.quiz_embed_code,
         quiz_embed_height: booklet.quiz_embed_height,
+        show_quiz_on_last_spread: booklet.show_quiz_on_last_spread,
         pages: booklet.pages.map((page) => ({
           id: page.id,
           elements: page.page_elements,
@@ -103,7 +106,7 @@ export function useBookletsQuery() {
       const { data, error } = await supabase
         .from('booklets')
         .select(
-          'id, public_token, title, status, canvas_width, canvas_height, background_color, quiz_embed_code, quiz_embed_height, created_at, updated_at',
+          'id, public_token, title, status, canvas_width, canvas_height, background_color, quiz_embed_code, quiz_embed_height, show_quiz_on_last_spread, created_at, updated_at',
         )
         .order('created_at', { ascending: false });
       if (error) throw error;
@@ -126,7 +129,7 @@ export function useBookletDetailQuery(bookletId: string | undefined) {
       const { data, error } = await supabase
         .from('booklets')
         .select(
-          'id, public_token, title, status, canvas_width, canvas_height, background_color, quiz_embed_code, quiz_embed_height, created_at, updated_at, pages(id, booklet_id, page_order, is_quiz_page, is_cover, is_back_cover, created_at)',
+          'id, public_token, title, status, canvas_width, canvas_height, background_color, quiz_embed_code, quiz_embed_height, show_quiz_on_last_spread, created_at, updated_at, pages(id, booklet_id, page_order, is_quiz_page, is_cover, is_back_cover, created_at)',
         )
         .eq('id', bookletId)
         .order('page_order', { referencedTable: 'pages' })
@@ -146,7 +149,7 @@ export function useCreateBookletMutation() {
         .from('booklets')
         .insert({ title, public_token: nanoid(PUBLIC_TOKEN_LENGTH) })
         .select(
-          'id, public_token, title, status, canvas_width, canvas_height, background_color, quiz_embed_code, quiz_embed_height, created_at, updated_at',
+          'id, public_token, title, status, canvas_width, canvas_height, background_color, quiz_embed_code, quiz_embed_height, show_quiz_on_last_spread, created_at, updated_at',
         )
         .single();
       if (error) throw error;
@@ -241,13 +244,19 @@ export function useUpdateBookletQuizMutation(bookletId: string) {
     mutationFn: async ({
       quizEmbedCode,
       quizEmbedHeight,
+      showQuizOnLastSpread,
     }: {
       quizEmbedCode: string | null;
       quizEmbedHeight: number;
+      showQuizOnLastSpread: boolean;
     }): Promise<void> => {
       const { error } = await supabase
         .from('booklets')
-        .update({ quiz_embed_code: quizEmbedCode, quiz_embed_height: quizEmbedHeight })
+        .update({
+          quiz_embed_code: quizEmbedCode,
+          quiz_embed_height: quizEmbedHeight,
+          show_quiz_on_last_spread: showQuizOnLastSpread,
+        })
         .eq('id', bookletId);
       if (error) throw error;
     },

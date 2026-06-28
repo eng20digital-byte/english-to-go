@@ -26,7 +26,6 @@ import {
   useDuplicatePageMutation,
   usePastePageMutation,
   useReorderPagesMutation,
-  useSetQuizPageMutation,
 } from '@/hooks/usePagesQuery';
 import { fetchPageElements } from '@/hooks/usePageElementsQuery';
 import { PageElementEditor } from '@/admin/editor/PageElementEditor';
@@ -264,7 +263,6 @@ export function BookletEditorPage() {
   const duplicatePage = useDuplicatePageMutation(bookletId ?? '');
   const pastePage = usePastePageMutation(bookletId ?? '');
   const reorderPages = useReorderPagesMutation(bookletId ?? '');
-  const setQuizPage = useSetQuizPageMutation(bookletId ?? '');
 
   // Editor-wide clipboards. Owned here (not inside PageElementEditor, which
   // remounts per page) so a copy survives page navigation — the whole point of
@@ -303,7 +301,14 @@ export function BookletEditorPage() {
   // ── Page data + operations. Derived before the early returns so the
   // keyboard-shortcut hooks below keep a stable call order; safe before the
   // booklet has loaded (pages is empty and the handlers simply aren't invoked).
-  const pages = booklet?.pages ?? [];
+  // Defensive sort: keeps front cover first and back cover last in the sidebar
+  // regardless of page_order values (guards stale data from before migration 0007
+  // fixed add_page to insert before the back cover).
+  const pages = [...(booklet?.pages ?? [])].sort((a, b) => {
+    if (a.is_cover !== b.is_cover) return a.is_cover ? -1 : 1;
+    if (a.is_back_cover !== b.is_back_cover) return a.is_back_cover ? 1 : -1;
+    return a.page_order - b.page_order;
+  });
   const bookletPath = booklet ? `/admin/booklets/${booklet.id}` : '';
   const currentPage = pages.find((page) => page.id === pageId) ?? null;
   const hasCover = pages.some((page) => page.is_cover);
@@ -436,8 +441,6 @@ export function BookletEditorPage() {
       </div>
     );
   }
-
-  const lastPage = pages[pages.length - 1];
 
   return (
     // Editor workspace backdrop reflects the booklet's reader background live, so
@@ -648,20 +651,6 @@ export function BookletEditorPage() {
             <DialogTitle>Quiz Embed</DialogTitle>
           </DialogHeader>
           <QuizEmbedEditor booklet={booklet} />
-          {lastPage && (
-            <div className="mt-2 border-t border-border pt-4">
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={lastPage.is_quiz_page}
-                  onChange={(e) =>
-                    setQuizPage.mutate({ pageId: lastPage.id, isQuizPage: e.target.checked })
-                  }
-                />
-                <span>Show quiz on last page</span>
-              </label>
-            </div>
-          )}
         </DialogContent>
       </Dialog>
 
