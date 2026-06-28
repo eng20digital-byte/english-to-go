@@ -10,12 +10,15 @@ import { CANVAS_WIDTH, CANVAS_HEIGHT } from '@/config/canvas';
 import {
   READER_MAX_WIDTH,
   BOOK_SHEET_THICKNESS_PX,
+  BOOK_STACK_DEPTH_INSET_PCT,
   SWIPE_THRESHOLD_PX,
   SWIPE_THRESHOLD_RATIO,
 } from '@/config/reader';
 import { PageFlip } from './PageFlip';
 import { VocabularyPanel } from './VocabularyPanel';
 import { BookCover } from './BookCover';
+import { BookBackCover } from './BookBackCover';
+import { useNextPagePreloader } from './useNextPagePreloader';
 import { prefersReducedMotion } from './prefersReducedMotion';
 import { BRAND } from '@/config/theme';
 
@@ -26,6 +29,7 @@ const DOT_NAV_MAX = 12;
 // (which doubles as the prefers-reduced-motion path); 'opening'/'closing' are
 // reserved for the animated transitions layered on in C3.3/C3.4.
 type CoverState = 'closed' | 'opening' | 'closing' | 'open';
+type BackCoverState = 'hidden' | 'entering' | 'exiting' | 'visible';
 
 // Decorative paper-cut background shapes — same visual language as admin pages.
 function BgShapes() {
@@ -101,15 +105,18 @@ export function ReaderBookletPage() {
   const [pageIndex, setPageIndex] = useState(0);
   const [prevHover, setPrevHover] = useState(false);
   const [nextHover, setNextHover] = useState(false);
+  const [hoveredDot, setHoveredDot] = useState<number | null>(null);
   const [speechExpanded, setSpeechExpanded] = useState(false);
   const [isFlipping, setIsFlipping] = useState(false);
   const [coverState, setCoverState] = useState<CoverState>('closed');
-  // Reset to closed whenever the booklet changes (new token / refetch), via the
-  // render-phase "adjust state on prop change" pattern — no setState-in-effect.
+  const [backCoverState, setBackCoverState] = useState<BackCoverState>('hidden');
+  // Reset to closed/hidden whenever the booklet changes (new token / refetch),
+  // via the render-phase "adjust state on prop change" pattern — no setState-in-effect.
   const [prevBookletId, setPrevBookletId] = useState(booklet?.id);
   if (booklet?.id !== prevBookletId) {
     setPrevBookletId(booklet?.id);
     setCoverState('closed');
+    setBackCoverState('hidden');
   }
   const flipControlsRef = useRef<{ next: () => void; prev: () => void } | null>(null);
   // Tracks a pointer drag on the book wrapper, used only to detect a
@@ -134,9 +141,25 @@ export function ReaderBookletPage() {
   }, []);
   const finishClose = useCallback(() => setCoverState('closed'), []);
 
+  // Back cover state machine (B3.3 — enter animation).
+  // Reduced motion skips straight to 'visible'; otherwise plays 'entering'
+  // (flip + reframe), which ends when the card animation fires onEnterEnd.
+  const enterBackCover = useCallback(() => {
+    setBackCoverState(prefersReducedMotion() ? 'visible' : 'entering');
+  }, []);
+  const finishEntering = useCallback(() => setBackCoverState('visible'), []);
+  const exitBackCover = useCallback(() => {
+    setBackCoverState(prefersReducedMotion() ? 'hidden' : 'exiting');
+  }, []);
+  const finishExiting = useCallback(() => setBackCoverState('hidden'), []);
+
+  const showBackCover = backCoverState !== 'hidden';
+
   useEffect(() => {
     if (booklet) document.title = booklet.title;
   }, [booklet]);
+
+  useNextPagePreloader(booklet, pageIndex);
 
   // While the cover is closed, ArrowRight / Enter open it. Declared before the
   // early returns (hooks rule), so `showCover` is recomputed inline from the
@@ -164,7 +187,7 @@ export function ReaderBookletPage() {
   useEffect(() => {
     if (!booklet) return;
     const cover = booklet.pages.find((p) => p.is_cover) ?? null;
-    const spreads = cover ? booklet.pages.slice(1) : booklet.pages;
+    const spreads = booklet.pages.filter((p) => !p.is_cover && !p.is_back_cover);
     const clampedIndex = Math.min(pageIndex, Math.max(0, spreads.length - 1));
     const canClose = cover !== null && coverState === 'open' && clampedIndex === 0;
     if (!canClose) return;
@@ -178,16 +201,53 @@ export function ReaderBookletPage() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [booklet, coverState, pageIndex, closeCover]);
 
+  // While back cover is showing, ArrowLeft exits to last spread.
+  useEffect(() => {
+    if (!booklet) return;
+    const cover = booklet.pages.find((p) => p.is_cover) ?? null;
+    const showCover = cover !== null && coverState !== 'open';
+    if (!showBackCover || isFlipping || showCover) return;
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'ArrowLeft') {
+        event.preventDefault();
+        exitBackCover();
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [booklet, coverState, showBackCover, isFlipping, exitBackCover]);
+
+  // At the last spread (back cover not yet showing), ArrowRight enters the back
+  // cover. PageFlip's own ArrowRight no-ops at the last index, so no conflict.
+  useEffect(() => {
+    if (!booklet) return;
+    const cover = booklet.pages.find((p) => p.is_cover) ?? null;
+    const backCover = booklet.pages.find((p) => p.is_back_cover) ?? null;
+    const spreads = booklet.pages.filter((p) => !p.is_cover && !p.is_back_cover);
+    const clampedIndex = Math.min(pageIndex, Math.max(0, spreads.length - 1));
+    const showCover = cover !== null && coverState !== 'open';
+    const atLastSpread = clampedIndex === spreads.length - 1;
+    if (!atLastSpread || !backCover || showBackCover || showCover || isFlipping) return;
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'ArrowRight') {
+        event.preventDefault();
+        enterBackCover();
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [booklet, coverState, pageIndex, showBackCover, isFlipping, enterBackCover]);
+
   if (isLoading) return <LoadingState />;
   if (isError) return <ReaderError icon={<AlertTriangle size={26} color="rgba(255,193,77,0.9)" />} message="Something went wrong loading this booklet. Please try again." />;
   if (!booklet) return <ReaderError icon={<BookX size={26} color="rgba(255,255,255,0.7)" />} message="This booklet could not be found. It may not be published or disabled" />;
   if (booklet.pages.length === 0) return <ReaderError icon={<BookOpen size={26} color="rgba(255,255,255,0.7)" />} message="This booklet has no pages yet." />;
 
-  // Split the cover (pinned to index 0 by C1) from the spreads. All open-book
-  // logic below drives on `spreads` only — the cover is excluded and uncounted.
-  // No closed stage yet (C3.2+): a cover booklet just opens straight to spread 0.
-  const cover = booklet.pages.find((p) => p.is_cover) ?? null;
-  const spreads = cover ? booklet.pages.slice(1) : booklet.pages;
+  // Split covers from spreads. All open-book logic drives on `spreads` only —
+  // neither cover is counted in the dot indicator or page counter.
+  const cover     = booklet.pages.find((p) => p.is_cover)      ?? null;
+  const backCover = booklet.pages.find((p) => p.is_back_cover) ?? null;
+  const spreads   = booklet.pages.filter((p) => !p.is_cover && !p.is_back_cover);
 
   // No-cover booklets ⇒ showCover is always false ⇒ they open straight to spread
   // 0 exactly as before, no flash, no init effect needed.
@@ -210,15 +270,24 @@ export function ReaderBookletPage() {
   // While closed, prev is meaningless (nothing before the cover) and next opens
   // the cover rather than turning a page (see handleNext). At spread 0, prev is
   // disabled UNLESS it can re-close the cover.
-  const prevDisabled = isFlipping || showCover || (clampedIndex === 0 && !canClose);
-  const nextDisabled = isFlipping || (!showCover && clampedIndex === spreads.length - 1);
+  // While the back cover is showing: next is disabled (nothing after it), prev
+  // exits to the last spread (enabled — handled in handlePrev).
+  // Back cover prev always exits to last spread — never disabled (unless flipping
+  // or cover still closed, both of which mean the back cover can't be showing).
+  const prevDisabled = isFlipping || showCover || (!showBackCover && clampedIndex === 0 && !canClose);
+  const nextDisabled =
+    isFlipping ||
+    showBackCover ||
+    (!showCover && clampedIndex === spreads.length - 1 && !backCover);
 
   const handleNext = () => {
     if (showCover) return openCover();
+    if (clampedIndex === spreads.length - 1 && backCover && !showBackCover) return enterBackCover();
     flipControlsRef.current?.next();
   };
 
   const handlePrev = () => {
+    if (showBackCover) return exitBackCover();
     if (canClose) return closeCover();
     flipControlsRef.current?.prev();
   };
@@ -347,7 +416,7 @@ export function ReaderBookletPage() {
                 Vertically centered, below the top-anchored speech tab so the
                 two peeking tabs don't overlap. Shows only the current page's
                 vocabulary and re-renders as clampedIndex changes on flip. */}
-            {!showCover && <VocabularyPanel page={spreads[clampedIndex]} />}
+            {!showCover && !showBackCover && <VocabularyPanel page={spreads[clampedIndex]} />}
 
             {/* ── Flex row: prev | booklet | next ──────────────────────────
                 Buttons are flex siblings of the card so they always sit flush
@@ -387,12 +456,12 @@ export function ReaderBookletPage() {
               ‹
             </button>
 
-            {/* ── Middle slot: closed cover OR the open book ───────────────
+            {/* ── Middle slot: closed cover | back cover | open book ──────
                 While closed (cover booklet, not yet opened) the centered
-                portrait BookCover stands in for the whole open-book subtree —
-                PageFlip, its sheet edges and the indicator are all unmounted, so
-                they vanish automatically. While 'opening', BookCover plays the
-                C3.3 open animation, then onOpenEnd flips coverState to 'open'. */}
+                portrait BookCover stands in for the whole open-book subtree.
+                While the back cover is showing, BookBackCover replaces the open
+                book — PageFlip, sheet edges, and the indicator all unmount.
+                Otherwise, the normal open-book subtree is rendered. */}
             {showCover && cover ? (
               <BookCover
                 cover={cover}
@@ -402,6 +471,16 @@ export function ReaderBookletPage() {
                 onOpen={openCover}
                 onOpenEnd={finishOpen}
                 onCloseEnd={finishClose}
+              />
+            ) : showBackCover && backCover ? (
+              <BookBackCover
+                backCover={backCover}
+                lastSpread={spreads[spreads.length - 1]}
+                spreadCount={spreads.length}
+                backCoverState={backCoverState}
+                onClose={exitBackCover}
+                onEnterEnd={finishEntering}
+                onExitEnd={finishExiting}
               />
             ) : (
             <>
@@ -512,20 +591,42 @@ export function ReaderBookletPage() {
                   }}>
                     {spreads.length <= DOT_NAV_MAX
                       ? Array.from({ length: spreads.length }).map((_, i) => (
-                          <div
+                          <button
                             key={i}
+                            type="button"
+                            aria-label={`Go to page ${i + 1}`}
+                            disabled={isFlipping || i === clampedIndex}
+                            onClick={() => setPageIndex(i)}
+                            onMouseEnter={() => setHoveredDot(i)}
+                            onMouseLeave={() => setHoveredDot(null)}
                             style={{
-                              width: i === clampedIndex ? 20 : 8, height: 8,
-                              borderRadius: 6, flexShrink: 0,
+                              width: i === clampedIndex ? 20 : hoveredDot === i ? 14 : 8,
+                              height: 8,
+                              borderRadius: 6,
+                              flexShrink: 0,
                               backgroundColor: i === clampedIndex
                                 ? BRAND.yellow
+                                : hoveredDot === i
+                                ? 'rgba(255,255,255,0.72)'
                                 : 'rgba(255,255,255,0.40)',
-                              transition: 'all 0.3s ease',
+                              transition: 'all 0.25s ease',
+                              border: 'none',
+                              padding: 0,
+                              cursor: isFlipping || i === clampedIndex ? 'default' : 'pointer',
                             }}
                           />
                         ))
                       : (
-                        <div style={{ height: 6, width: 100, borderRadius: 6, backgroundColor: 'rgba(255,255,255,0.2)', overflow: 'hidden' }}>
+                        <div
+                          title={`Page ${clampedIndex + 1} of ${spreads.length} — click to jump`}
+                          style={{ height: 6, width: 100, borderRadius: 6, backgroundColor: 'rgba(255,255,255,0.2)', overflow: 'hidden', flexShrink: 0, cursor: isFlipping ? 'default' : 'pointer' }}
+                          onClick={(e) => {
+                            if (isFlipping) return;
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            const ratio = (e.clientX - rect.left) / rect.width;
+                            setPageIndex(Math.max(0, Math.min(spreads.length - 1, Math.round(ratio * (spreads.length - 1)))));
+                          }}
+                        >
                           <div style={{ height: '100%', borderRadius: 6, backgroundColor: BRAND.yellow, width: `${pageProgress}%`, transition: 'width 0.3s ease-out' }} />
                         </div>
                       )

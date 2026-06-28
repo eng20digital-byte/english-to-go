@@ -29,13 +29,18 @@ interface PagesSidebarProps {
   selectedPageId: string | undefined;
   isAddingPage: boolean;
   isAddingCover: boolean;
+  isAddingBackCover: boolean;
   // Whether the booklet already has a front cover — hides "Add Cover" when true
   // (≤1 cover per booklet, enforced server-side too).
   hasCover: boolean;
+  // Whether the booklet already has a back cover — hides "Add Back Cover" when
+  // true (≤1 back cover per booklet, enforced server-side too).
+  hasBackCover: boolean;
   // Enables the "Paste page" item — true once a page has been copied/cut.
   hasPageClipboard: boolean;
   onAddPage: () => void;
   onAddCover: () => void;
+  onAddBackCover: () => void;
   onDeletePage: (page: PageRow) => void;
   onDuplicatePage: (page: PageRow) => void;
   onCopyPage: (page: PageRow) => void;
@@ -53,10 +58,13 @@ export function PagesSidebar({
   selectedPageId,
   isAddingPage,
   isAddingCover,
+  isAddingBackCover,
   hasCover,
+  hasBackCover,
   hasPageClipboard,
   onAddPage,
   onAddCover,
+  onAddBackCover,
   onDeletePage,
   onDuplicatePage,
   onCopyPage,
@@ -78,10 +86,10 @@ export function PagesSidebar({
   }
 
   function handleDragOver(e: React.DragEvent, index: number) {
-    // The cover is pinned first — never a valid drop target (dropping here would
-    // try to push a page before it). The server's reorder_pages re-pins it
-    // regardless, but blocking the drop keeps the UI honest.
-    if (pages[index]?.is_cover) return;
+    // The cover is pinned first and the back cover is pinned last — never valid
+    // drop targets. The server's reorder_pages re-pins them regardless, but
+    // blocking the drop keeps the UI honest.
+    if (pages[index]?.is_cover || pages[index]?.is_back_cover) return;
     e.preventDefault();
     setDropIndex(index);
   }
@@ -199,6 +207,37 @@ export function PagesSidebar({
             {isAddingCover ? 'Adding…' : 'Add Cover'}
           </button>
         )}
+
+        {/* Add Back Cover — only offered when the booklet has no back cover yet
+            (≤1 per booklet, same pattern as Add Cover). */}
+        {!hasBackCover && (
+          <button
+            type="button"
+            disabled={isAddingBackCover}
+            onClick={onAddBackCover}
+            style={{
+              width: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 7,
+              marginTop: 8,
+              padding: '9px 12px',
+              borderRadius: 14,
+              border: '1.5px solid rgba(0,0,0,0.12)',
+              backgroundColor: 'transparent',
+              color: BRAND.text,
+              fontSize: 12.5,
+              fontWeight: 700,
+              cursor: isAddingBackCover ? 'not-allowed' : 'pointer',
+              fontFamily: 'inherit',
+              opacity: isAddingBackCover ? 0.72 : 1,
+            }}
+          >
+            {isAddingBackCover ? <Spinner size="sm" /> : <BookImage size={15} />}
+            {isAddingBackCover ? 'Adding…' : 'Add Back Cover'}
+          </button>
+        )}
       </div>
 
       {/* Scrollable thumbnail list */}
@@ -217,8 +256,9 @@ export function PagesSidebar({
             return (
               <li
                 key={page.id}
-                // The cover is pinned first and can't be reordered.
-                draggable={!page.is_cover}
+                // The cover is pinned first and the back cover is pinned last —
+                // neither can be reordered by drag.
+                draggable={!page.is_cover && !page.is_back_cover}
                 onDragStart={() => handleDragStart(index)}
                 onDragOver={(e) => handleDragOver(e, index)}
                 onDrop={handleDrop}
@@ -275,9 +315,9 @@ export function PagesSidebar({
                     </button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" side="right" className="w-44">
-                    {/* The cover is unique and pinned first — duplicate/copy/cut/
-                        paste don't apply to it, so only Delete is offered. */}
-                    {!page.is_cover && (
+                    {/* The cover and back cover are unique/pinned — duplicate/copy/
+                        cut/paste don't apply to them, so only Delete is offered. */}
+                    {!page.is_cover && !page.is_back_cover && (
                       <>
                         <DropdownMenuItem onSelect={() => onDuplicatePage(page)}>
                           <CopyPlus />

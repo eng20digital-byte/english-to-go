@@ -10,12 +10,12 @@ import { BRAND } from '@/config/theme';
 const THUMBNAIL_WIDTH = 162;
 const THUMBNAIL_HEIGHT = Math.round((THUMBNAIL_WIDTH / CANVAS_WIDTH) * CANVAS_HEIGHT);
 
-// A cover thumbnail is portrait (960×1080), so it's scaled to the SAME height as
-// the landscape thumbnails (keeping the list visually aligned) and ends up
-// narrower, centered in the row. Derived from pageCanvasSize, never hardcoded.
-function thumbnailMetrics(isCover: boolean) {
-  const { width, height } = pageCanvasSize(isCover);
-  if (isCover) {
+// Cover and back-cover thumbnails are portrait (960×1080), scaled to the SAME
+// height as landscape thumbnails (keeping the list aligned) and end up narrower,
+// centered in the row. Derived from pageCanvasSize, never hardcoded.
+function thumbnailMetrics(isCover: boolean, isBackCover = false) {
+  const { width, height } = pageCanvasSize(isCover, isBackCover);
+  if (isCover || isBackCover) {
     const scale = THUMBNAIL_HEIGHT / height;
     return { width: Math.round(width * scale), height: THUMBNAIL_HEIGHT, scale };
   }
@@ -40,14 +40,14 @@ export function PageThumbnail({
   const containerRef = useRef<HTMLDivElement>(null);
   const [hovered, setHovered] = useState(false);
 
-  const { width: canvasWidth, height: canvasHeight } = pageCanvasSize(page.is_cover);
-  const { width: thumbWidth, height: thumbHeight, scale } = thumbnailMetrics(page.is_cover);
+  const { width: canvasWidth, height: canvasHeight } = pageCanvasSize(page.is_cover, page.is_back_cover);
+  const { width: thumbWidth, height: thumbHeight, scale } = thumbnailMetrics(page.is_cover, page.is_back_cover);
 
   return (
     <button
       type="button"
       onClick={onClick}
-      title={`${page.is_cover ? 'Cover' : `Page ${pageIndex + 1}`}${page.is_quiz_page ? ' (quiz)' : ''}`}
+      title={`${page.is_cover ? 'Cover' : page.is_back_cover ? 'Back Cover' : `Page ${pageIndex + 1}`}${page.is_quiz_page ? ' (quiz)' : ''}`}
       style={{
         display: 'flex', width: '100%', justifyContent: 'center',
         background: 'none', border: 'none', padding: 0, cursor: 'pointer',
@@ -104,7 +104,7 @@ export function PageThumbnail({
           color: '#fff',
           fontFamily: 'system-ui, sans-serif',
         }}>
-          {page.is_cover ? 'Cover' : pageIndex + 1}{page.is_quiz_page && ' Q'}
+          {page.is_cover ? 'Cover' : page.is_back_cover ? 'Back' : pageIndex + 1}{page.is_quiz_page && ' Q'}
         </div>
       </div>
     </button>

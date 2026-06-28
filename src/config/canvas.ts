@@ -14,9 +14,12 @@ export const COVER_CANVAS_WIDTH = CANVAS_WIDTH / 2;
 export const COVER_CANVAS_HEIGHT = CANVAS_HEIGHT;
 
 // Single source of truth for a page's canvas dimensions, so the editor and the
-// reader compute cover vs. spread dims exactly one way.
-export function pageCanvasSize(isCover: boolean): { width: number; height: number } {
-  return isCover
+// reader compute cover vs. spread dims exactly one way. Both the front cover and
+// the back cover share the same portrait 960×1080 canvas — derived from their
+// flags, never stored. isBackCover defaults to false so call sites that don't
+// yet pass it (or pass only isCover) are safe.
+export function pageCanvasSize(isCover: boolean, isBackCover = false): { width: number; height: number } {
+  return (isCover || isBackCover)
     ? { width: COVER_CANVAS_WIDTH, height: COVER_CANVAS_HEIGHT }
     : { width: CANVAS_WIDTH, height: CANVAS_HEIGHT };
 }

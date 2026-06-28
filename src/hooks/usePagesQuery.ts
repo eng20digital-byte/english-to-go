@@ -46,6 +46,23 @@ export function useAddCoverPageMutation(bookletId: string) {
   });
 }
 
+// Add Back Cover — inserts the booklet's single back cover at the last position,
+// via the add_back_cover_page RPC (0006). The UI only offers this when none exists.
+export function useAddBackCoverPageMutation(bookletId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (): Promise<PageRow> => {
+      const { data, error } = await supabase.rpc('add_back_cover_page', { p_booklet_id: bookletId });
+      if (error) throw error;
+      return data as PageRow;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: adminBookletQueryKey(bookletId) });
+    },
+  });
+}
+
 export function useDeletePageMutation(bookletId: string) {
   const queryClient = useQueryClient();
 

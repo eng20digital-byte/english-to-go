@@ -331,6 +331,32 @@ body {
   to   { clip-path: inset(0 0 0 50%); transform: translateX(-25%); } /* right half, centered */
 }
 
+/* Cover fore-edge stack tracking the card's right edge as the cover opens/closes
+   (src/reader/BookCover.tsx). The closed stack sits at box 75% (the centered
+   cover's right edge); as the card expands to the full spread (book-cover-expand)
+   its right edge sweeps to box 100%, so the stack must follow in lockstep —
+   otherwise it would vanish for the whole transition (PageFlip, which owns the
+   open book's edge stacks, isn't mounted until the 'open' handoff). Run with the
+   same --dur/--easing as the card (passed inline) so the two move as one.
+   Animating `left` (a box-relative %) rather than transform: a translateX % would
+   be relative to the stack's own tiny width, not the box. */
+.book-cover-edge--opening {
+  animation-name: book-cover-edge-open;
+  animation-fill-mode: forwards;
+}
+.book-cover-edge--closing {
+  animation-name: book-cover-edge-close;
+  animation-fill-mode: forwards;
+}
+@keyframes book-cover-edge-open {
+  from { left: 75%; }
+  to   { left: 100%; }
+}
+@keyframes book-cover-edge-close {
+  from { left: 100%; }
+  to   { left: 75%; }
+}
+
 /* Permanent book spine: a soft vertical shadow down the canvas midpoint,
    always present (open-book look), independent of any flip in progress. */
 .book-spine {
@@ -422,6 +448,124 @@ body {
     rgba(0, 0, 0, 0) 100%
   );
 }
+/* ── Back cover enter animation (B3.3) ────────────────────────────────────────
+   The back cover leaf is the LEFT-HALF mirror of .page-flip-sheet:
+   left:0 (not left:50%), pivot at RIGHT edge (not left).
+   HARD RULE (same as .page-flip-sheet): never put overflow / clip-path /
+   opacity / filter on .back-cover-leaf — they silently collapse
+   transform-style: preserve-3d. Clip/translate live on the card only. */
+.back-cover-leaf {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 50%;
+  height: 100%;
+  z-index: 2;
+  transform-origin: right center;
+  transform-style: preserve-3d;
+  animation-fill-mode: forwards;
+}
+.back-cover-leaf--entering {
+  animation-name: back-cover-leaf-enter;
+}
+@keyframes back-cover-leaf-enter {
+  from { transform: rotateY(180deg); }
+  to   { transform: rotateY(0deg); }
+}
+
+/* Card collapse: full spread → left-half portrait, simultaneous with leaf flip */
+.back-cover-card--entering {
+  animation: back-cover-card-enter var(--dur, 1000ms) var(--easing, ease) forwards;
+}
+@keyframes back-cover-card-enter {
+  from { clip-path: inset(0 0 0 0);   transform: translateX(0); }
+  to   { clip-path: inset(0 50% 0 0); transform: translateX(25%); }
+}
+
+/* Left fore-edge stack: tracks the card's left visible edge during collapse.
+   right:100% = right edge at box position 0% (just left of full spread);
+   right:75%  = right edge at box position 25% (just left of settled portrait). */
+.back-cover-edge--entering {
+  animation-name: back-cover-edge-enter;
+  animation-fill-mode: forwards;
+}
+@keyframes back-cover-edge-enter {
+  from { right: 100%; }
+  to   { right: 75%; }
+}
+
+/* ── Back cover exit animation (B3.4) ────────────────────────────────────────*/
+
+/* Leaf exit: front face (back cover design) → back face (last spread right) */
+.back-cover-leaf--exiting {
+  animation-name: back-cover-leaf-exit;
+}
+@keyframes back-cover-leaf-exit {
+  from { transform: rotateY(0deg); }
+  to   { transform: rotateY(180deg); }
+}
+
+/* Card expand: left-half portrait → full spread, simultaneous with leaf flip */
+.back-cover-card--exiting {
+  animation: back-cover-card-exit var(--dur, 1000ms) var(--easing, ease) forwards;
+}
+@keyframes back-cover-card-exit {
+  from { clip-path: inset(0 50% 0 0); transform: translateX(25%); }
+  to   { clip-path: inset(0 0 0 0);   transform: translateX(0); }
+}
+
+/* Fore-edge stack tracking during exit: portrait left edge (right:75%) → full
+   spread left edge (right:100% = right edge at container's left). */
+.back-cover-edge--exiting {
+  animation-name: back-cover-edge-exit;
+  animation-fill-mode: forwards;
+}
+@keyframes back-cover-edge-exit {
+  from { right: 75%; }
+  to   { right: 100%; }
+}
+
+/* Static spine shadow on the right edge of the visible back cover portrait.
+   Gradient flows to the left — binding is on the right side of the portrait. */
+#reader-root .book-back-cover-spine {
+  position: absolute;
+  top: 0; bottom: 0;
+  width: 28px;
+  pointer-events: none;
+  background-image: linear-gradient(
+    to left,
+    rgba(0, 0, 0, 0.28) 0%,
+    rgba(0, 0, 0, 0.1) 45%,
+    rgba(0, 0, 0, 0) 100%
+  );
+}
+
+/* Shade for the back cover leaf: spine is on the RIGHT, so darken toward the
+   right (gradient `to left` means 0% is on the right = dark at spine). */
+.back-cover-shade {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    to left,
+    rgba(0, 0, 0, 0.5) 0%,
+    rgba(0, 0, 0, 0.06) 55%,
+    rgba(0, 0, 0, 0) 100%
+  );
+  opacity: 0;
+  animation-name: page-flip-shade;
+  animation-fill-mode: forwards;
+}
+/* Back face is mirrored, so the spine edge appears on the opposite side */
+.back-cover-shade--back {
+  background: linear-gradient(
+    to right,
+    rgba(0, 0, 0, 0.5) 0%,
+    rgba(0, 0, 0, 0.06) 55%,
+    rgba(0, 0, 0, 0) 100%
+  );
+}
+
 /* Skeleton loading pulse — used by MediaLibraryPicker's skeleton cards.
    Must be global (keyframes can't be scoped to a selector). */
 @keyframes sk-pulse {

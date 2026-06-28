@@ -19,6 +19,7 @@ import {
   useUpdateBookletTitleMutation,
 } from '@/hooks/useBookletQuery';
 import {
+  useAddBackCoverPageMutation,
   useAddCoverPageMutation,
   useAddPageMutation,
   useDeletePageMutation,
@@ -258,6 +259,7 @@ export function BookletEditorPage() {
 
   const addPage = useAddPageMutation(bookletId ?? '');
   const addCoverPage = useAddCoverPageMutation(bookletId ?? '');
+  const addBackCoverPage = useAddBackCoverPageMutation(bookletId ?? '');
   const deletePage = useDeletePageMutation(bookletId ?? '');
   const duplicatePage = useDuplicatePageMutation(bookletId ?? '');
   const pastePage = usePastePageMutation(bookletId ?? '');
@@ -305,6 +307,7 @@ export function BookletEditorPage() {
   const bookletPath = booklet ? `/admin/booklets/${booklet.id}` : '';
   const currentPage = pages.find((page) => page.id === pageId) ?? null;
   const hasCover = pages.some((page) => page.is_cover);
+  const hasBackCover = pages.some((page) => page.is_back_cover);
 
   function goToPage(targetPageId: string) {
     navigate(`${bookletPath}/pages/${targetPageId}`);
@@ -373,18 +376,18 @@ export function BookletEditorPage() {
     const tag = (e.target as HTMLElement).tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
 
-    // Clipboard ops don't apply to the cover (it's pinned first and unique) —
-    // only Delete does, mirroring the cover's action menu.
-    if (e.code === 'KeyC' && currentPage && !currentPage.is_cover) {
+    // Clipboard ops don't apply to the cover or back cover (both pinned/unique)
+    // — only Delete does, mirroring their action menus.
+    if (e.code === 'KeyC' && currentPage && !currentPage.is_cover && !currentPage.is_back_cover) {
       e.preventDefault();
       void handleCopyPage(currentPage);
-    } else if (e.code === 'KeyX' && currentPage && !currentPage.is_cover) {
+    } else if (e.code === 'KeyX' && currentPage && !currentPage.is_cover && !currentPage.is_back_cover) {
       e.preventDefault();
       void handleCutPage(currentPage);
-    } else if (e.code === 'KeyV' && pageClipboard.hasPage && currentPage && !currentPage.is_cover) {
+    } else if (e.code === 'KeyV' && pageClipboard.hasPage && currentPage && !currentPage.is_cover && !currentPage.is_back_cover) {
       e.preventDefault();
       void handlePastePage(currentPage);
-    } else if (e.code === 'KeyD' && currentPage && !currentPage.is_cover) {
+    } else if (e.code === 'KeyD' && currentPage && !currentPage.is_cover && !currentPage.is_back_cover) {
       e.preventDefault();
       void handleDuplicatePage(currentPage);
     } else if (e.key === 'Delete' && currentPage) {
@@ -569,10 +572,19 @@ export function BookletEditorPage() {
             selectedPageId={pageId}
             isAddingPage={addPage.isPending}
             isAddingCover={addCoverPage.isPending}
+            isAddingBackCover={addBackCoverPage.isPending}
             hasCover={hasCover}
+            hasBackCover={hasBackCover}
             hasPageClipboard={pageClipboard.hasPage}
             onAddCover={() => {
               addCoverPage.mutate(undefined, {
+                onSuccess: (newPage) => {
+                  navigate(`/admin/booklets/${bookletId}/pages/${newPage.id}`);
+                },
+              });
+            }}
+            onAddBackCover={() => {
+              addBackCoverPage.mutate(undefined, {
                 onSuccess: (newPage) => {
                   navigate(`/admin/booklets/${bookletId}/pages/${newPage.id}`);
                 },
@@ -619,6 +631,7 @@ export function BookletEditorPage() {
                 key={pageId}
                 pageId={pageId}
                 isCover={currentPage?.is_cover ?? false}
+                isBackCover={currentPage?.is_back_cover ?? false}
                 elementClipboard={elementClipboard}
                 flushRef={flushRef}
                 onSaveStatusChange={setSaveStatus}

@@ -60,6 +60,9 @@ interface PageElementEditorProps {
   // 960×1080 canvas (vs. the 1920×1080 spread) for layout and new-element
   // geometry. Derived from the page's is_cover flag by BookletEditorPage.
   isCover: boolean;
+  // Whether this page is the booklet's back cover — same portrait 960×1080
+  // canvas as the front cover. Derived from is_back_cover by BookletEditorPage.
+  isBackCover: boolean;
   // Editor-wide element clipboard (owned by BookletEditorPage so it survives the
   // per-page remount of this component) — drives Ctrl+C / Ctrl+X / Ctrl+V.
   elementClipboard: ElementClipboard;
@@ -166,11 +169,12 @@ const PANEL_SHADOW = '0 8px 28px rgba(0,0,0,0.14), 0 2px 6px rgba(0,0,0,0.08)';
 export function PageElementEditor({
   pageId,
   isCover,
+  isBackCover,
   elementClipboard,
   flushRef,
   onSaveStatusChange,
 }: PageElementEditorProps) {
-  const { width: canvasWidth, height: canvasHeight } = pageCanvasSize(isCover);
+  const { width: canvasWidth, height: canvasHeight } = pageCanvasSize(isCover, isBackCover);
   const { data: loadedElements, isLoading, isError } = usePageElementsQuery(pageId);
   const { data: fonts } = useFontsQuery();
   const [state, dispatch] = useEditorReducer();

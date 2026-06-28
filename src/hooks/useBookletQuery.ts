@@ -9,6 +9,7 @@ import type { BookletRow, BookletStatus, PageRow } from '@/types/database';
 export interface ReaderBookletPage extends PageCanvasPage {
   is_quiz_page: boolean;
   is_cover: boolean;
+  is_back_cover: boolean;
 }
 
 export interface ReaderBooklet {
@@ -35,6 +36,7 @@ interface BookletQueryRow {
     page_order: number;
     is_quiz_page: boolean;
     is_cover: boolean;
+    is_back_cover: boolean;
     page_elements: PageElement[];
   }[];
 }
@@ -57,7 +59,7 @@ export function useBookletByToken(token: string | undefined) {
       const { data, error } = await supabase
         .from('booklets')
         .select(
-          'id, title, canvas_width, canvas_height, background_color, quiz_embed_code, quiz_embed_height, pages(id, page_order, is_quiz_page, is_cover, page_elements(id, page_id, type, z_index, x, y, w, h, rotation, props))',
+          'id, title, canvas_width, canvas_height, background_color, quiz_embed_code, quiz_embed_height, pages(id, page_order, is_quiz_page, is_cover, is_back_cover, page_elements(id, page_id, type, z_index, x, y, w, h, rotation, props))',
         )
         .eq('public_token', token)
         .order('page_order', { referencedTable: 'pages' })
@@ -79,6 +81,7 @@ export function useBookletByToken(token: string | undefined) {
           elements: page.page_elements,
           is_quiz_page: page.is_quiz_page,
           is_cover: page.is_cover,
+          is_back_cover: page.is_back_cover,
         })),
       };
     },
@@ -123,7 +126,7 @@ export function useBookletDetailQuery(bookletId: string | undefined) {
       const { data, error } = await supabase
         .from('booklets')
         .select(
-          'id, public_token, title, status, canvas_width, canvas_height, background_color, quiz_embed_code, quiz_embed_height, created_at, updated_at, pages(id, booklet_id, page_order, is_quiz_page, is_cover, created_at)',
+          'id, public_token, title, status, canvas_width, canvas_height, background_color, quiz_embed_code, quiz_embed_height, created_at, updated_at, pages(id, booklet_id, page_order, is_quiz_page, is_cover, is_back_cover, created_at)',
         )
         .eq('id', bookletId)
         .order('page_order', { referencedTable: 'pages' })

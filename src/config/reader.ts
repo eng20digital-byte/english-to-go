@@ -52,3 +52,11 @@ export const DRAG_CAPTURE_THRESHOLD_PX = 10;
 // page height (top to bottom) and switch with no transition — see
 // ReaderBookletPage.tsx.
 export const BOOK_SHEET_THICKNESS_PX = 2;
+
+// Stacked-paper depth illusion: each page deeper in the stack is clipped
+// by this many percent of the card height from BOTH top and bottom, making
+// pages farther from the current spread appear slightly shorter/recessed.
+// 0.5 % ~~ 1 mm at typical screen sizes (1080p card ~675 px tall).
+// Applied via clip-path polygon on the stack div -- no extra DOM nodes.
+export const BOOK_STACK_DEPTH_INSET_PCT = 0.5;
+

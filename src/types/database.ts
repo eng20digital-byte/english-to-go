@@ -41,5 +41,6 @@ export interface PageRow {
   page_order: number;
   is_quiz_page: boolean;
   is_cover: boolean;
+  is_back_cover: boolean;
   created_at: string;
 }

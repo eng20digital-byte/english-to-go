@@ -135,6 +135,14 @@ export function BookCover({
     : isClosing
       ? 'page-flip-sheet--prev'
       : '';
+  // The fore-edge stack rides the card's expanding/collapsing right edge (box
+  // 75% ⇄ 100%) so it never disappears mid-transition — see the stack render
+  // below and the `book-cover-edge-*` keyframes in src/index.css.
+  const edgeAnimClass = isOpening
+    ? 'book-cover-edge--opening'
+    : isClosing
+      ? 'book-cover-edge--closing'
+      : '';
   const leafAnimName = isOpening ? 'page-turn-next' : 'page-turn-prev';
   const onLeafEnd = isOpening ? onOpenEnd : onCloseEnd;
 
@@ -159,22 +167,36 @@ export function BookCover({
         ...(isClosed ? { cursor: 'pointer', touchAction: 'pan-y' as const } : null),
       }}
     >
-      {/* Thick-book chrome (closed frame only). The card is clipped to its right
-          half, so chrome can't live inside it — it would be clipped away. Render
-          as siblings in the unclipped outer box, positioned at the visible cover's
-          edges ([25%..75%]). During opening/closing the open book re-supplies its
-          own edge stacks; the brief pop at handoff is the existing behaviour. */}
-      {isClosed && spreadCount > 0 && (
+      {/* Thick-book fore-edge stack (right side). The card is clipped to its right
+          half, so chrome can't live inside it — it would be clipped away; rendered
+          as a sibling in the unclipped outer box at the visible cover's right edge.
+          It must stay visible THROUGHOUT the open/close transition, not only while
+          closed: PageFlip (which supplies the open book's own edge stacks) is
+          unmounted for the entire 'opening'/'closing' stage, so a closed-only stack
+          would vanish for the whole animation. As the card expands to the full
+          spread its right edge sweeps from box 75% to box 100%; the stack rides
+          along via book-cover-edge-open/close (same --dur/--easing as the card's
+          book-cover-expand), landing flush with where PageFlip's own right stack
+          picks up at the 'open' handoff. */}
+      {spreadCount > 0 && (
         <div
-          className="book-edge book-edge--right"
+          className={`book-edge book-edge--right ${edgeAnimClass}`}
           style={{
             ...sheetVar,
             position: 'absolute',
-            // Visible cover's right edge is box 75%; the stack sits just outside it.
+            // Closed: the visible cover's right edge is box 75%; the stack sits just
+            // outside it. While animating the keyframes take over `left`, sweeping
+            // it to box 100% (the full-spread right edge) and back.
             left: '75%',
             top: 0,
             bottom: 0,
             width: spreadCount * BOOK_SHEET_THICKNESS_PX,
+            ...(isAnimating
+              ? {
+                  animationDuration: `${PAGE_FLIP_DURATION_MS}ms`,
+                  animationTimingFunction: PAGE_FLIP_EASING,
+                }
+              : null),
           }}
         />
       )}
