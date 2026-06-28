@@ -28,6 +28,7 @@ export interface BookletRow {
   status: BookletStatus;
   canvas_width: number;
   canvas_height: number;
+  background_color: string; // page-canvas background, hex #rrggbb (migration 0005)
   quiz_embed_code: string | null;
   quiz_embed_height: number | null;
   created_at: string;

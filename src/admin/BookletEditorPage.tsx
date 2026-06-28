@@ -14,6 +14,7 @@ import { Spinner } from '@/components/Spinner';
 import { StatusBadge } from '@/components/StatusBadge';
 import {
   useBookletDetailQuery,
+  useUpdateBookletBackgroundColorMutation,
   useUpdateBookletStatusMutation,
   useUpdateBookletTitleMutation,
 } from '@/hooks/useBookletQuery';
@@ -35,6 +36,7 @@ import { usePageClipboard } from '@/admin/editor/clipboard/usePageClipboard';
 import type { SaveStatus } from '@/admin/editor/useAutosave';
 import type { PageRow } from '@/types/database';
 import { BRAND } from '@/config/theme';
+import { CANVAS_BACKGROUND_COLOR } from '@/config/canvas';
 
 const ROOT_STYLE: CSSProperties = {
   position: 'relative',
@@ -175,12 +177,84 @@ function EditableTitle({
   );
 }
 
+// Booklet-level page-canvas background color picker, shown in the editor header.
+// Mirrors EditableTitle's local-draft model: `onPreview` updates the live color
+// across the whole editor (canvas + thumbnails) as the native picker is dragged;
+// `onCommit` (picker blur) persists it once, so a single pick is one DB write
+// rather than one per drag step. A custom swatch sits over a visually-hidden
+// <input type="color"> — clicking the label forwards to the input and opens the
+// OS color picker, which is anchored next to the swatch.
+function BackgroundColorControl({
+  value,
+  onPreview,
+  onCommit,
+}: {
+  value: string;
+  onPreview: (color: string) => void;
+  onCommit: (color: string) => void;
+}) {
+  const [hover, setHover] = useState(false);
+  return (
+    <label
+      title="Booklet background color"
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      style={{
+        position: 'relative',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        borderRadius: 12,
+        padding: '6px 12px',
+        fontSize: 13,
+        fontWeight: 600,
+        cursor: 'pointer',
+        backgroundColor: hover ? 'rgba(0,0,0,0.08)' : 'rgba(0,0,0,0.05)',
+        color: BRAND.text,
+        transition: 'background-color 0.16s',
+      }}
+    >
+      <span
+        aria-hidden
+        style={{
+          width: 18,
+          height: 18,
+          borderRadius: 6,
+          flexShrink: 0,
+          backgroundColor: value,
+          boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.2)',
+        }}
+      />
+      <span>Background</span>
+      <input
+        type="color"
+        value={value}
+        onChange={(e) => onPreview(e.target.value)}
+        onBlur={(e) => onCommit(e.target.value)}
+        aria-label="Booklet background color"
+        style={{
+          position: 'absolute',
+          left: 12,
+          bottom: 4,
+          width: 1,
+          height: 1,
+          opacity: 0,
+          border: 'none',
+          padding: 0,
+          pointerEvents: 'none',
+        }}
+      />
+    </label>
+  );
+}
+
 export function BookletEditorPage() {
   const { bookletId, pageId } = useParams<{ bookletId: string; pageId?: string }>();
   const navigate = useNavigate();
   const { data: booklet, isLoading } = useBookletDetailQuery(bookletId);
   const updateStatus = useUpdateBookletStatusMutation();
   const updateTitle = useUpdateBookletTitleMutation();
+  const updateBackgroundColor = useUpdateBookletBackgroundColorMutation();
 
   const addPage = useAddPageMutation(bookletId ?? '');
   const addCoverPage = useAddCoverPageMutation(bookletId ?? '');
@@ -205,6 +279,20 @@ export function BookletEditorPage() {
 
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const [deletePageTarget, setDeletePageTarget] = useState<PageRow | null>(null);
+
+  // Live page-canvas background color. Sourced from the booklet's stored value
+  // but held as a local draft so the color picker previews instantly across the
+  // whole editor (canvas + every thumbnail) while dragging, before the
+  // commit-on-blur persists it. Re-synced via the render-phase "adjust state on
+  // prop change" pattern (same as ReaderBookletPage's coverState reset) whenever
+  // the stored value changes — our own save's refetch, or an external update.
+  const persistedBgColor = booklet?.background_color ?? CANVAS_BACKGROUND_COLOR;
+  const [bgColor, setBgColor] = useState(persistedBgColor);
+  const [prevPersistedBgColor, setPrevPersistedBgColor] = useState(persistedBgColor);
+  if (persistedBgColor !== prevPersistedBgColor) {
+    setPrevPersistedBgColor(persistedBgColor);
+    setBgColor(persistedBgColor);
+  }
   const [showQuizEditor, setShowQuizEditor] = useState(false);
   const [backHover, setBackHover] = useState(false);
   const [publishHover, setPublishHover] = useState(false);
@@ -349,7 +437,10 @@ export function BookletEditorPage() {
   const lastPage = pages[pages.length - 1];
 
   return (
-    <div id="admin-root" style={ROOT_STYLE}>
+    // Editor workspace backdrop reflects the booklet's reader background live, so
+    // picking a color previews exactly what the reader will show (the cream cards
+    // and canvas float on top, same as the reader chrome floats on its backdrop).
+    <div id="admin-root" style={{ ...ROOT_STYLE, backgroundColor: bgColor }}>
       <BgShapes />
 
       {/* Content layer above background shapes */}
@@ -437,6 +528,16 @@ export function BookletEditorPage() {
                 Unpublish
               </button>
             )}
+
+            <BackgroundColorControl
+              value={bgColor}
+              onPreview={setBgColor}
+              onCommit={(color) => {
+                if (color !== booklet.background_color) {
+                  updateBackgroundColor.mutate({ id: booklet.id, backgroundColor: color });
+                }
+              }}
+            />
 
             <button
               type="button"

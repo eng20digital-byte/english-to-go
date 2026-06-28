@@ -16,6 +16,7 @@ export interface ReaderBooklet {
   title: string;
   canvas_width: number;
   canvas_height: number;
+  background_color: string;
   quiz_embed_code: string | null;
   quiz_embed_height: number | null;
   pages: ReaderBookletPage[];
@@ -26,6 +27,7 @@ interface BookletQueryRow {
   title: string;
   canvas_width: number;
   canvas_height: number;
+  background_color: string;
   quiz_embed_code: string | null;
   quiz_embed_height: number | null;
   pages: {
@@ -55,7 +57,7 @@ export function useBookletByToken(token: string | undefined) {
       const { data, error } = await supabase
         .from('booklets')
         .select(
-          'id, title, canvas_width, canvas_height, quiz_embed_code, quiz_embed_height, pages(id, page_order, is_quiz_page, is_cover, page_elements(id, page_id, type, z_index, x, y, w, h, rotation, props))',
+          'id, title, canvas_width, canvas_height, background_color, quiz_embed_code, quiz_embed_height, pages(id, page_order, is_quiz_page, is_cover, page_elements(id, page_id, type, z_index, x, y, w, h, rotation, props))',
         )
         .eq('public_token', token)
         .order('page_order', { referencedTable: 'pages' })
@@ -69,6 +71,7 @@ export function useBookletByToken(token: string | undefined) {
         title: booklet.title,
         canvas_width: booklet.canvas_width,
         canvas_height: booklet.canvas_height,
+        background_color: booklet.background_color,
         quiz_embed_code: booklet.quiz_embed_code,
         quiz_embed_height: booklet.quiz_embed_height,
         pages: booklet.pages.map((page) => ({
@@ -97,7 +100,7 @@ export function useBookletsQuery() {
       const { data, error } = await supabase
         .from('booklets')
         .select(
-          'id, public_token, title, status, canvas_width, canvas_height, quiz_embed_code, quiz_embed_height, created_at, updated_at',
+          'id, public_token, title, status, canvas_width, canvas_height, background_color, quiz_embed_code, quiz_embed_height, created_at, updated_at',
         )
         .order('created_at', { ascending: false });
       if (error) throw error;
@@ -120,7 +123,7 @@ export function useBookletDetailQuery(bookletId: string | undefined) {
       const { data, error } = await supabase
         .from('booklets')
         .select(
-          'id, public_token, title, status, canvas_width, canvas_height, quiz_embed_code, quiz_embed_height, created_at, updated_at, pages(id, booklet_id, page_order, is_quiz_page, is_cover, created_at)',
+          'id, public_token, title, status, canvas_width, canvas_height, background_color, quiz_embed_code, quiz_embed_height, created_at, updated_at, pages(id, booklet_id, page_order, is_quiz_page, is_cover, created_at)',
         )
         .eq('id', bookletId)
         .order('page_order', { referencedTable: 'pages' })
@@ -140,7 +143,7 @@ export function useCreateBookletMutation() {
         .from('booklets')
         .insert({ title, public_token: nanoid(PUBLIC_TOKEN_LENGTH) })
         .select(
-          'id, public_token, title, status, canvas_width, canvas_height, quiz_embed_code, quiz_embed_height, created_at, updated_at',
+          'id, public_token, title, status, canvas_width, canvas_height, background_color, quiz_embed_code, quiz_embed_height, created_at, updated_at',
         )
         .single();
       if (error) throw error;
@@ -189,6 +192,33 @@ export function useUpdateBookletTitleMutation() {
   return useMutation({
     mutationFn: async ({ id, title }: { id: string; title: string }): Promise<void> => {
       const { error } = await supabase.from('booklets').update({ title }).eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: (_data, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ADMIN_BOOKLETS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: adminBookletQueryKey(id) });
+    },
+  });
+}
+
+// Per-booklet page-canvas background color (migration 0005). A single scalar
+// booklet setting, edited explicitly from the editor header — saved on commit
+// (color-picker blur), not autosaved per drag, same shape as the title mutation.
+export function useUpdateBookletBackgroundColorMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      id,
+      backgroundColor,
+    }: {
+      id: string;
+      backgroundColor: string;
+    }): Promise<void> => {
+      const { error } = await supabase
+        .from('booklets')
+        .update({ background_color: backgroundColor })
+        .eq('id', id);
       if (error) throw error;
     },
     onSuccess: (_data, { id }) => {

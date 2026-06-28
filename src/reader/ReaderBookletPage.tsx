@@ -262,7 +262,11 @@ export function ReaderBookletPage() {
       id="reader-root"
       style={{
         position: 'fixed', inset: 0,
-        backgroundColor: BRAND.green,
+        // Per-booklet background (migration 0005) — the reader's surrounding
+        // backdrop behind the book card, configurable in the editor. Falls back
+        // to the brand green for booklets predating the setting. The book pages
+        // (PageCanvas) keep their own canvas background, unaffected.
+        backgroundColor: booklet.background_color || BRAND.green,
         overflow: 'hidden',
         fontFamily: 'system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif',
       }}
