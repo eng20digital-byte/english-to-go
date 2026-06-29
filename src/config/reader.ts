@@ -51,7 +51,7 @@ export const DRAG_CAPTURE_THRESHOLD_PX = 10;
 // fore-edge gradient draws exactly one cut-line per sheet. Edges run the full
 // page height (top to bottom) and switch with no transition — see
 // ReaderBookletPage.tsx.
-export const BOOK_SHEET_THICKNESS_PX = 2;
+export const BOOK_SHEET_THICKNESS_PX = 0.7;
 
 // Stacked-paper depth illusion: each page deeper in the stack is clipped
 // by this many percent of the card height from BOTH top and bottom, making

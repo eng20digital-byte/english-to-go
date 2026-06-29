@@ -18,7 +18,8 @@ import { PageFlip } from './PageFlip';
 import { VocabularyPanel } from './VocabularyPanel';
 import { BookCover } from './BookCover';
 import { BookBackCover } from './BookBackCover';
-import { useNextPagePreloader } from './useNextPagePreloader';
+import { usePagePreloader } from './useNextPagePreloader';
+import { useCoverImageReady } from './useCoverImageReady';
 import { prefersReducedMotion } from './prefersReducedMotion';
 import { BRAND } from '@/config/theme';
 
@@ -159,7 +160,8 @@ export function ReaderBookletPage() {
     if (booklet) document.title = booklet.title;
   }, [booklet]);
 
-  useNextPagePreloader(booklet, pageIndex);
+  usePagePreloader(booklet, pageIndex);
+  const coverImageReady = useCoverImageReady(booklet);
 
   // While the cover is closed, ArrowRight / Enter open it. Declared before the
   // early returns (hooks rule), so `showCover` is recomputed inline from the
@@ -242,6 +244,7 @@ export function ReaderBookletPage() {
   if (isError) return <ReaderError icon={<AlertTriangle size={26} color="rgba(255,193,77,0.9)" />} message="Something went wrong loading this booklet. Please try again." />;
   if (!booklet) return <ReaderError icon={<BookX size={26} color="rgba(255,255,255,0.7)" />} message="This booklet could not be found. It may not be published or disabled" />;
   if (booklet.pages.length === 0) return <ReaderError icon={<BookOpen size={26} color="rgba(255,255,255,0.7)" />} message="This booklet has no pages yet." />;
+  if (!coverImageReady) return <LoadingState />;
 
   // Split covers from spreads. All open-book logic drives on `spreads` only —
   // neither cover is counted in the dot indicator or page counter.
