@@ -35,6 +35,7 @@ export function PageCanvas({
 
   return (
     <div
+      translate="no"
       style={{
         position: 'relative',
         width: canvasWidth,

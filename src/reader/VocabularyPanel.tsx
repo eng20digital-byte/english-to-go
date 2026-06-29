@@ -167,6 +167,7 @@ export function VocabularyPanel({ page }: { page: ReaderBookletPage | undefined 
 
   return (
     <div
+      translate="no"
       style={{
         position: 'absolute',
         left: 0,

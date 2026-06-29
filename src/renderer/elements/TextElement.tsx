@@ -34,6 +34,7 @@ export function TextElement({ element, renderMode }: Props) {
   return (
     <div
       dir={direction}
+      translate="no"
       style={{
         width: '100%',
         height: '100%',

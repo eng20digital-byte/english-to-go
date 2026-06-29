@@ -46,7 +46,7 @@ function BgShapes() {
 
 function LoadingState() {
   return (
-    <div id="reader-root" style={{
+    <div id="reader-root" translate="no" style={{
       position: 'fixed', inset: 0,
       backgroundColor: BRAND.green, overflow: 'hidden',
       display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20,
@@ -67,7 +67,7 @@ function LoadingState() {
 
 function ReaderError({ icon, message }: { icon: React.ReactNode; message: string }) {
   return (
-    <div id="reader-root" style={{
+    <div id="reader-root" translate="no" style={{
       position: 'fixed', inset: 0,
       backgroundColor: BRAND.green, overflow: 'hidden',
       display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20,
@@ -336,6 +336,7 @@ export function ReaderBookletPage() {
   return (
     <div
       id="reader-root"
+      translate="no"
       style={{
         position: 'fixed', inset: 0,
         // Per-booklet background (migration 0005) — the reader's surrounding

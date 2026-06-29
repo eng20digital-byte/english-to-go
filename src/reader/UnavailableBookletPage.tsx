@@ -39,6 +39,7 @@ export function UnavailableBookletPage({ reason }: Props) {
   return (
     <div
       id="reader-root"
+      translate="no"
       style={{
         position: 'fixed', inset: 0,
         backgroundColor: BRAND.green,
