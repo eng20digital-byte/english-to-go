@@ -26,7 +26,7 @@ export function pageCanvasSize(isCover: boolean, isBackCover = false): { width: 
 
 // Defaults applied when a new text element is created (wired up by the
 // editor in M8/M9) and used as renderer fallbacks.
-export const DEFAULT_FONT_SIZE = 48;
+export const DEFAULT_FONT_SIZE = 40;
 export const DEFAULT_TEXT_COLOR = '#1a1a1a';
 export const DEFAULT_LINE_HEIGHT = 1.4;
 export const DEFAULT_TEXT_ALIGN: TextAlign = 'left';
