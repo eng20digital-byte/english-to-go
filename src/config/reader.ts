@@ -60,3 +60,11 @@ export const BOOK_SHEET_THICKNESS_PX = 0.7;
 // Applied via clip-path polygon on the stack div -- no extra DOM nodes.
 export const BOOK_STACK_DEPTH_INSET_PCT = 0.5;
 
+// ── Page-flip sound effect ──────────────────────────────────────────────────
+// Pool of pre-loaded Audio instances so rapid successive flips don't cut each
+// other off — each flip picks the next slot, rewinds it, and plays.
+export const PAGE_FLIP_SOUND_SRC = '/oxidvideos-page-flip-1-178322.mp3';
+export const PAGE_FLIP_SOUND_POOL_SIZE = 6;
+// Subtle volume so the effect enhances without distracting.
+export const PAGE_FLIP_SOUND_VOLUME = 0.3;
+

@@ -9,6 +9,7 @@ import {
 } from 'react';
 import { useCanvasScale } from '@/renderer/useCanvasScale';
 import { CANVAS_WIDTH, CANVAS_HEIGHT } from '@/config/canvas';
+import { usePageFlipSound } from './usePageFlipSound';
 import {
   READER_MAX_WIDTH,
   PAGE_FLIP_DURATION_MS,
@@ -84,6 +85,7 @@ export function PageFlip({
   const scale = useCanvasScale(containerRef);
   const [flip, setFlip] = useState<FlipState | null>(null);
   const dragStartXRef = useRef<{ pointerId: number; x: number; captured: boolean } | null>(null);
+  const playFlipSound = usePageFlipSound();
 
   const startFlip = useCallback(
     (direction: FlipDirection) => {
@@ -97,9 +99,10 @@ export function PageFlip({
         onIndexChange(toIndex);
         return;
       }
+      playFlipSound();
       setFlip({ direction, fromIndex: currentIndex, toIndex });
     },
-    [flip, currentIndex, pageCount, onIndexChange],
+    [flip, currentIndex, pageCount, onIndexChange, playFlipSound],
   );
 
   useEffect(() => {

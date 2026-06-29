@@ -278,7 +278,7 @@ export function VocabularyPanel({ page }: { page: ReaderBookletPage | undefined 
           fontFamily: 'inherit',
         }}
       >
-        <Languages size={20} />
+        <span style={{ display: 'block', transform: 'rotate(90deg)', fontSize: 17, fontWeight: 700, letterSpacing: 0.5, whiteSpace: 'nowrap' }}>Dictionary</span>
       </button>
     </div>
   );
