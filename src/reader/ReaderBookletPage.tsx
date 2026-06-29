@@ -455,7 +455,6 @@ export function ReaderBookletPage() {
                   : prevHover ? BRAND.pink : 'rgba(250,103,129,0.82)',
                 color: prevDisabled ? 'rgba(26,26,26,0.22)' : '#fff',
                 cursor: prevDisabled ? 'default' : 'pointer',
-                fontSize: 28, lineHeight: 1,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 boxShadow: prevDisabled ? 'none'
                   : prevHover ? '0 8px 24px rgba(250,103,129,0.5)' : '0 4px 16px rgba(250,103,129,0.32)',
@@ -464,7 +463,7 @@ export function ReaderBookletPage() {
                 fontFamily: 'inherit',
               }}
             >
-              ‹
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M15 18L9 12L15 6"/></svg>
             </button>
 
             {/* ── Middle slot: closed cover | back cover | open book ──────
@@ -656,7 +655,6 @@ export function ReaderBookletPage() {
                   : nextHover ? BRAND.yellow : 'rgba(255,201,77,0.88)',
                 color: nextDisabled ? 'rgba(26,26,26,0.18)' : BRAND.text,
                 cursor: nextDisabled ? 'default' : 'pointer',
-                fontSize: 28, lineHeight: 1,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 boxShadow: nextDisabled ? 'none'
                   : nextHover ? '0 8px 24px rgba(255,201,77,0.5)' : '0 4px 16px rgba(255,201,77,0.35)',
@@ -665,7 +663,7 @@ export function ReaderBookletPage() {
                 fontFamily: 'inherit',
               }}
             >
-              ›
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 18L15 12L9 6"/></svg>
             </button>
 
             </div>{/* flex row */}
