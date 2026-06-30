@@ -12,9 +12,11 @@ interface QuizEmbedEditorProps {
 const inputCls =
   'w-full rounded-xl border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring';
 
-// Booklet-level quiz settings. "Show on last spread" is stored on the booklet
-// (show_quiz_on_last_spread) so it is unaffected by adding/removing the back
-// cover — the quiz always lands on the last non-cover, non-back-cover page.
+// Booklet-level quiz settings. The flag is stored on the booklet
+// (show_quiz_on_last_spread — name predates the move, kept to avoid a
+// column-churn migration) so it is unaffected by page add/remove. The quiz
+// renders on the booklet's BACK COVER, so a back cover page is required for it
+// to appear.
 //
 // No effect resyncing local state from `booklet` on change: BookletEditorPage
 // only renders this once `booklet` has loaded and unmounts it while loading a
@@ -46,8 +48,8 @@ export function QuizEmbedEditor({ booklet }: QuizEmbedEditorProps) {
       <CardHeader className="pb-3">
         <CardTitle className="text-base">Quiz embed</CardTitle>
         <CardDescription className="text-xs">
-          Paste the raw Fillout embed snippet here. It renders on the last open spread (not the
-          back cover) when "Show on last spread" is checked.
+          Paste the raw Fillout embed snippet here. It renders on the booklet's back cover when
+          "Show quiz on back cover" is checked (the booklet must have a back cover page).
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -69,7 +71,7 @@ export function QuizEmbedEditor({ booklet }: QuizEmbedEditorProps) {
               checked={showOnLastSpread}
               onChange={(e) => setShowOnLastSpread(e.target.checked)}
             />
-            <span>Show quiz on last spread</span>
+            <span>Show quiz on back cover</span>
           </label>
 
           <div className="flex items-end gap-4">

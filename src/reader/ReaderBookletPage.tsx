@@ -263,13 +263,18 @@ export function ReaderBookletPage() {
   if (spreads.length === 0) return <ReaderError icon={<BookOpen size={26} color="rgba(255,255,255,0.7)" />} message="This booklet has no pages yet." />;
 
   const clampedIndex = Math.min(pageIndex, spreads.length - 1);
-  // Quiz shows on the last spread when the booklet-level flag is set.
-  // Derived here rather than from page.is_quiz_page so it is unaffected by
-  // adding/removing the back cover (migration 0008).
-  const isCurrentPageQuiz =
-    clampedIndex === spreads.length - 1 &&
+  // Quiz shows on the BACK COVER when the booklet-level flag is set. The column
+  // is still named `show_quiz_on_last_spread` (its original placement, migration
+  // 0008) — kept rather than renamed to avoid a column-churn migration; it now
+  // simply gates the back-cover quiz. Gated on `visible` (not merely
+  // `showBackCover`) so the heavy Fillout embed only mounts once the back cover
+  // has settled, never mid-flip during the enter/exit animation. Requires the
+  // booklet to actually have a back cover page.
+  const showQuizOnBackCover =
     booklet.show_quiz_on_last_spread &&
-    !!booklet.quiz_embed_code;
+    !!booklet.quiz_embed_code &&
+    backCover !== null &&
+    backCoverState === 'visible';
   const pageProgress = spreads.length > 1
     ? (clampedIndex / (spreads.length - 1)) * 100
     : 100;
@@ -703,9 +708,10 @@ export function ReaderBookletPage() {
             </div>{/* flex row */}
 
             {/* QuizEmbed lives here — outside the PageFlip/card transform and
-                overflow:hidden contexts — so Fillout's slider can escape to
-                the viewport correctly. Shown only on the quiz page. */}
-            {isCurrentPageQuiz && booklet.quiz_embed_code && !showCover && !showBackCover && (
+                overflow:hidden contexts (including the back cover card's, which
+                is also overflow:hidden) — so Fillout's slider can escape to the
+                viewport correctly. Shown only on the settled back cover. */}
+            {showQuizOnBackCover && booklet.quiz_embed_code && (
               <div style={{
                 position: 'absolute',
                 inset: 0,
