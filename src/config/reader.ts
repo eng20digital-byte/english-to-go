@@ -67,4 +67,9 @@ export const PAGE_FLIP_SOUND_SRC = '/oxidvideos-page-flip-1-178322.mp3';
 export const PAGE_FLIP_SOUND_POOL_SIZE = 6;
 // Subtle volume so the effect enhances without distracting.
 export const PAGE_FLIP_SOUND_VOLUME = 0.3;
+// The clip opens with a soft lead-in, which made the audible flip "snap" land
+// noticeably after the animation had already started. Each playback seeks to
+// this offset (seconds) so the meaty part of the sound hits in sync with the
+// page turn instead of trailing it.
+export const PAGE_FLIP_SOUND_START_OFFSET_SEC = 0.5;
 
