@@ -14,7 +14,6 @@ import {
   SWIPE_THRESHOLD_PX,
   SWIPE_THRESHOLD_RATIO,
 } from '@/config/reader';
-import { SIDEBAR_PANEL_GAP } from '@/config/vocabulary';
 import { PageFlip } from './PageFlip';
 import { VocabularyPanel } from './VocabularyPanel';
 import { CreditsPanel } from './CreditsPanel';
@@ -425,23 +424,40 @@ export function ReaderBookletPage() {
                 </button>
               </div>
 
-            {/* ── Left sidebar: Dictionary + Credits ───────────────────────
-                Stacked below the TTS/speech panel (top:16 h:56 + 8px gap = 80).
-                Both panels slide in/out independently from the left edge.
-                VocabularyPanel is page-aware and hidden during covers;
-                CreditsPanel is always visible. */}
+            {/* ── Dictionary panel: below the TTS panel ────────────────────
+                pointerEvents:none on the wrapper so the container's DOM box
+                (which is wider than the 44px handle due to CSS transforms not
+                affecting layout) doesn't silently block clicks on the prev/next
+                nav buttons underneath. The panel's handle button itself still
+                receives events because pointer-events:none on a parent does NOT
+                suppress events on interactive children. */}
+            {!showCover && !showBackCover && (
+              <div
+                style={{
+                  position: 'absolute',
+                  left: 0,
+                  top: 80, // below TTS panel (top:16 + height:56 + gap:8)
+                  zIndex: 25,
+                  pointerEvents: 'none',
+                }}
+              >
+                <VocabularyPanel page={spreads[clampedIndex]} />
+              </div>
+            )}
+
+            {/* ── Credits panel: pinned to the bottom of the viewer ─────────
+                Independent from the Dictionary panel so it stays at the bottom
+                whether or not the Dictionary is currently visible. Same
+                pointerEvents:none wrapper rationale as Dictionary above. */}
             <div
               style={{
                 position: 'absolute',
                 left: 0,
-                top: 80, // below TTS panel: top:16 + height:56 + gap:8
-                display: 'flex',
-                flexDirection: 'column',
-                gap: SIDEBAR_PANEL_GAP,
+                bottom: 24,
                 zIndex: 25,
+                pointerEvents: 'none',
               }}
             >
-              {!showCover && !showBackCover && <VocabularyPanel page={spreads[clampedIndex]} />}
               <CreditsPanel />
             </div>
 
