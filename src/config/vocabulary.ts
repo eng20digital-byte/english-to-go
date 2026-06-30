@@ -48,7 +48,10 @@ export const VOCABULARY_SPACING_MAX = 80;
 // knobs. The panel never scrolls: words flow top-to-bottom down a column of
 // fixed height, then wrap into a new column, so its width grows with the word
 // count. Rows-per-column is derived from PANEL_HEIGHT / CHIP_HEIGHT.
-export const VOCABULARY_PANEL_HEIGHT = 530; // fixed; columns fill to fit, never scrolls
+// Slightly shorter than the original 530 to make room for the Credits panel
+// and a generous gap below it, pushing the credits bottom toward the
+// lower portion of the screen.
+export const VOCABULARY_PANEL_HEIGHT = 450; // fixed; columns fill to fit, never scrolls
 export const VOCABULARY_PANEL_PADDING = 16;
 export const VOCABULARY_PANEL_HEADER_HEIGHT = 40;
 export const VOCABULARY_PANEL_CHIP_HEIGHT = 38; // chip box height; drives rows-per-column
@@ -56,5 +59,14 @@ export const VOCABULARY_PANEL_CHIP_FONT_SIZE = 15;
 export const VOCABULARY_PANEL_ROW_GAP = 8; // vertical gap between chips in a column
 export const VOCABULARY_PANEL_COLUMN_GAP = 10; // horizontal gap between columns
 export const VOCABULARY_PANEL_HANDLE_WIDTH = 44; // peeking tab when collapsed
-export const VOCABULARY_PANEL_HANDLE_HEIGHT = 530; // short tab, vertically centered — clears the speech tab above
+export const VOCABULARY_PANEL_HANDLE_HEIGHT = 450; // matches VOCABULARY_PANEL_HEIGHT
 export const VOCABULARY_PANEL_SLIDE_MS = 400;
+
+// ── Credits panel (reader left sidebar, below Dictionary panel) ─────────────
+// ≈ 2.3× the TTS panel height (56px). SIDEBAR_PANEL_GAP provides breathing
+// room between the Dictionary and Credits panels so the credits bottom sits
+// close to the lower portion of the screen (total sidebar = 450+20+128 = 598px).
+export const CREDITS_PANEL_HEIGHT = 128;
+export const SIDEBAR_PANEL_GAP = 20;
+// Placeholder — update to the real destination URL before publishing.
+export const CREDITS_PANEL_LOGO_URL = 'https://abc-business-automation.netlify.app/';

@@ -169,20 +169,17 @@ export function VocabularyPanel({ page }: { page: ReaderBookletPage | undefined 
     <div
       translate="no"
       style={{
-        position: 'absolute',
-        left: 0,
-        top: '50%',
-        // translateY centers vertically; translateX hides the body, leaving
-        // only the handle tab visible when collapsed.
-        transform: `translateY(-50%) translateX(${expanded ? 0 : -contentWidth}px)`,
+        // Positioning is handled by the parent sidebar container in
+        // ReaderBookletPage — this component is a plain flex-row child.
+        // translateX hides the body, leaving only the handle tab visible
+        // when collapsed; the parent centers the whole sidebar vertically.
+        transform: `translateX(${expanded ? 0 : -contentWidth}px)`,
         transition: slideEnabled
           ? `transform ${VOCABULARY_PANEL_SLIDE_MS}ms cubic-bezier(0.4, 0, 0.2, 1)`
           : 'none',
         display: 'flex',
-        // Center the short handle tab against the tall body, so when collapsed
-        // it peeks at mid-height — well clear of the speech tab up at top:16.
+        // Center the shorter handle tab against the taller body.
         alignItems: 'center',
-        zIndex: 25,
       }}
     >
       {/* ── Body ─────────────────────────────────────────────────────────── */}

@@ -14,8 +14,10 @@ import {
   SWIPE_THRESHOLD_PX,
   SWIPE_THRESHOLD_RATIO,
 } from '@/config/reader';
+import { SIDEBAR_PANEL_GAP } from '@/config/vocabulary';
 import { PageFlip } from './PageFlip';
 import { VocabularyPanel } from './VocabularyPanel';
+import { CreditsPanel } from './CreditsPanel';
 import { BookCover } from './BookCover';
 import { BookBackCover } from './BookBackCover';
 import { usePagePreloader } from './useNextPagePreloader';
@@ -423,11 +425,25 @@ export function ReaderBookletPage() {
                 </button>
               </div>
 
-            {/* ── Left edge: collapsible page-aware vocabulary panel ───────
-                Vertically centered, below the top-anchored speech tab so the
-                two peeking tabs don't overlap. Shows only the current page's
-                vocabulary and re-renders as clampedIndex changes on flip. */}
-            {!showCover && !showBackCover && <VocabularyPanel page={spreads[clampedIndex]} />}
+            {/* ── Left sidebar: Dictionary + Credits ───────────────────────
+                Stacked below the TTS/speech panel (top:16 h:56 + 8px gap = 80).
+                Both panels slide in/out independently from the left edge.
+                VocabularyPanel is page-aware and hidden during covers;
+                CreditsPanel is always visible. */}
+            <div
+              style={{
+                position: 'absolute',
+                left: 0,
+                top: 80, // below TTS panel: top:16 + height:56 + gap:8
+                display: 'flex',
+                flexDirection: 'column',
+                gap: SIDEBAR_PANEL_GAP,
+                zIndex: 25,
+              }}
+            >
+              {!showCover && !showBackCover && <VocabularyPanel page={spreads[clampedIndex]} />}
+              <CreditsPanel />
+            </div>
 
             {/* ── Flex row: prev | booklet | next ──────────────────────────
                 Buttons are flex siblings of the card so they always sit flush
