@@ -33,6 +33,12 @@ export function CreditsPanel() {
           : 'none',
         display: 'flex',
         alignItems: 'center',
+        // Re-enable clicks: the parent wrapper sets pointer-events:none (so its
+        // wider, untransformed DOM box can't block the prev/next nav). That
+        // none inherits to children, so restore auto here. This root is
+        // translateX-shifted, so its hit area follows the visual position —
+        // when collapsed only the handle peeks out, leaving nav clickable.
+        pointerEvents: 'auto',
       }}
     >
       {/* ── Body ───────────────────────────────────────────────────────────── */}

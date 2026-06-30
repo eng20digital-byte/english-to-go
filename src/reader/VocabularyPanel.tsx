@@ -180,6 +180,12 @@ export function VocabularyPanel({ page }: { page: ReaderBookletPage | undefined 
         display: 'flex',
         // Center the shorter handle tab against the taller body.
         alignItems: 'center',
+        // Re-enable clicks: the parent wrapper sets pointer-events:none (so its
+        // wider, untransformed DOM box can't block the prev/next nav). That
+        // none inherits to children, so we must restore auto here. Because this
+        // root is translateX-shifted, its hit area follows the visual position
+        // — when collapsed only the handle peeks out, so nav stays clickable.
+        pointerEvents: 'auto',
       }}
     >
       {/* ── Body ─────────────────────────────────────────────────────────── */}

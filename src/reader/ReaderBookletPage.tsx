@@ -425,12 +425,13 @@ export function ReaderBookletPage() {
               </div>
 
             {/* ── Dictionary panel: below the TTS panel ────────────────────
-                pointerEvents:none on the wrapper so the container's DOM box
-                (which is wider than the 44px handle due to CSS transforms not
-                affecting layout) doesn't silently block clicks on the prev/next
-                nav buttons underneath. The panel's handle button itself still
-                receives events because pointer-events:none on a parent does NOT
-                suppress events on interactive children. */}
+                pointerEvents:none on the wrapper so the container's untransformed
+                DOM box (wider than the 44px handle, since the panel body is only
+                shifted off-screen by translateX which doesn't shrink the layout
+                box) doesn't silently block clicks on the prev/next nav buttons
+                underneath. The panel re-enables pointer-events:auto on its own
+                translateX-shifted root, so its hit area tracks the visible handle
+                only — see VocabularyPanel/CreditsPanel. */}
             {!showCover && !showBackCover && (
               <div
                 style={{
@@ -448,7 +449,8 @@ export function ReaderBookletPage() {
             {/* ── Credits panel: pinned to the bottom of the viewer ─────────
                 Independent from the Dictionary panel so it stays at the bottom
                 whether or not the Dictionary is currently visible. Same
-                pointerEvents:none wrapper rationale as Dictionary above. */}
+                pointerEvents:none wrapper + auto-on-panel-root rationale as
+                Dictionary above. */}
             <div
               style={{
                 position: 'absolute',
