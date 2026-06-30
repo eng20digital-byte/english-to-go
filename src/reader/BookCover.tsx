@@ -252,7 +252,12 @@ export function BookCover({
           style={{
             position: 'absolute',
             inset: 0,
-            clipPath: isAnimating ? 'inset(0 0 0 50%)' : undefined,
+            // Always clip the base to the right half — the cover leaf covers it
+            // anyway in closed state, and during animation the left half must
+            // come from the leaf's back face (never the base). A constant clip
+            // here also prevents a 1px subpixel bleed at the card's own 50%
+            // clip boundary when the browser rounds the two values differently.
+            clipPath: 'inset(0 0 0 50%)',
           }}
         >
           <PageCanvas page={firstSpread} scale={scale} renderMode="reader" />

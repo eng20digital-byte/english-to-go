@@ -1,6 +1,6 @@
 import { useRef, useState, type ChangeEvent } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, CheckCircle, ImageIcon, Trash2 } from 'lucide-react';
+import { ArrowLeft, CheckCircle, ImageIcon, Search, Trash2 } from 'lucide-react';
 import { Spinner } from '@/components/Spinner';
 import { supabase } from '@/lib/supabaseClient';
 import { MEDIA_STORAGE_BUCKET, MEDIA_ACCEPTED_FILE_TYPES } from '@/config/media';
@@ -101,6 +101,7 @@ export function MediaLibraryPicker({ onSelect }: MediaLibraryPickerProps = {}) {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [dropZoneHover, setDropZoneHover] = useState(false);
   const [backLinkHover, setBackLinkHover] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   async function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -126,6 +127,11 @@ export function MediaLibraryPicker({ onSelect }: MediaLibraryPickerProps = {}) {
       }));
     }
   }
+
+  const trimmed = searchQuery.trim().toLowerCase();
+  const filteredAssets = trimmed
+    ? (assets ?? []).filter((a) => a.file_name.toLowerCase().includes(trimmed))
+    : (assets ?? []);
 
   const content = (
     <>
@@ -197,11 +203,47 @@ export function MediaLibraryPicker({ onSelect }: MediaLibraryPickerProps = {}) {
         </p>
       )}
 
+      {/* ── Search bar ── */}
+      {!isLoading && (assets?.length ?? 0) > 0 && (
+        <div style={{ position: 'relative', marginBottom: 20 }}>
+          <Search
+            size={15}
+            color={BRAND.textMuted}
+            style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}
+          />
+          <input
+            type="search"
+            placeholder="Search by file name…"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={{
+              width: '100%',
+              boxSizing: 'border-box',
+              padding: '10px 14px 10px 38px',
+              borderRadius: 12,
+              border: `1.5px solid rgba(89,178,146,0.3)`,
+              backgroundColor: BRAND.cream,
+              fontSize: 14,
+              fontWeight: 500,
+              color: BRAND.text,
+              outline: 'none',
+              fontFamily: 'system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.07)',
+            }}
+          />
+        </div>
+      )}
+
       {isLoading && <MediaGridSkeleton />}
       {!isLoading && assets?.length === 0 && <EmptyMedia embedded={embedded} />}
+      {!isLoading && (assets?.length ?? 0) > 0 && filteredAssets.length === 0 && (
+        <p style={{ textAlign: 'center', color: BRAND.textMuted, fontSize: 14, fontWeight: 500, margin: '24px 0' }}>
+          No images match "{searchQuery.trim()}"
+        </p>
+      )}
 
       {/* ── Image gallery — printed photos on a paper desk ── */}
-      {assets && assets.length > 0 && (
+      {filteredAssets.length > 0 && (
         <ul style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
@@ -210,7 +252,7 @@ export function MediaLibraryPicker({ onSelect }: MediaLibraryPickerProps = {}) {
           margin: 0,
           padding: 0,
         }}>
-          {assets.map((asset, index) => {
+          {filteredAssets.map((asset, index) => {
             const {
               data: { publicUrl },
             } = supabase.storage.from(MEDIA_STORAGE_BUCKET).getPublicUrl(asset.storage_path);
