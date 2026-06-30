@@ -110,6 +110,10 @@ export function ReaderBookletPage() {
   const [hoveredDot, setHoveredDot] = useState<number | null>(null);
   const [speechExpanded, setSpeechExpanded] = useState(false);
   const [isFlipping, setIsFlipping] = useState(false);
+  // Incrementing pulse that tells the self-owned left-edge panels (dictionary,
+  // credits) to collapse. The speech-rate panel's open state lives here, so
+  // it's reset directly; see the page-turn effect below.
+  const [panelCloseSignal, setPanelCloseSignal] = useState(0);
   const [coverState, setCoverState] = useState<CoverState>('closed');
   const [backCoverState, setBackCoverState] = useState<BackCoverState>('hidden');
   // Reset to closed/hidden whenever the booklet changes (new token / refetch),
@@ -240,6 +244,19 @@ export function ReaderBookletPage() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [booklet, coverState, pageIndex, showBackCover, isFlipping, enterBackCover]);
+
+  // Auto-close every open left-edge side panel (dictionary, speech-rate,
+  // credits) the moment the reader turns a page, so a flip never leaves a panel
+  // hovering over the new spread. `isFlipping` catches animated turns from any
+  // source (button / keyboard / swipe) at their start; `pageIndex` catches
+  // instant jumps (dot nav, progress bar, reduced-motion). Funnelling both
+  // through one effect gives the three panels a single shared close trigger
+  // instead of each re-deriving "did we just flip?". Both closes are idempotent,
+  // so the redundant fire when `isFlipping` settles back to false is harmless.
+  useEffect(() => {
+    setSpeechExpanded(false);
+    setPanelCloseSignal((n) => n + 1);
+  }, [pageIndex, isFlipping]);
 
   if (isLoading) return <LoadingState />;
   if (isError) return <ReaderError icon={<AlertTriangle size={26} color="rgba(255,193,77,0.9)" />} message="Something went wrong loading this booklet. Please try again." />;
@@ -447,7 +464,7 @@ export function ReaderBookletPage() {
                   pointerEvents: 'none',
                 }}
               >
-                <VocabularyPanel page={spreads[clampedIndex]} />
+                <VocabularyPanel page={spreads[clampedIndex]} closeSignal={panelCloseSignal} />
               </div>
             )}
 
@@ -465,7 +482,7 @@ export function ReaderBookletPage() {
                 pointerEvents: 'none',
               }}
             >
-              <CreditsPanel />
+              <CreditsPanel closeSignal={panelCloseSignal} />
             </div>
 
             {/* ── Flex row: prev | booklet | next ──────────────────────────

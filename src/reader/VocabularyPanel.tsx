@@ -1,4 +1,4 @@
-import { useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Volume2 } from 'lucide-react';
 import { BRAND } from '@/config/theme';
 import { TTS_ACTIVE_WORD_STYLE } from '@/config/tts';
@@ -120,7 +120,15 @@ function VocabChip({ word }: { word: VocabularyWord }) {
 // from the left edge and the body slides in/out. Collapsed by default. Lives
 // in reader chrome (#reader-root), so inline-styled utilities are fine here —
 // never touches PageCanvas or the element renderers.
-export function VocabularyPanel({ page }: { page: ReaderBookletPage | undefined }) {
+export function VocabularyPanel({
+  page,
+  closeSignal,
+}: {
+  page: ReaderBookletPage | undefined;
+  // Bumped by the reader whenever a page turn occurs — collapse on change so a
+  // flip never leaves the dictionary open over the new spread.
+  closeSignal?: number;
+}) {
   const [expanded, setExpanded] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
   // Measured body width drives the collapse distance, so the slide always
@@ -134,6 +142,11 @@ export function VocabularyPanel({ page }: { page: ReaderBookletPage | undefined 
   // default, armed for exactly one toggle by the handle's onClick, and disarmed
   // again whenever the page's words change (the layout effect below).
   const [slideEnabled, setSlideEnabled] = useState(false);
+  // Mirrors `expanded` for the page-turn close effect, which must read the
+  // latest open state WITHOUT depending on `expanded` (that would make opening
+  // the panel immediately re-close it).
+  const expandedRef = useRef(expanded);
+  expandedRef.current = expanded;
 
   const words = useMemo(() => collectPageVocabulary(page), [page]);
 
@@ -162,6 +175,18 @@ export function VocabularyPanel({ page }: { page: ReaderBookletPage | undefined 
     setSlideEnabled(false);
     if (contentRef.current) setContentWidth(contentRef.current.offsetWidth);
   }, [columns]);
+
+  // Collapse on every page turn (signalled by the reader), but ONLY if the
+  // panel is currently open: arm the slide so it glides shut. If it's already
+  // closed, do nothing — touching `slideEnabled` here would let the per-page
+  // width re-measure animate the collapsed panel sideways (a distracting
+  // "re-entry" on every flip). At flip start the page hasn't changed yet, so
+  // the width stays stable through the close animation.
+  useEffect(() => {
+    if (!expandedRef.current) return;
+    setSlideEnabled(true);
+    setExpanded(false);
+  }, [closeSignal]);
 
   if (words.length === 0) return null;
 

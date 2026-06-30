@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { BRAND } from '@/config/theme';
 import {
   CREDITS_PANEL_HEIGHT,
@@ -11,18 +11,35 @@ import {
 // Left-sidebar credits panel — same slide-in-from-left pattern as VocabularyPanel.
 // Sits below the Dictionary panel in the sidebar container owned by
 // ReaderBookletPage. Always rendered (not tied to page vocabulary or cover state).
-export function CreditsPanel() {
+export function CreditsPanel({ closeSignal }: {
+  // Bumped by the reader whenever a page turn occurs — collapse on change so a
+  // flip never leaves the credits open over the new spread.
+  closeSignal?: number;
+}) {
   const [expanded, setExpanded] = useState(false);
   const bodyRef = useRef<HTMLDivElement>(null);
   const [bodyWidth, setBodyWidth] = useState(0);
   // Transition is armed only for user-initiated toggles, never on mount,
   // mirroring VocabularyPanel's approach so the initial paint has no slide.
   const [slideEnabled, setSlideEnabled] = useState(false);
+  // Mirrors `expanded` for the page-turn close effect, which must read the
+  // latest open state without depending on `expanded` (that would make opening
+  // the panel immediately re-close it).
+  const expandedRef = useRef(expanded);
+  expandedRef.current = expanded;
 
   useLayoutEffect(() => {
     setSlideEnabled(false);
     if (bodyRef.current) setBodyWidth(bodyRef.current.offsetWidth);
   }, []);
+
+  // Collapse on every page turn (signalled by the reader), but ONLY if open:
+  // arm the slide so it glides shut. If already closed, do nothing.
+  useEffect(() => {
+    if (!expandedRef.current) return;
+    setSlideEnabled(true);
+    setExpanded(false);
+  }, [closeSignal]);
 
   return (
     <div
