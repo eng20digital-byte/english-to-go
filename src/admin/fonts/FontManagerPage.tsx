@@ -444,11 +444,11 @@ export function FontManagerPage() {
 
         {!isLoading && fonts?.length === 0 && <EmptyFonts />}
 
-        {/* ── Font gallery — typography specimens as colored paper cards ── */}
+        {/* ── Font gallery — typography specimens as full-width colored rows ── */}
         <ul style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(270px, 1fr))',
-          gap: 20,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 14,
           listStyle: 'none',
           margin: 0,
           padding: 0,
@@ -464,39 +464,29 @@ export function FontManagerPage() {
                 onMouseLeave={() => setHoveredId(null)}
                 style={{
                   backgroundColor: palette.bg,
-                  borderRadius: 24,
-                  padding: '28px 28px 24px',
+                  borderRadius: 18,
+                  padding: '18px 28px',
                   boxShadow: hovered
-                    ? '0 20px 50px rgba(0,0,0,0.2), 0 8px 20px rgba(0,0,0,0.12)'
-                    : '0 8px 24px rgba(0,0,0,0.14), 0 2px 6px rgba(0,0,0,0.08)',
-                  transform: hovered ? 'translateY(-6px) scale(1.02)' : 'translateY(0) scale(1)',
-                  transition: 'transform 0.22s ease, box-shadow 0.22s ease',
+                    ? '0 14px 34px rgba(0,0,0,0.18), 0 5px 14px rgba(0,0,0,0.1)'
+                    : '0 6px 18px rgba(0,0,0,0.12), 0 2px 5px rgba(0,0,0,0.07)',
+                  transform: hovered ? 'translateY(-3px)' : 'translateY(0)',
+                  transition: 'transform 0.2s ease, box-shadow 0.2s ease',
                   display: 'flex',
-                  flexDirection: 'column',
-                  gap: 20,
-                  // Color inheritance — FontPreview's <p> picks up the card's text color
+                  alignItems: 'center',
+                  gap: 24,
+                  // Color inheritance — FontPreview's <p> picks up the row's text color
                   color: palette.text,
                 }}
               >
-                {/* Font preview — the central visual feature of the card */}
+                {/* Font name + weight badge — fixed-width left column */}
                 <div style={{
-                  flex: 1,
+                  flexShrink: 0,
+                  width: 220,
                   display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  minHeight: 100,
-                }}>
-                  <FontPreview font={font} />
-                </div>
-
-                {/* Font metadata */}
-                <div style={{
-                  borderTop: `1px solid ${palette.text === '#fff' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.08)'}`,
-                  paddingTop: 16,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: 10,
+                  flexDirection: 'column',
+                  gap: 7,
+                  borderRight: `1px solid ${palette.text === '#fff' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.08)'}`,
+                  paddingRight: 20,
                 }}>
                   <span style={{
                     fontSize: 15,
@@ -510,7 +500,7 @@ export function FontManagerPage() {
                     {font.name}
                   </span>
                   <span style={{
-                    flexShrink: 0,
+                    alignSelf: 'flex-start',
                     display: 'inline-block',
                     padding: '4px 11px',
                     borderRadius: 20,
@@ -523,6 +513,16 @@ export function FontManagerPage() {
                   }}>
                     {font.weight}
                   </span>
+                </div>
+
+                {/* Font preview — fills the rest of the row */}
+                <div style={{
+                  flex: 1,
+                  minWidth: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                }}>
+                  <FontPreview font={font} />
                 </div>
               </li>
             );

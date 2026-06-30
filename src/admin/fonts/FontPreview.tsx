@@ -52,9 +52,13 @@ export function FontPreview({ font }: FontPreviewProps) {
       lang="he"
       style={{
         fontFamily: status === 'loaded' ? familyName : undefined,
-        fontSize: '2.5rem',
+        fontSize: '2rem',
         margin: 0,
-        textAlign: 'center',
+        textAlign: 'right',
+        whiteSpace: 'nowrap',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        width: '100%',
         lineHeight: 1.3,
         // Fade in when the real font finishes loading — purely cosmetic
         opacity: status === 'loading' ? 0.35 : 1,
