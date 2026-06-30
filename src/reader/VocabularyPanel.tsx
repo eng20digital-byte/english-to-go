@@ -210,7 +210,7 @@ export function VocabularyPanel({ page }: { page: ReaderBookletPage | undefined 
             color: BRAND.text,
           }}
         >
-          <span style={{ fontWeight: 700, fontSize: 16 }}>vocabulary</span>
+          <span style={{ fontWeight: 700, fontSize: 16 }}>New Words</span>
           <span
             style={{
               fontSize: 12,
