@@ -132,8 +132,8 @@ export function CreditsPanel() {
           style={{
             display: 'block',
             transform: 'rotate(90deg)',
-            fontSize: 14,
-            fontWeight: 700,
+            fontSize: 13,
+            fontWeight: 650,
             letterSpacing: 0.5,
             whiteSpace: 'nowrap',
           }}
