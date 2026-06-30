@@ -249,14 +249,18 @@ export function ReaderBookletPage() {
   // credits) the moment the reader turns a page, so a flip never leaves a panel
   // hovering over the new spread. `isFlipping` catches animated turns from any
   // source (button / keyboard / swipe) at their start; `pageIndex` catches
-  // instant jumps (dot nav, progress bar, reduced-motion). Funnelling both
-  // through one effect gives the three panels a single shared close trigger
-  // instead of each re-deriving "did we just flip?". Both closes are idempotent,
-  // so the redundant fire when `isFlipping` settles back to false is harmless.
+  // instant jumps (dot nav, progress bar, reduced-motion). `coverState` /
+  // `backCoverState` catch flips to/from the covers — those are driven by their
+  // own state machines, never touching `pageIndex` or PageFlip's `isFlipping`,
+  // so without them an open panel (e.g. Credits, which renders over the covers
+  // too) would survive a cover open/close or back-cover enter/exit. Funnelling
+  // all of them through one effect gives the three panels a single shared close
+  // trigger instead of each re-deriving "did we just flip?". Both closes are
+  // idempotent, so the redundant fire when a transition settles is harmless.
   useEffect(() => {
     setSpeechExpanded(false);
     setPanelCloseSignal((n) => n + 1);
-  }, [pageIndex, isFlipping]);
+  }, [pageIndex, isFlipping, coverState, backCoverState]);
 
   if (isLoading) return <LoadingState />;
   if (isError) return <ReaderError icon={<AlertTriangle size={26} color="rgba(255,193,77,0.9)" />} message="Something went wrong loading this booklet. Please try again." />;

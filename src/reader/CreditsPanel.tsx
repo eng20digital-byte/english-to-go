@@ -19,6 +19,14 @@ export function CreditsPanel({ closeSignal }: {
   const [expanded, setExpanded] = useState(false);
   const bodyRef = useRef<HTMLDivElement>(null);
   const [bodyWidth, setBodyWidth] = useState(0);
+  // Re-measure the rendered body width. The body is dominated by a wide,
+  // width:auto logo image whose intrinsic size is unknown until the file
+  // loads — measuring only on mount captures a too-small (often 0-width)
+  // value, so the collapsed translateX never fully hides the panel and it
+  // opens to the wrong width. Called on mount, on image load, and on resize.
+  const measure = () => {
+    if (bodyRef.current) setBodyWidth(bodyRef.current.offsetWidth);
+  };
   // Transition is armed only for user-initiated toggles, never on mount,
   // mirroring VocabularyPanel's approach so the initial paint has no slide.
   const [slideEnabled, setSlideEnabled] = useState(false);
@@ -30,7 +38,11 @@ export function CreditsPanel({ closeSignal }: {
 
   useLayoutEffect(() => {
     setSlideEnabled(false);
-    if (bodyRef.current) setBodyWidth(bodyRef.current.offsetWidth);
+    measure();
+    // The collapsed offset is width-driven, so keep it correct across viewport
+    // changes (chrome scale, orientation) — without re-arming the slide.
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
   }, []);
 
   // Collapse on every page turn (signalled by the reader), but ONLY if open:
@@ -88,33 +100,25 @@ export function CreditsPanel({ closeSignal }: {
               gap: 8,
             }}
           >
-            <div style={{ textAlign: 'center' }}>
-              <div
-                style={{
-                  fontSize: 10,
-                  color: BRAND.textMuted,
-                  fontWeight: 500,
-                  letterSpacing: '0.03em',
-                }}
-              >
-                Designed and Developed by
-              </div>
-              <div
-                style={{
-                  fontSize: 11,
-                  fontWeight: 700,
-                  color: BRAND.text,
-                  marginTop: 0,
-                }}
-              >
-                ABC | Brachi Lubling
-              </div>
+            <div
+              style={{
+                fontSize: 14,
+                color: "#323030",
+                fontWeight: 700,
+                letterSpacing: '0.03em',
+                textAlign: 'center',
+              }}
+            >
+              Designed and Developed by :
             </div>
             <img
               src="/abc.png"
-              alt="ABC logo"
+              alt="ABC | Brachi Lubling"
+              // Re-measure once the wide banner's real size is known, so the
+              // collapsed offset and opened width match the image exactly.
+              onLoad={measure}
               style={{
-                height: 60,
+                height: 84,
                 width: 'auto',
                 display: 'block',
                 objectFit: 'contain',
