@@ -1,5 +1,5 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { Languages, Volume2 } from 'lucide-react';
+import { Volume2 } from 'lucide-react';
 import { BRAND } from '@/config/theme';
 import { TTS_ACTIVE_WORD_STYLE } from '@/config/tts';
 import {
@@ -207,7 +207,6 @@ export function VocabularyPanel({ page }: { page: ReaderBookletPage | undefined 
             color: BRAND.text,
           }}
         >
-          <Languages size={18} color={BRAND.green} />
           <span style={{ fontWeight: 700, fontSize: 16 }}>vocabulary</span>
           <span
             style={{
