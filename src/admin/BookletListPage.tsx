@@ -852,7 +852,11 @@ export function BookletListPage() {
         {isLoading && (
           <div style={{
             display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
+            // Auto-fill keeps each card to a sensible width (so they don't stretch
+            // too wide) while the row total still fills the top-panel width, and
+            // collapses to a single column on narrow/mobile viewports — no media
+            // query needed, which inline styles can't express anyway.
+            gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
             gap: 24,
           }}>
             {[0, 1, 2].map((i) => <BookletCardSkeleton key={i} />)}
@@ -870,7 +874,9 @@ export function BookletListPage() {
         {!isLoading && visibleBooklets.length > 0 && (
           <div style={{
             display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
+            // See skeleton grid above — responsive auto-fill so cards stay a
+            // sensible width and stack into one column on mobile.
+            gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
             gap: 24,
           }}>
             {visibleBooklets.map((booklet, index) => (
