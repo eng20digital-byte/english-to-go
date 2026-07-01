@@ -63,7 +63,7 @@ export const BOOK_STACK_DEPTH_INSET_PCT = 0.5;
 // ── Page-flip sound effect ──────────────────────────────────────────────────
 // Pool of pre-loaded Audio instances so rapid successive flips don't cut each
 // other off — each flip picks the next slot, rewinds it, and plays.
-export const PAGE_FLIP_SOUND_SRC = '/vocals.wav';
+export const PAGE_FLIP_SOUND_SRC = '/flip.mp3';
 export const PAGE_FLIP_SOUND_POOL_SIZE = 6;
 // Subtle volume so the effect enhances without distracting.
 export const PAGE_FLIP_SOUND_VOLUME = 0.3;
