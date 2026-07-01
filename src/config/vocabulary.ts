@@ -45,9 +45,12 @@ export const VOCABULARY_SPACING_MAX = 80;
 // The reader's always-available, book-wide vocabulary list — a separate piece
 // of *chrome* (under #reader-root) from the per-page VocabularyElement above,
 // so these are fixed chrome-space px independent of the canvas-space bubble
-// knobs. The panel never scrolls: words flow top-to-bottom down a column of
-// fixed height, then wrap into a new column, so its width grows with the word
-// count. Rows-per-column is derived from PANEL_HEIGHT / CHIP_HEIGHT.
+// knobs. Words flow top-to-bottom down a FIXED-WIDTH column, then wrap into the
+// next column, so the panel's width grows with the word count — but now bounded
+// by the viewport (see the width knobs below): the column count is capped to
+// what fits the available width, and only if the words still don't fit does the
+// columns body scroll vertically inside its slot. Rows-per-column is derived
+// from the measured slot height / CHIP_HEIGHT.
 // The panel no longer has a fixed height: in the reader it STRETCHES to fill
 // the flexible rail slot between the speaker (top) and the credits (bottom),
 // so it can never overlap them at any viewport size (see VocabularyPanel +
@@ -64,6 +67,34 @@ export const VOCABULARY_PANEL_COLUMN_GAP = 10; // horizontal gap between columns
 export const VOCABULARY_PANEL_HANDLE_WIDTH = 44; // peeking tab when collapsed
 export const VOCABULARY_PANEL_SLIDE_MS = 400;
 
+// ── Responsive width behaviour ──────────────────────────────────────────────
+// Columns hug their content (each as wide as its widest chip) so every word is
+// shown in full — chips never wrap or clip. The panel therefore widens with the
+// word count, but is bounded by a cap so it can't cover the book / run off the
+// screen: on large screens the absolute MAX keeps it compact; on small screens
+// it may instead use a larger FRACTION of the viewport (RATIO) — so, as a share
+// of the screen, the panel opens *wider* on phones than on desktop. RESERVE
+// keeps room to the right of the body for the handle tab + breathing space so
+// panel + handle ≤ viewport width. If content still exceeds the cap, the columns
+// scroll horizontally inside the body (full words preserved).
+export const VOCABULARY_PANEL_MAX_WIDTH = 760; // absolute cap on large screens
+export const VOCABULARY_PANEL_VIEWPORT_WIDTH_RATIO = 0.9; // may fill up to 90% of a small viewport
+export const VOCABULARY_PANEL_VIEWPORT_RESERVE = VOCABULARY_PANEL_HANDLE_WIDTH + 24;
+// Per-column MINIMUM width. Columns hug their content (so full words always show)
+// but never sit narrower than this — it also drives how many columns fit the
+// width cap: maxColumns = floor(availWidth / COLUMN_MIN_WIDTH). Columns fill the
+// slot height first; once the word count needs more rows than fit AND the width
+// cap is reached, the panel scrolls VERTICALLY instead of clipping any word.
+export const VOCABULARY_PANEL_COLUMN_MIN_WIDTH = 176;
+
+// ── Compact metrics below the mobile breakpoint ─────────────────────────────
+// Smaller chips + narrower min-column on phones: more rows per column in a short
+// slot and more columns per unit width, so the same word list needs less scroll.
+export const VOCABULARY_PANEL_MOBILE_BREAKPOINT = 640; // px; matches READER_MOBILE_BREAKPOINT
+export const VOCABULARY_PANEL_CHIP_HEIGHT_MOBILE = 32;
+export const VOCABULARY_PANEL_CHIP_FONT_SIZE_MOBILE = 13;
+export const VOCABULARY_PANEL_COLUMN_MIN_WIDTH_MOBILE = 150;
+
 // ── Credits panel (reader left sidebar, pinned to the bottom) ───────────────
 // ≈ 2.3× the TTS panel height (56px). SIDEBAR_PANEL_GAP is the fixed gap
 // between all three stacked rail panels (speaker → Dictionary → Credits); the
@@ -74,3 +105,16 @@ export const CREDITS_PANEL_HEIGHT = 128;
 export const SIDEBAR_PANEL_GAP = 20;
 // Placeholder — update to the real destination URL before publishing.
 export const CREDITS_PANEL_LOGO_URL = 'https://abc-business-automation.netlify.app/';
+// Logo banner + label sizing, factored out of the component (no magic numbers).
+export const CREDITS_PANEL_LOGO_HEIGHT = 84;
+export const CREDITS_PANEL_LABEL_FONT_SIZE = 14;
+// Compact variant — the whole credits card (height, banner image, label) shrinks
+// ONLY on a SHORT screen (low viewport height), where the fixed-height credits
+// would otherwise eat the vertical rail. Regular/large screens are untouched.
+// The trigger is height-only (NOT width): a large monitor stays original even in
+// a short window only if it's below this threshold, so keep it low enough that
+// normal laptops/desktops never hit it. Compact height is 60% of regular.
+export const CREDITS_PANEL_SHORT_SCREEN_HEIGHT = 600; // px; below this, credits go compact
+export const CREDITS_PANEL_HEIGHT_MOBILE = Math.round(CREDITS_PANEL_HEIGHT * 0.6); // ≈ 77
+export const CREDITS_PANEL_LOGO_HEIGHT_MOBILE = 46;
+export const CREDITS_PANEL_LABEL_FONT_SIZE_MOBILE = 11;

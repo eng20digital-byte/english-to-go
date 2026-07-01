@@ -9,12 +9,14 @@ import { QuizEmbed } from '@/quiz/QuizEmbed';
 import { CANVAS_WIDTH, CANVAS_HEIGHT } from '@/config/canvas';
 import {
   READER_MAX_WIDTH,
+  READER_MOBILE_BREAKPOINT,
   BOOK_SHEET_THICKNESS_PX,
   // BOOK_STACK_DEPTH_INSET_PCT,
   SWIPE_THRESHOLD_PX,
   SWIPE_THRESHOLD_RATIO,
 } from '@/config/reader';
 import { SIDEBAR_PANEL_GAP } from '@/config/vocabulary';
+import { useViewportWidth } from './useViewportWidth';
 import { PageFlip } from './PageFlip';
 import { VocabularyPanel } from './VocabularyPanel';
 import { CreditsPanel } from './CreditsPanel';
@@ -105,6 +107,10 @@ function ReaderError({ icon, message }: { icon: React.ReactNode; message: string
 export function ReaderBookletPage() {
   const { token } = useParams<{ token: string }>();
   const { data: booklet, isLoading, isError } = useBookletByToken(token);
+  // Compact chrome on narrow screens (0 during SSR ⇒ treat as desktop). Shrinks
+  // the viewer padding, nav arrows, and gap so the book card gets more width.
+  const viewportWidth = useViewportWidth();
+  const isMobile = viewportWidth > 0 && viewportWidth < READER_MOBILE_BREAKPOINT;
   const [pageIndex, setPageIndex] = useState(0);
   const [prevHover, setPrevHover] = useState(false);
   const [nextHover, setNextHover] = useState(false);
@@ -392,7 +398,7 @@ export function ReaderBookletPage() {
             flex: 1, minHeight: 0,
             position: 'relative',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            padding: '20px 16px',
+            padding: isMobile ? '12px 6px' : '20px 16px',
           }}>
 
             {/* ── Left sidebar rail ─────────────────────────────────────────
@@ -517,7 +523,7 @@ export function ReaderBookletPage() {
                 Buttons are flex siblings of the card so they always sit flush
                 against the booklet edges, regardless of how the card scales. */}
             <div style={{
-              display: 'flex', alignItems: 'center', gap: 14,
+              display: 'flex', alignItems: 'center', gap: isMobile ? 4 : 14,
               width: '100%', justifyContent: 'center',
             }}>
 
@@ -533,7 +539,7 @@ export function ReaderBookletPage() {
                 flexShrink: 0,
                 transform: `scale(${!prevDisabled && prevHover ? 1.08 : 1})`,
                 zIndex: 20,
-                width: 44, height: 60, borderRadius: 14, border: 'none',
+                width: isMobile ? 32 : 44, height: isMobile ? 48 : 60, borderRadius: 14, border: 'none',
                 backgroundColor: prevDisabled
                   ? 'rgba(250,103,129,0.18)'
                   : prevHover ? BRAND.pink : 'rgba(250,103,129,0.82)',
@@ -733,7 +739,7 @@ export function ReaderBookletPage() {
                 flexShrink: 0,
                 transform: `scale(${!nextDisabled && nextHover ? 1.08 : 1})`,
                 zIndex: 20,
-                width: 44, height: 60, borderRadius: 14, border: 'none',
+                width: isMobile ? 32 : 44, height: isMobile ? 48 : 60, borderRadius: 14, border: 'none',
                 backgroundColor: nextDisabled
                   ? 'rgba(255,201,77,0.18)'
                   : nextHover ? BRAND.yellow : 'rgba(255,201,77,0.88)',

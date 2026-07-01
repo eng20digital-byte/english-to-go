@@ -6,16 +6,25 @@ import {
   DEFAULT_VOCABULARY_BUBBLE_BACKGROUND,
   DEFAULT_VOCABULARY_BUBBLE_BORDER_COLOR,
   VOCABULARY_PANEL_CHIP_FONT_SIZE,
+  VOCABULARY_PANEL_CHIP_FONT_SIZE_MOBILE,
   VOCABULARY_PANEL_CHIP_HEIGHT,
+  VOCABULARY_PANEL_CHIP_HEIGHT_MOBILE,
   VOCABULARY_PANEL_COLUMN_GAP,
+  VOCABULARY_PANEL_COLUMN_MIN_WIDTH,
+  VOCABULARY_PANEL_COLUMN_MIN_WIDTH_MOBILE,
   VOCABULARY_PANEL_HANDLE_WIDTH,
   VOCABULARY_PANEL_HEADER_HEIGHT,
   VOCABULARY_PANEL_HEIGHT,
+  VOCABULARY_PANEL_MAX_WIDTH,
+  VOCABULARY_PANEL_MOBILE_BREAKPOINT,
   VOCABULARY_PANEL_PADDING,
   VOCABULARY_PANEL_ROW_GAP,
   VOCABULARY_PANEL_SLIDE_MS,
+  VOCABULARY_PANEL_VIEWPORT_RESERVE,
+  VOCABULARY_PANEL_VIEWPORT_WIDTH_RATIO,
   VOCABULARY_WORD_SEPARATOR,
 } from '@/config/vocabulary';
+import { useViewportWidth } from './useViewportWidth';
 import { useWordSpeech } from '@/tts/useWordSpeech';
 import type { ReaderBookletPage } from '@/hooks/useBookletQuery';
 import type { VocabularyWord } from '@/types/elements';
@@ -59,7 +68,15 @@ function splitIntoColumns<T>(items: T[], rowsPerColumn: number): T[][] {
   return columns;
 }
 
-function VocabChip({ word }: { word: VocabularyWord }) {
+function VocabChip({
+  word,
+  chipHeight,
+  fontSize,
+}: {
+  word: VocabularyWord;
+  chipHeight: number;
+  fontSize: number;
+}) {
   const { speak, speakingWordKey } = useWordSpeech();
   const wordKey = `vocab-panel:${word.english.toLowerCase()}|${word.hebrew}`;
   const isSpeaking = speakingWordKey === wordKey;
@@ -67,7 +84,7 @@ function VocabChip({ word }: { word: VocabularyWord }) {
   return (
     <div
       style={{
-        height: VOCABULARY_PANEL_CHIP_HEIGHT,
+        height: chipHeight,
         display: 'flex',
         alignItems: 'center',
         gap: 8,
@@ -75,8 +92,11 @@ function VocabChip({ word }: { word: VocabularyWord }) {
         backgroundColor: DEFAULT_VOCABULARY_BUBBLE_BACKGROUND,
         border: `1px solid ${DEFAULT_VOCABULARY_BUBBLE_BORDER_COLOR}`,
         borderRadius: 999,
-        fontSize: VOCABULARY_PANEL_CHIP_FONT_SIZE,
+        fontSize,
         color: BRAND.text,
+        // Never wrap or clip — each chip hugs its content so the full English +
+        // Hebrew word is always shown in one line (the panel widens instead; see
+        // the width logic below).
         whiteSpace: 'nowrap',
         ...(isSpeaking ? TTS_ACTIVE_WORD_STYLE : null),
       }}
@@ -106,7 +126,7 @@ function VocabChip({ word }: { word: VocabularyWord }) {
         <Volume2 size={13} />
       </button>
       <span dir="ltr" style={{ fontWeight: 600 }}>{word.english}</span>
-      <span aria-hidden style={{ color: BRAND.textMuted }}>{VOCABULARY_WORD_SEPARATOR}</span>
+      <span aria-hidden style={{ flexShrink: 0, color: BRAND.textMuted }}>{VOCABULARY_WORD_SEPARATOR}</span>
       <span dir="rtl">{word.hebrew}</span>
     </div>
   );
@@ -156,7 +176,30 @@ export function VocabularyPanel({
 
   const words = useMemo(() => collectPageVocabulary(page), [page]);
 
-  // Measured inner height -> deterministic rows-per-column -> column split.
+  // Below the breakpoint, use compact chip metrics so more words fit a short
+  // slot (more rows per column ⇒ fewer columns). viewportWidth === 0 only during
+  // SSR/first tick — treat as desktop (the larger, safer layout) until the real
+  // width arrives.
+  const viewportWidth = useViewportWidth();
+  const isMobile = viewportWidth > 0 && viewportWidth < VOCABULARY_PANEL_MOBILE_BREAKPOINT;
+  const chipHeight = isMobile ? VOCABULARY_PANEL_CHIP_HEIGHT_MOBILE : VOCABULARY_PANEL_CHIP_HEIGHT;
+  const chipFontSize = isMobile ? VOCABULARY_PANEL_CHIP_FONT_SIZE_MOBILE : VOCABULARY_PANEL_CHIP_FONT_SIZE;
+  const colMinWidth = isMobile
+    ? VOCABULARY_PANEL_COLUMN_MIN_WIDTH_MOBILE
+    : VOCABULARY_PANEL_COLUMN_MIN_WIDTH;
+
+  // Width bound: columns hug their content (so every word shows in full — chips
+  // never wrap or clip), but the body never grows past this cap. On large screens
+  // the absolute MAX_WIDTH keeps it from covering the book; on small screens the
+  // viewport-ratio path lets it use most of the width — so the panel opens *wider*
+  // (as a share of the screen) on phones.
+  const effectiveViewport = viewportWidth > 0 ? viewportWidth : VOCABULARY_PANEL_MAX_WIDTH;
+  const maxBodyWidth = Math.min(
+    VOCABULARY_PANEL_MAX_WIDTH,
+    effectiveViewport * VOCABULARY_PANEL_VIEWPORT_WIDTH_RATIO - VOCABULARY_PANEL_VIEWPORT_RESERVE,
+  );
+
+  // Measured inner height -> how many chips fit ONE screenful of a column.
   // Clamped at 0 so a very short slot can't produce a negative height.
   const innerHeight = Math.max(
     0,
@@ -165,25 +208,40 @@ export function VocabularyPanel({
       VOCABULARY_PANEL_HEADER_HEIGHT -
       VOCABULARY_PANEL_ROW_GAP,
   );
-  const rowsPerColumn = Math.max(
+  const rowsPerScreen = Math.max(
+    1,
+    Math.floor((innerHeight + VOCABULARY_PANEL_ROW_GAP) / (chipHeight + VOCABULARY_PANEL_ROW_GAP)),
+  );
+  // How many columns the width cap allows (each at least colMinWidth wide).
+  const maxColumns = Math.max(
     1,
     Math.floor(
-      (innerHeight + VOCABULARY_PANEL_ROW_GAP) /
-        (VOCABULARY_PANEL_CHIP_HEIGHT + VOCABULARY_PANEL_ROW_GAP),
+      (maxBodyWidth - VOCABULARY_PANEL_PADDING * 2 + VOCABULARY_PANEL_COLUMN_GAP) /
+        (colMinWidth + VOCABULARY_PANEL_COLUMN_GAP),
     ),
   );
+  // Prefer to fill the height first (few words ⇒ one/few short columns, a compact
+  // panel), adding columns only as the list outgrows a screenful — but never more
+  // columns than the width allows. When even the width-capped columns are taller
+  // than the slot, the body scrolls VERTICALLY (see `scrollsVertically`) rather
+  // than clipping the bottom words.
+  const columnsToFillHeight = Math.max(1, Math.ceil(words.length / rowsPerScreen));
+  const numColumns = Math.max(1, Math.min(columnsToFillHeight, maxColumns, words.length));
+  const rowsPerColumn = Math.max(1, Math.ceil(words.length / numColumns));
   const columns = useMemo(() => splitIntoColumns(words, rowsPerColumn), [words, rowsPerColumn]);
 
   // useLayoutEffect (pre-paint) so the initial collapsed offset is correct on
-  // first paint — no flash of the open panel. Re-measures when the column
-  // layout changes (e.g. book data updates add/remove words).
+  // first paint — no flash of the open panel. Re-measures when anything that
+  // changes the body's rendered width does: the column layout (words add/remove),
+  // the compact chip metrics, or the width cap (viewport change) — so the
+  // collapsed `translateX(-contentWidth)` stays exact.
   useLayoutEffect(() => {
-    // A new page's words changed the column layout — disarm the slide so the
-    // re-measured collapsed offset applies instantly (no entry animation on
-    // page change), then re-measure.
+    // A layout input changed — disarm the slide so the re-measured collapsed
+    // offset applies instantly (no entry animation on a page/viewport change),
+    // then re-measure.
     setSlideEnabled(false);
     if (contentRef.current) setContentWidth(contentRef.current.offsetWidth);
-  }, [columns]);
+  }, [columns, chipHeight, colMinWidth, maxBodyWidth]);
 
   // Track the height the rail slot grants this panel (it stretches to fill the
   // space between the speaker and the credits, and that space changes with the
@@ -250,6 +308,9 @@ export function VocabularyPanel({
         ref={contentRef}
         style={{
           height: '100%',
+          // Never exceed the viewport-derived cap; the width otherwise hugs the
+          // (fixed-width) columns, so few words ⇒ a narrow body.
+          maxWidth: maxBodyWidth,
           display: 'flex',
           flexDirection: 'column',
           padding: VOCABULARY_PANEL_PADDING,
@@ -280,19 +341,29 @@ export function VocabularyPanel({
           </span>
         </div>
 
-        {/* Columns — measured height, fill top-to-bottom then wrap, never scrolls */}
+        {/* Columns — each hugs its widest chip (min colMinWidth) and fills
+            top-to-bottom, wrapping into the next column, so full words always
+            fit. When the word count needs more rows than one screenful of the
+            slot allows (and the width cap is reached), the region scrolls
+            VERTICALLY instead of clipping the bottom words (overflowY:auto only
+            shows a scrollbar when actually needed). overflowX is a safety net for
+            the rare word longer than a column's min width. */}
         <div
           style={{
             display: 'flex',
             alignItems: 'flex-start',
             gap: VOCABULARY_PANEL_COLUMN_GAP,
             height: innerHeight,
+            overflowY: 'auto',
+            overflowX: 'auto',
           }}
         >
           {columns.map((column, columnIndex) => (
             <div
               key={columnIndex}
               style={{
+                flexShrink: 0,
+                minWidth: colMinWidth,
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'stretch',
@@ -300,7 +371,12 @@ export function VocabularyPanel({
               }}
             >
               {column.map((word) => (
-                <VocabChip key={`${word.english.toLowerCase()}|${word.hebrew}`} word={word} />
+                <VocabChip
+                  key={`${word.english.toLowerCase()}|${word.hebrew}`}
+                  word={word}
+                  chipHeight={chipHeight}
+                  fontSize={chipFontSize}
+                />
               ))}
             </div>
           ))}

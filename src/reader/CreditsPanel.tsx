@@ -2,11 +2,18 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { BRAND } from '@/config/theme';
 import {
   CREDITS_PANEL_HEIGHT,
+  CREDITS_PANEL_HEIGHT_MOBILE,
+  CREDITS_PANEL_LABEL_FONT_SIZE,
+  CREDITS_PANEL_LABEL_FONT_SIZE_MOBILE,
+  CREDITS_PANEL_LOGO_HEIGHT,
+  CREDITS_PANEL_LOGO_HEIGHT_MOBILE,
   CREDITS_PANEL_LOGO_URL,
+  CREDITS_PANEL_SHORT_SCREEN_HEIGHT,
   VOCABULARY_PANEL_HANDLE_WIDTH,
   VOCABULARY_PANEL_PADDING,
   VOCABULARY_PANEL_SLIDE_MS,
 } from '@/config/vocabulary';
+import { useViewportHeight } from './useViewportWidth';
 
 // Left-sidebar credits panel — same slide-in-from-left pattern as VocabularyPanel.
 // Sits below the Dictionary panel in the sidebar container owned by
@@ -17,6 +24,15 @@ export function CreditsPanel({ closeSignal }: {
   closeSignal?: number;
 }) {
   const [expanded, setExpanded] = useState(false);
+  // Compact the whole card ONLY on a SHORT screen (low viewport height), where the
+  // fixed-height credits would otherwise hog the vertical rail. Height-only by
+  // design: a large/regular screen keeps the original size. 0 during SSR ⇒ treated
+  // as regular (larger) until the real height arrives.
+  const viewportHeight = useViewportHeight();
+  const compact = viewportHeight > 0 && viewportHeight < CREDITS_PANEL_SHORT_SCREEN_HEIGHT;
+  const panelHeight = compact ? CREDITS_PANEL_HEIGHT_MOBILE : CREDITS_PANEL_HEIGHT;
+  const logoHeight = compact ? CREDITS_PANEL_LOGO_HEIGHT_MOBILE : CREDITS_PANEL_LOGO_HEIGHT;
+  const labelFontSize = compact ? CREDITS_PANEL_LABEL_FONT_SIZE_MOBILE : CREDITS_PANEL_LABEL_FONT_SIZE;
   const bodyRef = useRef<HTMLDivElement>(null);
   const [bodyWidth, setBodyWidth] = useState(0);
   // Re-measure the rendered body width. The body is dominated by a wide,
@@ -44,6 +60,12 @@ export function CreditsPanel({ closeSignal }: {
     window.addEventListener('resize', measure);
     return () => window.removeEventListener('resize', measure);
   }, []);
+
+  // Entering/leaving compact mode resizes the banner image, so the body's width
+  // changes — re-measure (post-render) so the collapsed translateX stays exact.
+  useLayoutEffect(() => {
+    measure();
+  }, [compact]);
 
   // Collapse on every page turn (signalled by the reader), but ONLY if open:
   // arm the slide so it glides shut. If already closed, do nothing.
@@ -78,7 +100,7 @@ export function CreditsPanel({ closeSignal }: {
       <div
         ref={bodyRef}
         style={{
-          height: CREDITS_PANEL_HEIGHT,
+          height: panelHeight,
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
@@ -106,7 +128,7 @@ export function CreditsPanel({ closeSignal }: {
           >
             <div
               style={{
-                fontSize: 14,
+                fontSize: labelFontSize,
                 color: "#323030",
                 fontWeight: 700,
                 letterSpacing: '0.03em',
@@ -122,7 +144,7 @@ export function CreditsPanel({ closeSignal }: {
               // collapsed offset and opened width match the image exactly.
               onLoad={measure}
               style={{
-                height: 84,
+                height: logoHeight,
                 width: 'auto',
                 display: 'block',
                 objectFit: 'contain',
@@ -143,7 +165,7 @@ export function CreditsPanel({ closeSignal }: {
         style={{
           flexShrink: 0,
           width: VOCABULARY_PANEL_HANDLE_WIDTH,
-          height: CREDITS_PANEL_HEIGHT,
+          height: panelHeight,
           border: 'none',
           padding: 0,
           backgroundColor: BRAND.cream,

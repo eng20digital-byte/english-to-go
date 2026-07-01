@@ -10,6 +10,13 @@
 // ultrawide monitors (>2560px-class screens).
 export const READER_MAX_WIDTH = 1920;
 
+// Below this viewport width the reader is treated as "mobile": the surrounding
+// chrome (viewer padding, nav-arrow size, inter-element gap) shrinks so the
+// book card — which already scales to fit — claims more of the narrow width for
+// a more comfortable read. Matches VOCABULARY_PANEL_MOBILE_BREAKPOINT so the
+// Dictionary panel and the chrome switch to compact mode together.
+export const READER_MOBILE_BREAKPOINT = 640;
+
 export const PAGE_FLIP_DURATION_MS = 1000;
 // Smooth ease-in-out-cubic: slight resistance at the start, flows through the
 // midpoint, then settles gently — mimics paper's physical inertia.
