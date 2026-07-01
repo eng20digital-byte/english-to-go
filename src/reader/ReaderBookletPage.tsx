@@ -14,6 +14,7 @@ import {
   SWIPE_THRESHOLD_PX,
   SWIPE_THRESHOLD_RATIO,
 } from '@/config/reader';
+import { SIDEBAR_PANEL_GAP } from '@/config/vocabulary';
 import { PageFlip } from './PageFlip';
 import { VocabularyPanel } from './VocabularyPanel';
 import { CreditsPanel } from './CreditsPanel';
@@ -394,26 +395,57 @@ export function ReaderBookletPage() {
             padding: '20px 16px',
           }}>
 
-            {/* ── Upper-left: sliding speech-rate panel ────────────────────
-                Collapsed: only the rightmost 60px (speaker button) is visible.
-                Expanded: the full panel slides into view (translateX(0)).
-                left:0 so the panel emerges from the viewer's left edge. */}
+            {/* ── Left sidebar rail ─────────────────────────────────────────
+                Single vertical flex column spanning the full viewer height, so
+                the three left-edge panels can NEVER overlap at any viewport
+                size: the speaker is pinned to the TOP, the Credits to the
+                BOTTOM, and the Dictionary fills the flexible middle (flex:1)
+                between them. Because the middle is a flowed, flex-growing slot
+                rather than a fixed-height box anchored to the top, it simply
+                gets shorter on short screens instead of colliding with the
+                bottom-pinned Credits — the collision the old top/bottom-anchor
+                layout suffered from.
+
+                alignItems:flex-start keeps each panel at its own (content) width
+                pinned to the left edge — without it the column's default
+                `stretch` would blow the auto-width panel roots out to full
+                width and break their body+handle rows.
+
+                pointerEvents:none on the column so the panels' wide,
+                translateX-hidden DOM boxes don't block the prev/next nav
+                underneath; each panel restores pointerEvents:auto on its own
+                shifted root, so only the visible handle is clickable. */}
             <div
+              style={{
+                position: 'absolute',
+                left: 0,
+                top: 16,
+                bottom: 24,
+                zIndex: 25,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'flex-start',
+                gap: SIDEBAR_PANEL_GAP,
+                pointerEvents: 'none',
+              }}
+            >
+              {/* ── Speech-rate panel (speaker) ──────────────────────────────
+                  Collapsed: only the rightmost 60px (speaker button) is visible.
+                  Expanded: the full panel slides into view (translateX(0)). */}
+              <div
                 style={{
-                  position: 'absolute',
-                  left: 0,
-                  top: 16,
                   transform: `translateX(${speechExpanded ? '0px' : '-180px'})`,
                   transition: 'transform 0.38s cubic-bezier(0.4, 0, 0.2, 1)',
                   width: 240,
                   height: 56,
+                  flexShrink: 0,
                   backgroundColor: BRAND.cream,
                   borderRadius: 16,
                   boxShadow: '2px 4px 18px rgba(0,0,0,0.22)',
                   display: 'flex',
                   alignItems: 'center',
-                  zIndex: 25,
                   overflow: 'hidden',
+                  pointerEvents: 'auto',
                 }}
               >
                 {/* Slider content — left portion, fades in as panel opens */}
@@ -450,42 +482,34 @@ export function ReaderBookletPage() {
                 </button>
               </div>
 
-            {/* ── Dictionary panel: below the TTS panel ────────────────────
-                pointerEvents:none on the wrapper so the container's untransformed
-                DOM box (wider than the 44px handle, since the panel body is only
-                shifted off-screen by translateX which doesn't shrink the layout
-                box) doesn't silently block clicks on the prev/next nav buttons
-                underneath. The panel re-enables pointer-events:auto on its own
-                translateX-shifted root, so its hit area tracks the visible handle
-                only — see VocabularyPanel/CreditsPanel. */}
-            {!showCover && !showBackCover && (
+              {/* ── Dictionary slot (flexible middle) ────────────────────────
+                  Always rendered (even when the Dictionary itself is hidden over
+                  a cover, or empty) so its flex:1 growth reserves ALL the space
+                  between the speaker and the credits — that's what keeps the
+                  speaker top-pinned and the credits bottom-pinned regardless of
+                  whether the Dictionary is currently shown. The VocabularyPanel
+                  fills this slot's height, so its tall handle/body stretch down
+                  to just above the Credits and shrink on short screens instead
+                  of overlapping. Hidden over the covers (which carry no per-page
+                  vocabulary). */}
               <div
                 style={{
-                  position: 'absolute',
-                  left: 0,
-                  top: 80, // below TTS panel (top:16 + height:56 + gap:8)
-                  zIndex: 25,
+                  flex: 1,
+                  minHeight: 0,
+                  alignSelf: 'stretch',
+                  display: 'flex',
+                  alignItems: 'stretch',
                   pointerEvents: 'none',
                 }}
               >
-                <VocabularyPanel page={spreads[clampedIndex]} closeSignal={panelCloseSignal} />
+                {!showCover && !showBackCover && (
+                  <VocabularyPanel page={spreads[clampedIndex]} closeSignal={panelCloseSignal} />
+                )}
               </div>
-            )}
 
-            {/* ── Credits panel: pinned to the bottom of the viewer ─────────
-                Independent from the Dictionary panel so it stays at the bottom
-                whether or not the Dictionary is currently visible. Same
-                pointerEvents:none wrapper + auto-on-panel-root rationale as
-                Dictionary above. */}
-            <div
-              style={{
-                position: 'absolute',
-                left: 0,
-                bottom: 24,
-                zIndex: 25,
-                pointerEvents: 'none',
-              }}
-            >
+              {/* ── Credits panel ────────────────────────────────────────────
+                  Always present; pinned to the bottom of the rail by the
+                  flex:1 Dictionary slot above it. */}
               <CreditsPanel closeSignal={panelCloseSignal} />
             </div>
 

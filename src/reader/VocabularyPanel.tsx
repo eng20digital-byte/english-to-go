@@ -8,7 +8,6 @@ import {
   VOCABULARY_PANEL_CHIP_FONT_SIZE,
   VOCABULARY_PANEL_CHIP_HEIGHT,
   VOCABULARY_PANEL_COLUMN_GAP,
-  VOCABULARY_PANEL_HANDLE_HEIGHT,
   VOCABULARY_PANEL_HANDLE_WIDTH,
   VOCABULARY_PANEL_HEADER_HEIGHT,
   VOCABULARY_PANEL_HEIGHT,
@@ -134,6 +133,13 @@ export function VocabularyPanel({
   // Measured body width drives the collapse distance, so the slide always
   // matches the panel's actual (column-count-dependent) width.
   const [contentWidth, setContentWidth] = useState(0);
+  // The panel now STRETCHES to fill the flexible rail slot between the speaker
+  // and the credits (see ReaderBookletPage), so its height is no longer the
+  // fixed VOCABULARY_PANEL_HEIGHT — it's whatever the slot grants, measured
+  // live so the rows-per-column split (below) always fits the actual height and
+  // never overflows into the credits. VOCABULARY_PANEL_HEIGHT is only the
+  // pre-measurement fallback for the first paint.
+  const [measuredHeight, setMeasuredHeight] = useState(VOCABULARY_PANEL_HEIGHT);
   // The slide transition must fire ONLY for a user-initiated expand/collapse —
   // never as a side effect of a page change. On flip, the panel's measured
   // width (and thus its collapsed offset `translateX(-contentWidth)`) can
@@ -150,12 +156,15 @@ export function VocabularyPanel({
 
   const words = useMemo(() => collectPageVocabulary(page), [page]);
 
-  // Fixed inner height -> deterministic rows-per-column -> column split.
-  const innerHeight =
-    VOCABULARY_PANEL_HEIGHT -
-    VOCABULARY_PANEL_PADDING * 2 -
-    VOCABULARY_PANEL_HEADER_HEIGHT -
-    VOCABULARY_PANEL_ROW_GAP;
+  // Measured inner height -> deterministic rows-per-column -> column split.
+  // Clamped at 0 so a very short slot can't produce a negative height.
+  const innerHeight = Math.max(
+    0,
+    measuredHeight -
+      VOCABULARY_PANEL_PADDING * 2 -
+      VOCABULARY_PANEL_HEADER_HEIGHT -
+      VOCABULARY_PANEL_ROW_GAP,
+  );
   const rowsPerColumn = Math.max(
     1,
     Math.floor(
@@ -175,6 +184,25 @@ export function VocabularyPanel({
     setSlideEnabled(false);
     if (contentRef.current) setContentWidth(contentRef.current.offsetWidth);
   }, [columns]);
+
+  // Track the height the rail slot grants this panel (it stretches to fill the
+  // space between the speaker and the credits, and that space changes with the
+  // viewport). Feeding the measured height back into `measuredHeight` re-derives
+  // rows-per-column, so the word columns always fit the current height. Reading
+  // the body's clientHeight (its `height:100%` resolves to the slot height) and
+  // only writing when it actually changes avoids a resize loop with the
+  // column-count → width re-measure above.
+  useLayoutEffect(() => {
+    const el = contentRef.current;
+    if (!el) return;
+    const update = () => {
+      setMeasuredHeight((prev) => (prev === el.clientHeight ? prev : el.clientHeight));
+    };
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   // Collapse on every page turn (signalled by the reader), but ONLY if the
   // panel is currently open: arm the slide so it glides shut. If it's already
@@ -202,9 +230,13 @@ export function VocabularyPanel({
         transition: slideEnabled
           ? `transform ${VOCABULARY_PANEL_SLIDE_MS}ms cubic-bezier(0.4, 0, 0.2, 1)`
           : 'none',
+        // Fill the rail's flexible middle slot so the body/handle stretch from
+        // just below the speaker down to just above the credits (see
+        // ReaderBookletPage). height:100% resolves against that slot.
+        height: '100%',
         display: 'flex',
-        // Center the shorter handle tab against the taller body.
-        alignItems: 'center',
+        // Handle and body are both full-height now, so alignment is moot.
+        alignItems: 'stretch',
         // Re-enable clicks: the parent wrapper sets pointer-events:none (so its
         // wider, untransformed DOM box can't block the prev/next nav). That
         // none inherits to children, so we must restore auto here. Because this
@@ -217,7 +249,7 @@ export function VocabularyPanel({
       <div
         ref={contentRef}
         style={{
-          height: VOCABULARY_PANEL_HEIGHT,
+          height: '100%',
           display: 'flex',
           flexDirection: 'column',
           padding: VOCABULARY_PANEL_PADDING,
@@ -248,7 +280,7 @@ export function VocabularyPanel({
           </span>
         </div>
 
-        {/* Columns — fixed height, fill top-to-bottom then wrap, never scrolls */}
+        {/* Columns — measured height, fill top-to-bottom then wrap, never scrolls */}
         <div
           style={{
             display: 'flex',
@@ -289,7 +321,7 @@ export function VocabularyPanel({
         style={{
           flexShrink: 0,
           width: VOCABULARY_PANEL_HANDLE_WIDTH,
-          height: VOCABULARY_PANEL_HANDLE_HEIGHT,
+          height: '100%',
           border: 'none',
           padding: 0,
           backgroundColor: BRAND.cream,

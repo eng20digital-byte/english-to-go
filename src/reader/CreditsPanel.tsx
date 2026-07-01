@@ -60,6 +60,10 @@ export function CreditsPanel({ closeSignal }: {
         transition: slideEnabled
           ? `transform ${VOCABULARY_PANEL_SLIDE_MS}ms cubic-bezier(0.4, 0, 0.2, 1)`
           : 'none',
+        // Pinned to the bottom of the rail at full height — never shrinks, so on
+        // short screens the flexible Dictionary slot above absorbs the squeeze
+        // instead (see ReaderBookletPage's left-sidebar rail).
+        flexShrink: 0,
         display: 'flex',
         alignItems: 'center',
         // Re-enable clicks: the parent wrapper sets pointer-events:none (so its

@@ -48,10 +48,13 @@ export const VOCABULARY_SPACING_MAX = 80;
 // knobs. The panel never scrolls: words flow top-to-bottom down a column of
 // fixed height, then wrap into a new column, so its width grows with the word
 // count. Rows-per-column is derived from PANEL_HEIGHT / CHIP_HEIGHT.
-// Slightly shorter than the original 530 to make room for the Credits panel
-// and a generous gap below it, pushing the credits bottom toward the
-// lower portion of the screen.
-export const VOCABULARY_PANEL_HEIGHT = 450; // fixed; columns fill to fit, never scrolls
+// The panel no longer has a fixed height: in the reader it STRETCHES to fill
+// the flexible rail slot between the speaker (top) and the credits (bottom),
+// so it can never overlap them at any viewport size (see VocabularyPanel +
+// ReaderBookletPage's left-sidebar rail). This value is only the
+// pre-measurement fallback used for the very first paint before the slot
+// height is measured.
+export const VOCABULARY_PANEL_HEIGHT = 450; // fallback height; live height is the measured slot
 export const VOCABULARY_PANEL_PADDING = 16;
 export const VOCABULARY_PANEL_HEADER_HEIGHT = 40;
 export const VOCABULARY_PANEL_CHIP_HEIGHT = 38; // chip box height; drives rows-per-column
@@ -59,13 +62,14 @@ export const VOCABULARY_PANEL_CHIP_FONT_SIZE = 15;
 export const VOCABULARY_PANEL_ROW_GAP = 8; // vertical gap between chips in a column
 export const VOCABULARY_PANEL_COLUMN_GAP = 10; // horizontal gap between columns
 export const VOCABULARY_PANEL_HANDLE_WIDTH = 44; // peeking tab when collapsed
-export const VOCABULARY_PANEL_HANDLE_HEIGHT = 450; // matches VOCABULARY_PANEL_HEIGHT
 export const VOCABULARY_PANEL_SLIDE_MS = 400;
 
-// ── Credits panel (reader left sidebar, below Dictionary panel) ─────────────
-// ≈ 2.3× the TTS panel height (56px). SIDEBAR_PANEL_GAP provides breathing
-// room between the Dictionary and Credits panels so the credits bottom sits
-// close to the lower portion of the screen (total sidebar = 450+20+128 = 598px).
+// ── Credits panel (reader left sidebar, pinned to the bottom) ───────────────
+// ≈ 2.3× the TTS panel height (56px). SIDEBAR_PANEL_GAP is the fixed gap
+// between all three stacked rail panels (speaker → Dictionary → Credits); the
+// Dictionary flexes to fill whatever height is left between the top-pinned
+// speaker and this bottom-pinned Credits, so the gaps stay constant while the
+// middle absorbs viewport changes.
 export const CREDITS_PANEL_HEIGHT = 128;
 export const SIDEBAR_PANEL_GAP = 20;
 // Placeholder — update to the real destination URL before publishing.
