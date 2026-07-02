@@ -5,6 +5,8 @@ import { useAuth } from '@/auth/AuthContext';
 import { supabase } from '@/lib/supabaseClient';
 import { BRAND } from '@/config/theme';
 import { CreditsPanel } from '@/reader/CreditsPanel';
+import { ADMIN_DASHBOARD_STACK_BREAKPOINT } from '@/config/admin';
+import { useViewportWidth } from '@/reader/useViewportWidth';
 
 function cardShadow(hovered: boolean) {
   return hovered
@@ -22,17 +24,25 @@ export function DashboardPage() {
   const [mediaHover, setMediaHover] = useState(false);
   const [logoutHover, setLogoutHover] = useState(false);
 
+  // Below the stack breakpoint the action cards collapse to a single column;
+  // once they stack, the content can exceed the viewport, so the hub's
+  // fixed-height / no-scroll rule is relaxed to allow vertical scrolling.
+  const stacked = useViewportWidth() < ADMIN_DASHBOARD_STACK_BREAKPOINT;
+
   return (
     <div
       id="admin-root"
       style={{
-        // Fixed viewport height + overflow:hidden keeps the dashboard a single
-        // non-scrolling hub screen (minHeight would let the box grow past the
-        // viewport and re-introduce page scroll).
-        height: '100vh',
+        // On wide screens, fixed viewport height + overflow:hidden keeps the
+        // dashboard a single non-scrolling hub screen (minHeight would let the
+        // box grow past the viewport and re-introduce page scroll). Once the
+        // cards stack (narrow screens) the content is taller than the viewport,
+        // so switch to minHeight + vertical scroll instead of clipping it.
+        height: stacked ? 'auto' : '100vh',
+        minHeight: stacked ? '100vh' : undefined,
         backgroundColor: BRAND.green,
         position: 'relative',
-        overflow: 'hidden',
+        overflow: stacked ? 'hidden auto' : 'hidden',
         padding: '28px 32px 64px',
         fontFamily: 'system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif',
       }}
@@ -216,7 +226,8 @@ export function DashboardPage() {
             Media:    horizontal strip (full width, shorter) */}
         <div style={{
           display: 'grid',
-          gridTemplateColumns: '2fr 1fr',
+          // Single stacked column on narrow screens; the 2fr/1fr split otherwise.
+          gridTemplateColumns: stacked ? '1fr' : '2fr 1fr',
           gridTemplateRows: 'auto auto',
           gap: 20,
         }}>
@@ -224,7 +235,7 @@ export function DashboardPage() {
           {/* Booklets — wide yellow card */}
           <Link
             to="/admin/booklets"
-            style={{ textDecoration: 'none', gridColumn: '1', gridRow: '1' }}
+            style={{ textDecoration: 'none', gridColumn: stacked ? 'auto' : '1', gridRow: stacked ? 'auto' : '1' }}
             onMouseEnter={() => setBookletsHover(true)}
             onMouseLeave={() => setBookletsHover(false)}
           >
@@ -263,7 +274,7 @@ export function DashboardPage() {
           {/* Fonts — square cream card */}
           <Link
             to="/admin/fonts"
-            style={{ textDecoration: 'none', gridColumn: '2', gridRow: '1' }}
+            style={{ textDecoration: 'none', gridColumn: stacked ? 'auto' : '2', gridRow: stacked ? 'auto' : '1' }}
             onMouseEnter={() => setFontsHover(true)}
             onMouseLeave={() => setFontsHover(false)}
           >
@@ -302,7 +313,7 @@ export function DashboardPage() {
           {/* Media — horizontal pink strip */}
           <Link
             to="/admin/media"
-            style={{ textDecoration: 'none', gridColumn: '1 / -1', gridRow: '2' }}
+            style={{ textDecoration: 'none', gridColumn: stacked ? 'auto' : '1 / -1', gridRow: stacked ? 'auto' : '2' }}
             onMouseEnter={() => setMediaHover(true)}
             onMouseLeave={() => setMediaHover(false)}
           >
