@@ -3,6 +3,7 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/auth/AuthContext';
 import { supabase } from '@/lib/supabaseClient';
 import { BRAND } from '@/config/theme';
+import { CreditsPanel } from '@/reader/CreditsPanel';
 
 export function LoginPage() {
   const { session, loading } = useAuth();
@@ -265,6 +266,18 @@ export function LoginPage() {
           </div>
 
         </div>
+      </div>
+
+      {/* Credits panel — same slide-in-from-left card as the reader, pinned to
+          the bottom-left corner of the login screen. */}
+      <div style={{
+        position: 'fixed',
+        left: 0,
+        bottom: 24,
+        zIndex: 20,
+        display: 'flex',
+      }}>
+        <CreditsPanel />
       </div>
     </div>
   );

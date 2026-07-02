@@ -4,6 +4,7 @@ import { BookOpen, ImageIcon, Type, LogOut } from 'lucide-react';
 import { useAuth } from '@/auth/AuthContext';
 import { supabase } from '@/lib/supabaseClient';
 import { BRAND } from '@/config/theme';
+import { CreditsPanel } from '@/reader/CreditsPanel';
 
 function cardShadow(hovered: boolean) {
   return hovered
@@ -338,6 +339,18 @@ export function DashboardPage() {
           </Link>
 
         </div>
+      </div>
+
+      {/* Credits panel — same slide-in-from-left card as the reader, pinned to
+          the bottom-left corner of the dashboard. */}
+      <div style={{
+        position: 'fixed',
+        left: 0,
+        bottom: 24,
+        zIndex: 20,
+        display: 'flex',
+      }}>
+        <CreditsPanel />
       </div>
     </div>
   );
