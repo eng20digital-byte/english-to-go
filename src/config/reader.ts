@@ -17,6 +17,14 @@ export const READER_MAX_WIDTH = 1920;
 // Dictionary panel and the chrome switch to compact mode together.
 export const READER_MOBILE_BREAKPOINT = 640;
 
+// On mobile the left side rail (speaker ~60px / dictionary + credits handles
+// 44px) peeks in from the left edge. Reserve this much horizontal room on BOTH
+// sides of the mobile viewer so the centered book shrinks to sit fully clear of
+// those handles instead of scaling underneath them on a very narrow screen.
+// Sized to the widest peeking handle (the ~60px speaker) plus a little breathing
+// room. Applied symmetrically so the book stays visually centered.
+export const READER_MOBILE_RAIL_RESERVE_PX = 64;
+
 export const PAGE_FLIP_DURATION_MS = 1000;
 // Smooth ease-in-out-cubic: slight resistance at the start, flows through the
 // midpoint, then settles gently — mimics paper's physical inertia.

@@ -10,6 +10,7 @@ import { CANVAS_WIDTH, CANVAS_HEIGHT } from '@/config/canvas';
 import {
   READER_MAX_WIDTH,
   READER_MOBILE_BREAKPOINT,
+  READER_MOBILE_RAIL_RESERVE_PX,
   BOOK_SHEET_THICKNESS_PX,
   // BOOK_STACK_DEPTH_INSET_PCT,
   SWIPE_THRESHOLD_PX,
@@ -86,6 +87,84 @@ function ReaderError({ icon, message }: { icon: React.ReactNode; message: string
         <p style={{ margin: 0, color: 'rgba(255,255,255,0.82)', fontSize: 15, maxWidth: 225, lineHeight: 1.5 }}>{message}</p>
       </div>
     </div>
+  );
+}
+
+// Prev/next arrow visual config, keyed by direction. Pulled out of the render
+// body so the single <NavArrow> component below can be reused both flanking the
+// book (desktop) and stacked in a bottom bar (mobile) without duplicating the
+// full style block per placement.
+const NAV_ARROW_STYLE = {
+  prev: {
+    disabledBg: 'rgba(250,103,129,0.18)',
+    hoverBg: BRAND.pink,
+    bg: 'rgba(250,103,129,0.82)',
+    disabledColor: 'rgba(26,26,26,0.22)',
+    color: '#fff',
+    hoverShadow: '0 8px 24px rgba(250,103,129,0.5)',
+    shadow: '0 4px 16px rgba(250,103,129,0.32)',
+    label: 'Previous page',
+    path: 'M15 18L9 12L15 6',
+  },
+  next: {
+    disabledBg: 'rgba(255,201,77,0.18)',
+    hoverBg: BRAND.yellow,
+    bg: 'rgba(255,201,77,0.88)',
+    disabledColor: 'rgba(26,26,26,0.18)',
+    color: BRAND.text,
+    hoverShadow: '0 8px 24px rgba(255,201,77,0.5)',
+    shadow: '0 4px 16px rgba(255,201,77,0.35)',
+    label: 'Next page',
+    path: 'M9 18L15 12L9 6',
+  },
+} as const;
+
+function NavArrow({
+  direction,
+  disabled,
+  hover,
+  onHoverChange,
+  onClick,
+  isMobile,
+}: {
+  direction: 'prev' | 'next';
+  disabled: boolean;
+  hover: boolean;
+  onHoverChange: (v: boolean) => void;
+  onClick: () => void;
+  isMobile: boolean;
+}) {
+  const s = NAV_ARROW_STYLE[direction];
+  return (
+    <button
+      type="button"
+      aria-label={s.label}
+      onClick={onClick}
+      disabled={disabled}
+      onMouseEnter={() => onHoverChange(true)}
+      onMouseLeave={() => onHoverChange(false)}
+      style={{
+        flexShrink: 0,
+        transform: `scale(${!disabled && hover ? 1.08 : 1})`,
+        zIndex: 20,
+        // Flanking the book (desktop) → tall/narrow; in the bottom bar (mobile)
+        // → wide/short for a comfortable thumb target clear of the side rail.
+        width: isMobile ? 64 : 44,
+        height: isMobile ? 46 : 60,
+        borderRadius: 14,
+        border: 'none',
+        backgroundColor: disabled ? s.disabledBg : hover ? s.hoverBg : s.bg,
+        color: disabled ? s.disabledColor : s.color,
+        cursor: disabled ? 'default' : 'pointer',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        boxShadow: disabled ? 'none' : hover ? s.hoverShadow : s.shadow,
+        backdropFilter: disabled ? 'none' : 'blur(10px)',
+        transition: 'background-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease',
+        fontFamily: 'inherit',
+      }}
+    >
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={s.path}/></svg>
+    </button>
   );
 }
 
@@ -398,7 +477,16 @@ export function ReaderBookletPage() {
             flex: 1, minHeight: 0,
             position: 'relative',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            padding: isMobile ? '12px 6px' : '20px 16px',
+            // On mobile the prev/next arrows move OUT of the flex row (where the
+            // left side rail would cover the prev arrow on a narrow screen) and
+            // into a centered bar pinned to the bottom of this viewer area; the
+            // extra bottom padding reserves its space so the book never overlaps.
+            // The symmetric horizontal padding reserves room for the left side
+            // rail's peeking handles so the centered book shrinks to stay clear
+            // of them instead of scaling underneath them on a narrow screen.
+            padding: isMobile
+              ? `12px ${READER_MOBILE_RAIL_RESERVE_PX}px 76px`
+              : '20px 16px',
           }}>
 
             {/* ── Left sidebar rail ─────────────────────────────────────────
@@ -527,34 +615,18 @@ export function ReaderBookletPage() {
               width: '100%', justifyContent: 'center',
             }}>
 
-            {/* ── Prev arrow ───────────────────────────────────────────── */}
-            <button
-              type="button"
-              aria-label="Previous page"
-              onClick={handlePrev}
-              disabled={prevDisabled}
-              onMouseEnter={() => setPrevHover(true)}
-              onMouseLeave={() => setPrevHover(false)}
-              style={{
-                flexShrink: 0,
-                transform: `scale(${!prevDisabled && prevHover ? 1.08 : 1})`,
-                zIndex: 20,
-                width: isMobile ? 32 : 44, height: isMobile ? 48 : 60, borderRadius: 14, border: 'none',
-                backgroundColor: prevDisabled
-                  ? 'rgba(250,103,129,0.18)'
-                  : prevHover ? BRAND.pink : 'rgba(250,103,129,0.82)',
-                color: prevDisabled ? 'rgba(26,26,26,0.22)' : '#fff',
-                cursor: prevDisabled ? 'default' : 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                boxShadow: prevDisabled ? 'none'
-                  : prevHover ? '0 8px 24px rgba(250,103,129,0.5)' : '0 4px 16px rgba(250,103,129,0.32)',
-                backdropFilter: prevDisabled ? 'none' : 'blur(10px)',
-                transition: 'background-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease',
-                fontFamily: 'inherit',
-              }}
-            >
-              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M15 18L9 12L15 6"/></svg>
-            </button>
+            {/* ── Prev arrow (desktop: flanks the book; mobile: moves to the
+                bottom bar below) ───────────────────────────────────────── */}
+            {!isMobile && (
+              <NavArrow
+                direction="prev"
+                disabled={prevDisabled}
+                hover={prevHover}
+                onHoverChange={setPrevHover}
+                onClick={handlePrev}
+                isMobile={isMobile}
+              />
+            )}
 
             {/* ── Middle slot: closed cover | back cover | open book ──────
                 While closed (cover booklet, not yet opened) the centered
@@ -727,36 +799,54 @@ export function ReaderBookletPage() {
             </>
             )}
 
-            {/* ── Next arrow ───────────────────────────────────────────── */}
-            <button
-              type="button"
-              aria-label="Next page"
-              onClick={handleNext}
-              disabled={nextDisabled}
-              onMouseEnter={() => setNextHover(true)}
-              onMouseLeave={() => setNextHover(false)}
-              style={{
-                flexShrink: 0,
-                transform: `scale(${!nextDisabled && nextHover ? 1.08 : 1})`,
-                zIndex: 20,
-                width: isMobile ? 32 : 44, height: isMobile ? 48 : 60, borderRadius: 14, border: 'none',
-                backgroundColor: nextDisabled
-                  ? 'rgba(255,201,77,0.18)'
-                  : nextHover ? BRAND.yellow : 'rgba(255,201,77,0.88)',
-                color: nextDisabled ? 'rgba(26,26,26,0.18)' : BRAND.text,
-                cursor: nextDisabled ? 'default' : 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                boxShadow: nextDisabled ? 'none'
-                  : nextHover ? '0 8px 24px rgba(255,201,77,0.5)' : '0 4px 16px rgba(255,201,77,0.35)',
-                backdropFilter: nextDisabled ? 'none' : 'blur(10px)',
-                transition: 'background-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease',
-                fontFamily: 'inherit',
-              }}
-            >
-              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 18L15 12L9 6"/></svg>
-            </button>
+            {/* ── Next arrow (desktop only; mobile lives in the bottom bar) ── */}
+            {!isMobile && (
+              <NavArrow
+                direction="next"
+                disabled={nextDisabled}
+                hover={nextHover}
+                onHoverChange={setNextHover}
+                onClick={handleNext}
+                isMobile={isMobile}
+              />
+            )}
 
             </div>{/* flex row */}
+
+            {/* ── Mobile bottom nav bar ────────────────────────────────────
+                On narrow screens the left side rail (dictionary/credits
+                handles) overlaps where the flanking prev arrow used to sit, so
+                both arrows drop below the book and stand centered at the bottom
+                of the viewer area, clear of the rail. */}
+            {isMobile && (
+              <div style={{
+                position: 'absolute',
+                left: 0, right: 0, bottom: 16,
+                display: 'flex', justifyContent: 'center', alignItems: 'center',
+                gap: 20,
+                zIndex: 20,
+                pointerEvents: 'none',
+              }}>
+                <div style={{ display: 'flex', gap: 20, pointerEvents: 'auto' }}>
+                  <NavArrow
+                    direction="prev"
+                    disabled={prevDisabled}
+                    hover={prevHover}
+                    onHoverChange={setPrevHover}
+                    onClick={handlePrev}
+                    isMobile={isMobile}
+                  />
+                  <NavArrow
+                    direction="next"
+                    disabled={nextDisabled}
+                    hover={nextHover}
+                    onHoverChange={setNextHover}
+                    onClick={handleNext}
+                    isMobile={isMobile}
+                  />
+                </div>
+              </div>
+            )}
 
             {/* QuizEmbed lives here — outside the PageFlip/card transform and
                 overflow:hidden contexts (including the back cover card's, which
