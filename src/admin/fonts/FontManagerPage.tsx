@@ -8,7 +8,7 @@ import { AdminPageShell } from '@/admin/shell/AdminPageShell';
 import { AdminPageHeader } from '@/admin/shell/AdminPageHeader';
 import { EmptyState } from '@/admin/shell/EmptyState';
 import { CARD_COLORS, inputStyle, submitButtonStyle } from '@/admin/shell/adminControls';
-import { FontPreview } from './FontPreview';
+import { FontCard } from './FontCard';
 
 const labelTextStyle: CSSProperties = {
   fontSize: 11,
@@ -30,7 +30,6 @@ export function FontManagerPage() {
   // Hover / focus states — styling only, no logic
   const [nameFocused, setNameFocused] = useState(false);
   const [weightFocused, setWeightFocused] = useState(false);
-  const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [submitHover, setSubmitHover] = useState(false);
   const [submitActive, setSubmitActive] = useState(false);
 
@@ -251,80 +250,13 @@ export function FontManagerPage() {
           margin: 0,
           padding: 0,
         }}>
-          {fonts?.map((font, index) => {
-            const hovered = hoveredId === font.id;
-            const palette = CARD_COLORS[index % CARD_COLORS.length];
-
-            return (
-              <li
-                key={font.id}
-                onMouseEnter={() => setHoveredId(font.id)}
-                onMouseLeave={() => setHoveredId(null)}
-                style={{
-                  backgroundColor: palette.bg,
-                  borderRadius: 18,
-                  padding: '18px 28px',
-                  boxShadow: hovered
-                    ? '0 14px 34px rgba(0,0,0,0.18), 0 5px 14px rgba(0,0,0,0.1)'
-                    : '0 6px 18px rgba(0,0,0,0.12), 0 2px 5px rgba(0,0,0,0.07)',
-                  transform: hovered ? 'translateY(-3px)' : 'translateY(0)',
-                  transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 24,
-                  // Color inheritance — FontPreview's <p> picks up the row's text color
-                  color: palette.text,
-                }}
-              >
-                {/* Font name + weight badge — fixed-width left column */}
-                <div style={{
-                  flexShrink: 0,
-                  width: 220,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 7,
-                  borderRight: `1px solid ${palette.text === '#fff' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.08)'}`,
-                  paddingRight: 20,
-                }}>
-                  <span style={{
-                    fontSize: 15,
-                    fontWeight: 800,
-                    color: palette.text,
-                    letterSpacing: '-0.2px',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                  }}>
-                    {font.name}
-                  </span>
-                  <span style={{
-                    alignSelf: 'flex-start',
-                    display: 'inline-block',
-                    padding: '4px 11px',
-                    borderRadius: 20,
-                    fontSize: 11,
-                    fontWeight: 700,
-                    letterSpacing: '0.3px',
-                    textTransform: 'capitalize',
-                    backgroundColor: palette.badgeBg,
-                    color: palette.badgeText,
-                  }}>
-                    {font.weight}
-                  </span>
-                </div>
-
-                {/* Font preview — fills the rest of the row */}
-                <div style={{
-                  flex: 1,
-                  minWidth: 0,
-                  display: 'flex',
-                  alignItems: 'center',
-                }}>
-                  <FontPreview font={font} />
-                </div>
-              </li>
-            );
-          })}
+          {fonts?.map((font, index) => (
+            <FontCard
+              key={font.id}
+              font={font}
+              palette={CARD_COLORS[index % CARD_COLORS.length]}
+            />
+          ))}
         </ul>
     </AdminPageShell>
   );
