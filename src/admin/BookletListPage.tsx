@@ -1,6 +1,6 @@
-import { useMemo, useState, type CSSProperties } from 'react';
+import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, BookOpen, Check, Copy, ExternalLink, Plus, SearchX, Trash2 } from 'lucide-react';
+import { BookOpen, Check, Copy, ExternalLink, Plus, SearchX, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { BookletLibraryToolbar } from '@/admin/BookletLibraryToolbar';
 import {
@@ -31,76 +31,20 @@ import {
 } from '@/hooks/useBookletQuery';
 import type { BookletRow } from '@/types/database';
 import { BRAND } from '@/config/theme';
+import { AdminPageShell } from '@/admin/shell/AdminPageShell';
+import { AdminPageHeader } from '@/admin/shell/AdminPageHeader';
+import { EmptyState } from '@/admin/shell/EmptyState';
+import {
+  BTN_BASE,
+  CARD_COLORS,
+  inputStyle,
+  submitButtonStyle,
+  type CardPalette,
+} from '@/admin/shell/adminControls';
 
 function readerUrl(token: string): string {
   return `${window.location.origin}/b/${token}`;
 }
-
-// Cycling color palette for booklet cards — cream → yellow → pink → repeat.
-// Each entry carries everything a card needs to look great on its background.
-type CardPalette = {
-  bg: string;
-  text: string;
-  textMuted: string;
-  iconBg: string;
-  iconColor: string;
-  separatorColor: string;
-  chipBg: string; // inset surface for the public-link chip
-  neutralBtnBg: string;
-  neutralBtnBgHover: string;
-  neutralBtnText: string;
-};
-
-const CARD_COLORS: CardPalette[] = [
-  {
-    bg: BRAND.cream,
-    text: BRAND.text,
-    textMuted: BRAND.textMuted,
-    iconBg: BRAND.green,
-    iconColor: '#fff',
-    separatorColor: 'rgba(0,0,0,0.08)',
-    chipBg: 'rgba(0,0,0,0.045)',
-    neutralBtnBg: 'rgba(0,0,0,0.07)',
-    neutralBtnBgHover: 'rgba(0,0,0,0.13)',
-    neutralBtnText: BRAND.text,
-  },
-  {
-    bg: BRAND.yellow,
-    text: BRAND.text,
-    textMuted: 'rgba(26,26,26,0.6)',
-    iconBg: 'rgba(0,0,0,0.09)',
-    iconColor: BRAND.text,
-    separatorColor: 'rgba(0,0,0,0.1)',
-    chipBg: 'rgba(0,0,0,0.06)',
-    neutralBtnBg: 'rgba(0,0,0,0.09)',
-    neutralBtnBgHover: 'rgba(0,0,0,0.16)',
-    neutralBtnText: BRAND.text,
-  },
-  {
-    bg: BRAND.pink,
-    text: '#fff',
-    textMuted: 'rgba(255,255,255,0.72)',
-    iconBg: 'rgba(255,255,255,0.22)',
-    iconColor: '#fff',
-    separatorColor: 'rgba(255,255,255,0.2)',
-    chipBg: 'rgba(255,255,255,0.16)',
-    neutralBtnBg: 'rgba(255,255,255,0.2)',
-    neutralBtnBgHover: 'rgba(255,255,255,0.32)',
-    neutralBtnText: '#fff',
-  },
-];
-
-const BTN_BASE: CSSProperties = {
-  border: 'none',
-  borderRadius: 12,
-  padding: '10px 20px',
-  fontSize: 14,
-  fontWeight: 700,
-  cursor: 'pointer',
-  transition: 'background-color 0.16s',
-  fontFamily: 'inherit',
-  lineHeight: 1,
-};
 
 function BookletCardSkeleton() {
   return (
@@ -121,87 +65,6 @@ function BookletCardSkeleton() {
         <div style={{ height: 34, width: 72, borderRadius: 10, backgroundColor: 'rgba(89,178,146,0.2)', animation: 'sk-pulse 1.5s ease-in-out infinite' }} />
         <div style={{ height: 34, width: 80, borderRadius: 10, backgroundColor: 'rgba(255,201,77,0.25)', animation: 'sk-pulse 1.5s ease-in-out infinite' }} />
       </div>
-    </div>
-  );
-}
-
-function EmptyBooklets() {
-  return (
-    <div style={{
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      gap: 16,
-      padding: '60px 24px',
-      backgroundColor: BRAND.cream,
-      borderRadius: 24,
-      border: '2px dashed rgba(89,178,146,0.4)',
-      textAlign: 'center',
-    }}>
-      <div style={{
-        width: 56, height: 56, borderRadius: '50%',
-        backgroundColor: 'rgba(89,178,146,0.12)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-      }}>
-        <BookOpen size={24} color={BRAND.green} />
-      </div>
-      <div>
-        <p style={{ margin: 0, fontSize: 16, fontWeight: 700, color: BRAND.text }}>
-          No booklets yet
-        </p>
-        <p style={{ margin: '5px 0 0', fontSize: 14, color: BRAND.textMuted }}>
-          Create your first booklet using the form above.
-        </p>
-      </div>
-    </div>
-  );
-}
-
-// Shown when the library has booklets but the active search/filter hides them
-// all — distinct from EmptyBooklets ("no booklets exist") so the admin knows
-// to loosen the filters rather than create something.
-function NoMatchingBooklets({ onClear }: { onClear: () => void }) {
-  const [hover, setHover] = useState(false);
-  return (
-    <div style={{
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      gap: 16,
-      padding: '52px 24px',
-      backgroundColor: BRAND.cream,
-      borderRadius: 24,
-      border: '2px dashed rgba(250,103,129,0.4)',
-      textAlign: 'center',
-    }}>
-      <div style={{
-        width: 56, height: 56, borderRadius: '50%',
-        backgroundColor: 'rgba(250,103,129,0.12)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-      }}>
-        <SearchX size={24} color={BRAND.pink} />
-      </div>
-      <div>
-        <p style={{ margin: 0, fontSize: 16, fontWeight: 700, color: BRAND.text }}>
-          No booklets match your filters
-        </p>
-        <p style={{ margin: '5px 0 0', fontSize: 14, color: BRAND.textMuted }}>
-          Try a different search term or status.
-        </p>
-      </div>
-      <button
-        type="button"
-        onClick={onClear}
-        onMouseEnter={() => setHover(true)}
-        onMouseLeave={() => setHover(false)}
-        style={{
-          ...BTN_BASE,
-          backgroundColor: hover ? BRAND.greenDark : BRAND.green,
-          color: '#fff',
-        }}
-      >
-        Clear filters
-      </button>
     </div>
   );
 }
@@ -538,7 +401,6 @@ export function BookletListPage() {
   const [titleFocused, setTitleFocused] = useState(false);
   const [submitHover, setSubmitHover] = useState(false);
   const [submitActive, setSubmitActive] = useState(false);
-  const [backLinkHover, setBackLinkHover] = useState(false);
 
   async function handleSubmit(event: { preventDefault(): void; currentTarget: HTMLFormElement }) {
     event.preventDefault();
@@ -565,162 +427,18 @@ export function BookletListPage() {
     setReenableTarget(null);
   }
 
-  const titleInputStyle: CSSProperties = {
-    backgroundColor: BRAND.creamLight,
-    border: `2px solid ${titleFocused ? BRAND.green : 'transparent'}`,
-    borderRadius: 12,
-    padding: '11px 14px',
-    fontSize: 14,
-    outline: 'none',
-    boxShadow: titleFocused ? `0 0 0 4px rgba(89,178,146,0.18)` : 'none',
-    transition: 'border-color 0.18s, box-shadow 0.18s',
-    color: BRAND.text,
-    flex: 1,
-    fontFamily: 'system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif',
-    minWidth: 0,
-  };
+  // The toolbar input flexes to fill its row instead of a fixed width.
+  const titleInputStyle = inputStyle(titleFocused, { width: undefined, flex: 1, minWidth: 0 });
 
   return (
-    <div
-      id="admin-root"
-      style={{
-        minHeight: '100vh',
-        backgroundColor: BRAND.green,
-        position: 'relative',
-        overflow: 'hidden',
-        padding: '28px 32px 64px',
-        fontFamily: 'system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif',
-      }}
-    >
-      {/* ── Background geometric shapes ── */}
+    <AdminPageShell variant="booklets">
 
-      {/* Large yellow circle — top-left corner */}
-      <div style={{
-        position: 'absolute', top: -130, left: -150,
-        width: 420, height: 420, borderRadius: '50%',
-        backgroundColor: BRAND.yellow,
-        boxShadow: '10px 14px 0 rgba(0,0,0,0.09)',
-        pointerEvents: 'none',
-      }} />
-
-      {/* Pink rounded rectangle — bottom-right */}
-      <div style={{
-        position: 'absolute', bottom: -100, right: -90,
-        width: 360, height: 310, borderRadius: 58,
-        backgroundColor: BRAND.pink,
-        transform: 'rotate(13deg)',
-        boxShadow: '-8px -10px 0 rgba(0,0,0,0.08)',
-        pointerEvents: 'none',
-      }} />
-
-      {/* Cream circle — bottom-left */}
-      <div style={{
-        position: 'absolute', bottom: -70, left: -60,
-        width: 250, height: 250, borderRadius: '50%',
-        backgroundColor: BRAND.cream, opacity: 0.55,
-        boxShadow: '8px 6px 0 rgba(0,0,0,0.06)',
-        pointerEvents: 'none',
-      }} />
-
-      {/* Yellow tall pill — mid-right, half off-screen */}
-      <div style={{
-        position: 'absolute', top: '32%', right: -70,
-        width: 130, height: 300, borderRadius: 65,
-        backgroundColor: BRAND.yellow, opacity: 0.55,
-        transform: 'rotate(-18deg)',
-        pointerEvents: 'none',
-      }} />
-
-      {/* Pink small pill — upper-left area */}
-      <div style={{
-        position: 'absolute', top: '10%', left: '12%',
-        width: 90, height: 170, borderRadius: 45,
-        backgroundColor: BRAND.pink, opacity: 0.22,
-        transform: 'rotate(28deg)',
-        pointerEvents: 'none',
-      }} />
-
-      {/* Cream small circle — mid-right */}
-      <div style={{
-        position: 'absolute', top: '58%', right: -40,
-        width: 130, height: 130, borderRadius: '50%',
-        backgroundColor: BRAND.cream, opacity: 0.38,
-        pointerEvents: 'none',
-      }} />
-
-      {/* ── Page content ── */}
-      <div style={{ position: 'relative', zIndex: 10, maxWidth: 900, margin: '0 auto' }}>
-
-        {/* ── Floating header card — identical style to Media Library & Font Library ── */}
-        <header style={{
-          backgroundColor: BRAND.cream,
-          borderRadius: 20,
-          padding: '24px 32px 28px',
-          marginBottom: 28,
-          boxShadow: '0 8px 28px rgba(0,0,0,0.14), 0 2px 6px rgba(0,0,0,0.08)',
-        }}>
-          {/* Same pill treatment as the Font Library back link, but in the
-              brand pink (rgba of BRAND.pink #FA6781) instead of green. */}
-          <Link
-            to="/admin"
-            onMouseEnter={() => setBackLinkHover(true)}
-            onMouseLeave={() => setBackLinkHover(false)}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 7,
-              padding: '7px 14px 7px 10px',
-              borderRadius: 10,
-              fontSize: 13,
-              fontWeight: 700,
-              color: backLinkHover ? BRAND.text : BRAND.pink,
-              backgroundColor: backLinkHover ? 'rgba(250,103,129,0.14)' : 'rgba(250,103,129,0.08)',
-              border: `1.5px solid ${backLinkHover ? 'rgba(250,103,129,0.4)' : 'rgba(250,103,129,0.2)'}`,
-              textDecoration: 'none',
-              marginBottom: 18,
-              transition: 'all 0.15s',
-            }}
-          >
-            <ArrowLeft size={14} />
-            Back to Dashboard
-          </Link>
-
-          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-            <div>
-              <h1 style={{
-                margin: 0,
-                fontSize: 28,
-                fontWeight: 800,
-                color: BRAND.text,
-                letterSpacing: '-0.4px',
-                fontFamily: 'inherit',
-              }}>
-                Booklets
-              </h1>
-              <p style={{
-                margin: '7px 0 0',
-                fontSize: 14,
-                color: BRAND.textMuted,
-                fontWeight: 500,
-                lineHeight: 1.5,
-              }}>
-                Create and manage your digital booklets. Each booklet gets a unique public link.
-              </p>
-            </div>
-            {/* Icon badge — pink to match the pink back-to-dashboard link */}
-            <div style={{
-              width: 52, height: 52,
-              borderRadius: 16,
-              backgroundColor: BRAND.pink,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              flexShrink: 0,
-              marginLeft: 20,
-              boxShadow: '4px 4px 0 rgba(0,0,0,0.1)',
-            }}>
-              <BookOpen size={24} color="#fff" />
-            </div>
-          </div>
-        </header>
+        <AdminPageHeader
+          accent="pink"
+          icon={<BookOpen size={24} color="#fff" />}
+          title="Booklets"
+          subtitle="Create and manage your digital booklets. Each booklet gets a unique public link."
+        />
 
         {/* ── Create + library controls row ──
             Side by side on wide screens, stacked on narrow ones. Create takes
@@ -768,27 +486,20 @@ export function BookletListPage() {
                 onMouseLeave={() => { setSubmitHover(false); setSubmitActive(false); }}
                 onMouseDown={() => setSubmitActive(true)}
                 onMouseUp={() => setSubmitActive(false)}
-                style={{
-                  backgroundColor: (submitHover || createBooklet.isPending) ? BRAND.yellowDark : BRAND.yellow,
-                  color: BRAND.text,
-                  border: 'none',
-                  borderRadius: 14,
-                  padding: '11px 24px',
-                  fontSize: 14,
-                  fontWeight: 700,
-                  letterSpacing: '0.2px',
-                  cursor: createBooklet.isPending ? 'not-allowed' : 'pointer',
-                  transform: submitActive && !createBooklet.isPending ? 'scale(0.975)' : 'scale(1)',
-                  transition: 'background-color 0.16s, transform 0.1s',
-                  boxShadow: '0 4px 0 rgba(0,0,0,0.1)',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  fontFamily: 'inherit',
-                  flexShrink: 0,
-                  // Align with input bottom edge
-                  marginBottom: 0,
-                }}
+                style={submitButtonStyle(
+                  { hover: submitHover, active: submitActive, pending: createBooklet.isPending },
+                  {
+                    padding: '11px 24px',
+                    fontSize: 14,
+                    boxShadow: '0 4px 0 rgba(0,0,0,0.1)',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    flexShrink: 0,
+                    // Align with input bottom edge
+                    marginBottom: 0,
+                  },
+                )}
               >
                 {createBooklet.isPending ? (
                   <>
@@ -863,11 +574,26 @@ export function BookletListPage() {
           </div>
         )}
 
-        {!isLoading && booklets?.length === 0 && <EmptyBooklets />}
+        {!isLoading && booklets?.length === 0 && (
+          <EmptyState
+            accent="green"
+            icon={<BookOpen size={24} color={BRAND.green} />}
+            title="No booklets yet"
+            subtitle="Create your first booklet using the form above."
+          />
+        )}
 
-        {/* Library has booklets but the active filters hide them all */}
+        {/* Library has booklets but the active filters hide them all — distinct
+            from the empty library so the admin knows to loosen filters. */}
         {!isLoading && hasBooklets && visibleBooklets.length === 0 && (
-          <NoMatchingBooklets onClear={clearFilters} />
+          <EmptyState
+            accent="pink"
+            icon={<SearchX size={24} color={BRAND.pink} />}
+            title="No booklets match your filters"
+            subtitle="Try a different search term or status."
+            padding="52px 24px"
+            action={{ label: 'Clear filters', onClick: clearFilters }}
+          />
         )}
 
         {/* Booklet gallery */}
@@ -894,7 +620,6 @@ export function BookletListPage() {
             ))}
           </div>
         )}
-      </div>
 
       {/* ── Delete confirmation dialog ── */}
       <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
@@ -935,6 +660,6 @@ export function BookletListPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </AdminPageShell>
   );
 }
