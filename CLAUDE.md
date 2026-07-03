@@ -188,37 +188,65 @@ One milestone at a time (see `docs/milestones/`). Build only that milestone's sc
 src/
   main.tsx
   App.tsx                       -- router: /admin/*, /admin/login, /b/:token
-  config/                       -- canvas size, debounce timings, defaults, sandbox tokens, etc.
-    reader.ts                    -- public reader-only constants: page-flip duration/easing/perspective, swipe thresholds, max canvas width
-    theme.ts                     -- brand palette (BRAND object); authoritative source for CSS custom properties in index.css and shadcn tokens
+  index.css                      -- Tailwind theme+utilities (no Preflight) + scoped #admin-root/#reader-root resets + reader page-flip keyframes
+  config/                       -- all magic numbers/tokens (no hardcoded values in components)
+    admin.ts                     -- admin chrome layout constants (dashboard stack breakpoint)
+    booklets.ts                  -- booklet library sort/filter defaults + types
+    canvas.ts                    -- virtual canvas size, cover dims, pageCanvasSize(), DEFAULT_TEXT_ALIGN
+    editor.ts                    -- undo cap, autosave debounce, selection-chrome (EDITOR_PRIMARY/…), inspector bounds, paste offset
+    fonts.ts                     -- font weights, storage bucket, preview text
+    media.ts                     -- media bucket, accepted types, compression max-dimension/quality
+    quiz.ts                      -- iframe sandbox tokens (see "Quiz embed")
+    reader.ts                    -- reader-only: page-flip duration/easing, swipe thresholds, max width, sheet thickness
+    theme.ts                     -- brand palette (BRAND); authoritative source for index.css custom props + shadcn tokens
+    tts.ts                       -- speech-synthesis rate bounds/defaults
+    vocabulary.ts                -- vocabulary + credits panel sizing/slide constants
   lib/
     supabaseClient.ts
     queryClient.ts
+    imageCompression.ts          -- client-side WebP downscale/recompress before upload
+    utils.ts                     -- cn() shadcn class-merge helper
   types/
     database.ts                 -- Supabase row types
-    elements.ts                 -- PageElement union, TextProps, BackgroundImageProps
+    elements.ts                 -- PageElement union, TextProps, BackgroundImageProps, VocabularyProps
   auth/
     AuthContext.tsx
     RequireAuth.tsx
-  renderer/                     -- SHARED — imported unmodified by admin and reader, never forked
+  renderer/                     -- SHARED — imported unmodified by admin and reader, never forked (no Tailwind)
     PageCanvas.tsx
     useCanvasScale.ts
     elements/
       TextElement.tsx
       BackgroundImageElement.tsx
-      registry.ts
+      VocabularyElement.tsx
+      registry.tsx               -- per-type element renderer dispatch table
   tts/
-    useWordSpeech.ts
+    useWordSpeech.tsx            -- WordSpeechProvider + word-click speech context
     SpeechRateControl.tsx
   quiz/
     QuizEmbed.tsx                -- sandboxed iframe srcdoc renderer
-  admin/
+  admin/                        -- admin chrome (shadcn/ui + Tailwind, under #admin-root)
     routes.tsx
-    BookletListPage.tsx
-    BookletEditorPage.tsx
+    LoginPage.tsx
+    DashboardPage.tsx
+    BookletListPage.tsx          -- slim: orchestration only (cards/skeleton/shell extracted)
+    BookletEditorPage.tsx        -- owns both editor clipboards + page-op keyboard (see "Clipboard system")
+    BookletLibraryToolbar.tsx    -- search/status-filter/sort controls
+    bookletLibraryFilters.ts     -- pure filter/sort/count helpers
+    shell/                       -- shared admin page shell (kills the 5-page duplication)
+      AdminPageShell.tsx         -- #admin-root + brand backdrop + background shapes + centered content
+      AdminBackgroundShapes.tsx  -- decorative shapes as data, one renderer, per-page variants
+      AdminPageHeader.tsx        -- back-link pill + title + subtitle + icon badge (green/pink accent)
+      EmptyState.tsx             -- dashed empty-state card (+ optional action button)
+      adminControls.ts           -- CARD_COLORS palette, inputStyle(), submitButtonStyle(), cardShadow(), BTN_BASE, ADMIN_FONT
+    booklets/
+      BookletCard.tsx            -- one booklet card (status-dependent actions)
+      BookletCardSkeleton.tsx
     editor/
       EditorCanvas.tsx
-      EditorOverlay.tsx
+      EditorOverlay.tsx          -- drag/selection/resize-handle logic only
+      TextEditOverlay.tsx        -- in-place inline text-edit textarea (extracted from EditorOverlay)
+      ActionBubbleButton.tsx     -- one round button in the floating action bubble (extracted)
       EditorToolbar.tsx
       ElementInspector.tsx
       PageElementEditor.tsx
@@ -227,24 +255,47 @@ src/
       useEditorReducer.ts        -- element tree + undo/redo
       useAutosave.ts
       useTextMeasurements.ts     -- measures rendered text glyph bounds -> selection box geometry
-      MediaLibraryPicker.tsx
+      MediaLibraryPicker.tsx     -- standalone /admin/media page + embeddable picker; uses the shell
       QuizEmbedEditor.tsx
       clipboard/                 -- editor-wide clipboards (see "Clipboard system")
         useElementClipboard.ts   -- copy/cut/paste elements, cross-page, new ids on paste
         usePageClipboard.ts      -- copy/cut/paste whole pages (payload held in memory)
     fonts/
       FontManagerPage.tsx
+      FontCard.tsx               -- one registered-font specimen row
       FontPreview.tsx
-  reader/
-    routes.tsx
-    ReaderBookletPage.tsx          -- chrome root (#reader-root): loading/error/not-found states, composes PageFlip + PageNav
-    PageFlip.tsx                   -- booklet-agnostic 3D page-turn (CSS-keyframe two-layer flip, swipe, keyboard, reduced-motion)
+  reader/                       -- public reader chrome (plain Tailwind under #reader-root; imports renderer/ unmodified)
+    ReaderBookletPage.tsx        -- chrome root (#reader-root): orchestration, cover/back-cover state machines, side rail
+    ReaderBgShapes.tsx           -- reader-side decorative background shapes
+    ReaderLoadingState.tsx       -- full-screen loading skeleton
+    ReaderError.tsx              -- full-screen error/empty state
+    NavArrow.tsx                 -- prev/next page arrow (desktop flank + mobile bar)
+    useReaderKeyboard.ts         -- single keydown listener unifying the cover/back-cover arrow-key actions
+    PageFlip.tsx                 -- booklet-agnostic 3D page-turn (CSS-keyframe two-layer flip, swipe, keyboard, reduced-motion)
     PageNav.tsx
-  components/                    -- generic shared UI
+    BookCover.tsx                -- front cover open/close animation
+    BookBackCover.tsx            -- back cover enter/exit animation
+    VocabularyPanel.tsx          -- slide-in-from-left per-page dictionary panel
+    UnavailableBookletPage.tsx   -- draft/disabled/not-found reader fallback
+    prefersReducedMotion.ts
+    useCoverImageReady.ts        -- gate first paint until the cover image decodes
+    useNextPagePreloader.ts      -- preload adjacent spreads' images
+    pageFlipAudio.ts             -- page-turn sound buffer
+    usePageFlipSound.ts          -- play page-turn sound on flip
+  components/                   -- neutral shared UI (admin + reader)
+    CreditsPanel.tsx             -- slide-in credits panel (used by reader + admin Login/Dashboard)
+    Spinner.tsx
+    StatusBadge.tsx
     ui/                          -- shadcn/ui generated components (badge, card, dialog, dropdown-menu, separator, slider, tooltip, …)
   hooks/
-    useBookletQuery.ts            -- React Query hooks
+    useBookletQuery.ts            -- React Query hooks (list + by-token reader query)
     useFontsQuery.ts               -- fonts list + register-font mutation
+    useFontFace.ts                 -- load a registered @font-face on demand
+    useMediaAssetQuery.ts          -- single media asset by id
+    useMediaLibraryQuery.ts        -- media list + upload/delete mutations
+    usePageElementsQuery.ts        -- page_elements load + save
+    usePagesQuery.ts               -- pages load + structural RPC mutations
+    useViewportWidth.ts            -- viewport width/height hooks (neutral: admin + reader)
 scripts/
   convert-fonts.mjs               -- re-runnable TTF/OTF -> WOFF2
 fonts/                             -- source TTF/OTF files (input to the script above)
@@ -259,8 +310,13 @@ supabase/
     0002_page_management.sql        -- add/delete/reorder page RPCs
     0003_page_clipboard_ops.sql     -- duplicate_page + insert_page_with_elements RPCs
     0004_cover_page.sql             -- is_cover column + add_cover_page RPC + cover pinned at order 0
+    0005_booklet_background_color.sql -- per-booklet reader backdrop color
+    0006_back_cover_page.sql        -- is_back_cover column + back-cover RPC
+    0007_fix_add_page_before_back_cover.sql
+    0008_quiz_on_last_spread.sql    -- show_quiz_on_last_spread flag (quiz now on the back cover)
 docs/
   milestones/                      -- M0..M12, one file per milestone
+  refactor-milestones/             -- R0..R5 clean-architecture refactor (this pass)
 CLAUDE.md
 ```
 
@@ -395,7 +451,12 @@ See `docs/milestones/` for full per-milestone scope and verification steps.
 ## UI component library — scope boundary
 
 Admin interface (forms, lists, dialogs, navigation — everything outside
-the canvas) uses **shadcn/ui** + Tailwind CSS. The public reader's chrome
+the canvas) uses **shadcn/ui** + Tailwind CSS. The shared admin page frame
+lives in **`src/admin/shell/`** (`AdminPageShell` + background shapes +
+`AdminPageHeader` + `EmptyState` + `adminControls` style tokens) — the
+single home for admin chrome, so **every admin page = `AdminPageShell` +
+`AdminPageHeader` + body** (~15 lines, not 250 of copy-paste), and a
+color/shadow/background change is one edit. The public reader's chrome
 (everything around `PageCanvas`: page-flip container, nav, loading/error
 states — `src/reader/*` excluding nothing it imports from `src/renderer/`)
 uses plain Tailwind utilities under its own `#reader-root` scope, the same
