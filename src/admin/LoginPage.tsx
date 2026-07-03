@@ -1,9 +1,11 @@
-import { useState, type FormEvent, type CSSProperties } from 'react';
+import { useState, type FormEvent } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/auth/AuthContext';
 import { supabase } from '@/lib/supabaseClient';
 import { BRAND } from '@/config/theme';
-import { CreditsPanel } from '@/reader/CreditsPanel';
+import { CreditsPanel } from '@/components/CreditsPanel';
+import { AdminPageShell } from '@/admin/shell/AdminPageShell';
+import { inputStyle, submitButtonStyle } from '@/admin/shell/adminControls';
 
 export function LoginPage() {
   const { session, loading } = useAuth();
@@ -36,95 +38,12 @@ export function LoginPage() {
     }
   }
 
-  function inputStyle(focused: boolean): CSSProperties {
-    return {
-      backgroundColor: BRAND.creamLight,
-      border: `2px solid ${focused ? BRAND.green : 'transparent'}`,
-      borderRadius: 12,
-      padding: '12px 16px',
-      fontSize: 15,
-      outline: 'none',
-      boxShadow: focused ? `0 0 0 4px rgba(89,178,146,0.18)` : 'none',
-      transition: 'border-color 0.18s, box-shadow 0.18s',
-      color: BRAND.text,
-      direction: 'ltr',
-      width: '100%',
-    };
-  }
+  // Login's inputs are a touch larger than the library forms and force ltr.
+  const loginInput = (focused: boolean) =>
+    inputStyle(focused, { padding: '12px 16px', fontSize: 15, direction: 'ltr' });
 
   return (
-    <div
-      id="admin-root"
-      style={{
-        minHeight: '100vh',
-        backgroundColor: BRAND.green,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        position: 'relative',
-        overflow: 'hidden',
-        fontFamily: 'system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif',
-      }}
-    >
-      {/* ── Background geometric shapes ─────────────────────────────────────
-          Oversized flat shapes partially erupting from viewport edges create
-          the layered paper-cut aesthetic. No gradients, no glassmorphism. */}
-
-      {/* Large yellow circle — top-left corner */}
-      <div style={{
-        position: 'absolute', top: -130, left: -150,
-        width: 420, height: 420, borderRadius: '50%',
-        backgroundColor: BRAND.yellow,
-        boxShadow: '10px 14px 0 rgba(0,0,0,0.09)',
-        pointerEvents: 'none',
-      }} />
-
-      {/* Pink rounded rectangle — bottom-right, angled */}
-      <div style={{
-        position: 'absolute', bottom: -110, right: -90,
-        width: 380, height: 320, borderRadius: 60,
-        backgroundColor: BRAND.pink,
-        transform: 'rotate(14deg)',
-        boxShadow: '-8px -10px 0 rgba(0,0,0,0.08)',
-        pointerEvents: 'none',
-      }} />
-
-      {/* Cream circle — bottom-left */}
-      <div style={{
-        position: 'absolute', bottom: -80, left: -90,
-        width: 280, height: 280, borderRadius: '50%',
-        backgroundColor: BRAND.cream,
-        boxShadow: '8px 8px 0 rgba(0,0,0,0.07)',
-        pointerEvents: 'none',
-      }} />
-
-      {/* Pink tall pill — top-right, partially off-screen */}
-      <div style={{
-        position: 'absolute', top: -90, right: '8%',
-        width: 130, height: 300, borderRadius: 65,
-        backgroundColor: BRAND.pink, opacity: 0.65,
-        transform: 'rotate(-22deg)',
-        pointerEvents: 'none',
-      }} />
-
-      {/* Yellow medium circle — mid-right, half off-screen */}
-      <div style={{
-        position: 'absolute', top: '34%', right: -95,
-        width: 220, height: 220, borderRadius: '50%',
-        backgroundColor: BRAND.yellow, opacity: 0.6,
-        boxShadow: '-6px 6px 0 rgba(0,0,0,0.07)',
-        pointerEvents: 'none',
-      }} />
-
-      {/* Cream small circle — mid-left, partially off-screen */}
-      <div style={{
-        position: 'absolute', top: '22%', left: -50,
-        width: 140, height: 140, borderRadius: '50%',
-        backgroundColor: BRAND.cream, opacity: 0.5,
-        pointerEvents: 'none',
-      }} />
-
-      {/* ── Card composition ─────────────────────────────────────────────── */}
+    <AdminPageShell variant="login" center footer={<CreditsPanel />}>
       <div style={{
         position: 'relative', zIndex: 10,
         width: '100%', maxWidth: 440, padding: '0 24px',
@@ -203,7 +122,7 @@ export function LoginPage() {
                   required
                   onFocus={() => setEmailFocused(true)}
                   onBlur={() => setEmailFocused(false)}
-                  style={inputStyle(emailFocused)}
+                  style={loginInput(emailFocused)}
                 />
               </label>
 
@@ -222,7 +141,7 @@ export function LoginPage() {
                   required
                   onFocus={() => setPasswordFocused(true)}
                   onBlur={() => setPasswordFocused(false)}
-                  style={inputStyle(passwordFocused)}
+                  style={loginInput(passwordFocused)}
                 />
               </label>
 
@@ -242,23 +161,16 @@ export function LoginPage() {
                 onMouseLeave={() => { setBtnHover(false); setBtnActive(false); }}
                 onMouseDown={() => setBtnActive(true)}
                 onMouseUp={() => setBtnActive(false)}
-                style={{
-                  marginTop: 8,
-                  backgroundColor: (btnHover || submitting) ? BRAND.yellowDark : BRAND.yellow,
-                  color: BRAND.text,
-                  border: 'none',
-                  borderRadius: 14,
-                  padding: '14px 24px',
-                  fontSize: 15,
-                  fontWeight: 700,
-                  letterSpacing: '0.2px',
-                  cursor: submitting ? 'not-allowed' : 'pointer',
-                  transform: btnActive && !submitting ? 'scale(0.975)' : 'scale(1)',
-                  transition: 'background-color 0.16s, transform 0.1s',
-                  boxShadow: '0 4px 0 rgba(0,0,0,0.12)',
-                  width: '100%',
-                  fontFamily: 'inherit',
-                }}
+                style={submitButtonStyle(
+                  { hover: btnHover, active: btnActive, pending: submitting },
+                  {
+                    marginTop: 8,
+                    padding: '14px 24px',
+                    fontSize: 15,
+                    boxShadow: '0 4px 0 rgba(0,0,0,0.12)',
+                    width: '100%',
+                  },
+                )}
               >
                 {submitting ? 'Signing in…' : 'Sign in'}
               </button>
@@ -267,18 +179,6 @@ export function LoginPage() {
 
         </div>
       </div>
-
-      {/* Credits panel — same slide-in-from-left card as the reader, pinned to
-          the bottom-left corner of the login screen. */}
-      <div style={{
-        position: 'fixed',
-        left: 0,
-        bottom: 24,
-        zIndex: 20,
-        display: 'flex',
-      }}>
-        <CreditsPanel />
-      </div>
-    </div>
+    </AdminPageShell>
   );
 }

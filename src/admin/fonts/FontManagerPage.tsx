@@ -1,52 +1,14 @@
 import { useState, type CSSProperties } from 'react';
-import { Link } from 'react-router-dom';
-import { ArrowLeft, Type } from 'lucide-react';
+import { Type } from 'lucide-react';
 import { Spinner } from '@/components/Spinner';
 import { FONT_WEIGHTS, type FontWeight } from '@/config/fonts';
 import { useFontsQuery, useRegisterFontMutation } from '@/hooks/useFontsQuery';
 import { BRAND } from '@/config/theme';
-import { FontPreview } from './FontPreview';
-
-// Cycles across font cards — cream → yellow → pink → repeat
-const CARD_COLORS = [
-  {
-    bg: BRAND.cream,
-    text: BRAND.text,
-    textMuted: BRAND.textMuted,
-    badgeBg: BRAND.green,
-    badgeText: '#fff',
-  },
-  {
-    bg: BRAND.yellow,
-    text: BRAND.text,
-    textMuted: 'rgba(26,26,26,0.6)',
-    badgeBg: 'rgba(0,0,0,0.10)',
-    badgeText: BRAND.text,
-  },
-  {
-    bg: BRAND.pink,
-    text: '#fff',
-    textMuted: 'rgba(255,255,255,0.72)',
-    badgeBg: 'rgba(255,255,255,0.22)',
-    badgeText: '#fff',
-  },
-] as const;
-
-function inputStyle(focused: boolean): CSSProperties {
-  return {
-    backgroundColor: BRAND.creamLight,
-    border: `2px solid ${focused ? BRAND.green : 'transparent'}`,
-    borderRadius: 12,
-    padding: '11px 14px',
-    fontSize: 14,
-    outline: 'none',
-    boxShadow: focused ? `0 0 0 4px rgba(89,178,146,0.18)` : 'none',
-    transition: 'border-color 0.18s, box-shadow 0.18s',
-    color: BRAND.text,
-    width: '100%',
-    fontFamily: 'inherit',
-  };
-}
+import { AdminPageShell } from '@/admin/shell/AdminPageShell';
+import { AdminPageHeader } from '@/admin/shell/AdminPageHeader';
+import { EmptyState } from '@/admin/shell/EmptyState';
+import { CARD_COLORS, inputStyle, submitButtonStyle } from '@/admin/shell/adminControls';
+import { FontCard } from './FontCard';
 
 const labelTextStyle: CSSProperties = {
   fontSize: 11,
@@ -55,38 +17,6 @@ const labelTextStyle: CSSProperties = {
   letterSpacing: '0.5px',
   textTransform: 'uppercase',
 };
-
-function EmptyFonts() {
-  return (
-    <div style={{
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      gap: 16,
-      padding: '60px 24px',
-      backgroundColor: BRAND.cream,
-      borderRadius: 24,
-      border: '2px dashed rgba(89,178,146,0.4)',
-      textAlign: 'center',
-    }}>
-      <div style={{
-        width: 56, height: 56, borderRadius: '50%',
-        backgroundColor: 'rgba(89,178,146,0.12)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-      }}>
-        <Type size={24} color={BRAND.green} />
-      </div>
-      <div>
-        <p style={{ margin: 0, fontSize: 16, fontWeight: 700, color: BRAND.text }}>
-          No fonts registered yet
-        </p>
-        <p style={{ margin: '5px 0 0', fontSize: 14, color: BRAND.textMuted }}>
-          Upload a .woff2 file using the form above.
-        </p>
-      </div>
-    </div>
-  );
-}
 
 export function FontManagerPage() {
   const { data: fonts, isLoading } = useFontsQuery();
@@ -100,10 +30,8 @@ export function FontManagerPage() {
   // Hover / focus states — styling only, no logic
   const [nameFocused, setNameFocused] = useState(false);
   const [weightFocused, setWeightFocused] = useState(false);
-  const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [submitHover, setSubmitHover] = useState(false);
   const [submitActive, setSubmitActive] = useState(false);
-  const [backLinkHover, setBackLinkHover] = useState(false);
 
   async function handleSubmit(event: { preventDefault(): void; currentTarget: HTMLFormElement }) {
     event.preventDefault();
@@ -130,144 +58,13 @@ export function FontManagerPage() {
   }
 
   return (
-    <div
-      id="admin-root"
-      style={{
-        minHeight: '100vh',
-        backgroundColor: BRAND.green,
-        position: 'relative',
-        overflow: 'hidden',
-        padding: '28px 32px 64px',
-        fontFamily: 'system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif',
-      }}
-    >
-      {/* ── Background geometric shapes (same language as login / dashboard / media) ── */}
-
-      {/* Large yellow circle — top-right corner */}
-      <div style={{
-        position: 'absolute', top: -120, right: -140,
-        width: 400, height: 400, borderRadius: '50%',
-        backgroundColor: BRAND.yellow,
-        boxShadow: '-10px 12px 0 rgba(0,0,0,0.09)',
-        pointerEvents: 'none',
-      }} />
-
-      {/* Pink rounded rectangle — bottom-right, angled */}
-      <div style={{
-        position: 'absolute', bottom: -90, right: -80,
-        width: 340, height: 290, borderRadius: 55,
-        backgroundColor: BRAND.pink,
-        transform: 'rotate(12deg)',
-        boxShadow: '-8px -8px 0 rgba(0,0,0,0.08)',
-        pointerEvents: 'none',
-      }} />
-
-      {/* Cream circle — bottom-left */}
-      <div style={{
-        position: 'absolute', bottom: -60, left: -80,
-        width: 260, height: 260, borderRadius: '50%',
-        backgroundColor: BRAND.cream, opacity: 0.55,
-        boxShadow: '8px 6px 0 rgba(0,0,0,0.06)',
-        pointerEvents: 'none',
-      }} />
-
-      {/* Pink tall pill — top-left, partially off-screen */}
-      <div style={{
-        position: 'absolute', top: -80, left: '10%',
-        width: 120, height: 280, borderRadius: 60,
-        backgroundColor: BRAND.pink, opacity: 0.6,
-        transform: 'rotate(22deg)',
-        pointerEvents: 'none',
-      }} />
-
-      {/* Yellow medium circle — mid-left, half off-screen */}
-      <div style={{
-        position: 'absolute', top: '38%', left: -80,
-        width: 200, height: 200, borderRadius: '50%',
-        backgroundColor: BRAND.yellow, opacity: 0.5,
-        boxShadow: '6px 6px 0 rgba(0,0,0,0.07)',
-        pointerEvents: 'none',
-      }} />
-
-      {/* Cream small circle — mid-right */}
-      <div style={{
-        position: 'absolute', top: '55%', right: -40,
-        width: 130, height: 130, borderRadius: '50%',
-        backgroundColor: BRAND.cream, opacity: 0.38,
-        pointerEvents: 'none',
-      }} />
-
-      {/* ── Page content ── */}
-      <div style={{ position: 'relative', zIndex: 10, maxWidth: 900, margin: '0 auto' }}>
-
-        {/* ── Floating header card — matches Media Library header exactly ── */}
-        <header style={{
-          backgroundColor: BRAND.cream,
-          borderRadius: 20,
-          padding: '24px 32px 28px',
-          marginBottom: 28,
-          boxShadow: '0 8px 28px rgba(0,0,0,0.14), 0 2px 6px rgba(0,0,0,0.08)',
-        }}>
-          <Link
-            to="/admin"
-            onMouseEnter={() => setBackLinkHover(true)}
-            onMouseLeave={() => setBackLinkHover(false)}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 7,
-              padding: '7px 14px 7px 10px',
-              borderRadius: 10,
-              fontSize: 13,
-              fontWeight: 700,
-              color: backLinkHover ? BRAND.text : BRAND.green,
-              backgroundColor: backLinkHover ? 'rgba(89,178,146,0.14)' : 'rgba(89,178,146,0.08)',
-              border: `1.5px solid ${backLinkHover ? 'rgba(89,178,146,0.4)' : 'rgba(89,178,146,0.2)'}`,
-              textDecoration: 'none',
-              marginBottom: 20,
-              transition: 'all 0.15s',
-            }}
-          >
-            <ArrowLeft size={14} />
-            Back to Dashboard
-          </Link>
-
-          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-            <div>
-              <h1 style={{
-                margin: 0,
-                fontSize: 28,
-                fontWeight: 800,
-                color: BRAND.text,
-                letterSpacing: '-0.4px',
-                fontFamily: 'inherit',
-              }}>
-                Font Library
-              </h1>
-              <p style={{
-                margin: '7px 0 0',
-                fontSize: 14,
-                color: BRAND.textMuted,
-                fontWeight: 500,
-                lineHeight: 1.5,
-              }}>
-                Register custom WOFF2 typefaces to use in booklet text elements.
-              </p>
-            </div>
-            {/* Icon badge — matches Media Library */}
-            <div style={{
-              width: 52, height: 52,
-              borderRadius: 16,
-              backgroundColor: BRAND.green,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              flexShrink: 0,
-              marginLeft: 20,
-              boxShadow: '4px 4px 0 rgba(0,0,0,0.1)',
-            }}>
-              <Type size={24} color="#fff" />
-            </div>
-          </div>
-        </header>
+    <AdminPageShell variant="fonts">
+        <AdminPageHeader
+          accent="green"
+          icon={<Type size={24} color="#fff" />}
+          title="Font Library"
+          subtitle="Register custom WOFF2 typefaces to use in booklet text elements."
+        />
 
         {/* ── Upload form — cream paper card ── */}
         <div style={{
@@ -382,24 +179,17 @@ export function FontManagerPage() {
                 onMouseLeave={() => { setSubmitHover(false); setSubmitActive(false); }}
                 onMouseDown={() => setSubmitActive(true)}
                 onMouseUp={() => setSubmitActive(false)}
-                style={{
-                  backgroundColor: (submitHover || registerFont.isPending) ? BRAND.yellowDark : BRAND.yellow,
-                  color: BRAND.text,
-                  border: 'none',
-                  borderRadius: 14,
-                  padding: '12px 28px',
-                  fontSize: 14,
-                  fontWeight: 700,
-                  letterSpacing: '0.2px',
-                  cursor: registerFont.isPending ? 'not-allowed' : 'pointer',
-                  transform: submitActive && !registerFont.isPending ? 'scale(0.975)' : 'scale(1)',
-                  transition: 'background-color 0.16s, transform 0.1s',
-                  boxShadow: '0 4px 0 rgba(0,0,0,0.1)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  fontFamily: 'inherit',
-                }}
+                style={submitButtonStyle(
+                  { hover: submitHover, active: submitActive, pending: registerFont.isPending },
+                  {
+                    padding: '12px 28px',
+                    fontSize: 14,
+                    boxShadow: '0 4px 0 rgba(0,0,0,0.1)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                  },
+                )}
               >
                 {registerFont.isPending ? (
                   <>
@@ -442,7 +232,14 @@ export function FontManagerPage() {
           </div>
         )}
 
-        {!isLoading && fonts?.length === 0 && <EmptyFonts />}
+        {!isLoading && fonts?.length === 0 && (
+          <EmptyState
+            accent="green"
+            icon={<Type size={24} color={BRAND.green} />}
+            title="No fonts registered yet"
+            subtitle="Upload a .woff2 file using the form above."
+          />
+        )}
 
         {/* ── Font gallery — typography specimens as full-width colored rows ── */}
         <ul style={{
@@ -453,82 +250,14 @@ export function FontManagerPage() {
           margin: 0,
           padding: 0,
         }}>
-          {fonts?.map((font, index) => {
-            const hovered = hoveredId === font.id;
-            const palette = CARD_COLORS[index % CARD_COLORS.length];
-
-            return (
-              <li
-                key={font.id}
-                onMouseEnter={() => setHoveredId(font.id)}
-                onMouseLeave={() => setHoveredId(null)}
-                style={{
-                  backgroundColor: palette.bg,
-                  borderRadius: 18,
-                  padding: '18px 28px',
-                  boxShadow: hovered
-                    ? '0 14px 34px rgba(0,0,0,0.18), 0 5px 14px rgba(0,0,0,0.1)'
-                    : '0 6px 18px rgba(0,0,0,0.12), 0 2px 5px rgba(0,0,0,0.07)',
-                  transform: hovered ? 'translateY(-3px)' : 'translateY(0)',
-                  transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 24,
-                  // Color inheritance — FontPreview's <p> picks up the row's text color
-                  color: palette.text,
-                }}
-              >
-                {/* Font name + weight badge — fixed-width left column */}
-                <div style={{
-                  flexShrink: 0,
-                  width: 220,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 7,
-                  borderRight: `1px solid ${palette.text === '#fff' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.08)'}`,
-                  paddingRight: 20,
-                }}>
-                  <span style={{
-                    fontSize: 15,
-                    fontWeight: 800,
-                    color: palette.text,
-                    letterSpacing: '-0.2px',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                  }}>
-                    {font.name}
-                  </span>
-                  <span style={{
-                    alignSelf: 'flex-start',
-                    display: 'inline-block',
-                    padding: '4px 11px',
-                    borderRadius: 20,
-                    fontSize: 11,
-                    fontWeight: 700,
-                    letterSpacing: '0.3px',
-                    textTransform: 'capitalize',
-                    backgroundColor: palette.badgeBg,
-                    color: palette.badgeText,
-                  }}>
-                    {font.weight}
-                  </span>
-                </div>
-
-                {/* Font preview — fills the rest of the row */}
-                <div style={{
-                  flex: 1,
-                  minWidth: 0,
-                  display: 'flex',
-                  alignItems: 'center',
-                }}>
-                  <FontPreview font={font} />
-                </div>
-              </li>
-            );
-          })}
+          {fonts?.map((font, index) => (
+            <FontCard
+              key={font.id}
+              font={font}
+              palette={CARD_COLORS[index % CARD_COLORS.length]}
+            />
+          ))}
         </ul>
-      </div>
-    </div>
+    </AdminPageShell>
   );
 }

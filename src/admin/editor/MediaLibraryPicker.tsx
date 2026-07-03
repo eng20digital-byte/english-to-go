@@ -1,6 +1,5 @@
 import { useRef, useState, type ChangeEvent } from 'react';
-import { Link } from 'react-router-dom';
-import { ArrowLeft, CheckCircle, ImageIcon, Search, Trash2 } from 'lucide-react';
+import { CheckCircle, ImageIcon, Search, Trash2 } from 'lucide-react';
 import { Spinner } from '@/components/Spinner';
 import { supabase } from '@/lib/supabaseClient';
 import { MEDIA_STORAGE_BUCKET, MEDIA_ACCEPTED_FILE_TYPES } from '@/config/media';
@@ -11,6 +10,9 @@ import {
 } from '@/hooks/useMediaLibraryQuery';
 import type { MediaAssetRow } from '@/types/database';
 import { BRAND } from '@/config/theme';
+import { AdminPageShell } from '@/admin/shell/AdminPageShell';
+import { AdminPageHeader } from '@/admin/shell/AdminPageHeader';
+import { EmptyState } from '@/admin/shell/EmptyState';
 
 interface MediaLibraryPickerProps {
   // When provided, renders a "Select" affordance per image and omits the
@@ -57,38 +59,6 @@ function MediaGridSkeleton() {
   );
 }
 
-function EmptyMedia({ embedded }: { embedded: boolean }) {
-  return (
-    <div style={{
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      gap: 16,
-      padding: embedded ? '40px 24px' : '60px 24px',
-      backgroundColor: BRAND.cream,
-      borderRadius: 24,
-      border: '2px dashed rgba(89,178,146,0.4)',
-      textAlign: 'center',
-    }}>
-      <div style={{
-        width: 56, height: 56, borderRadius: '50%',
-        backgroundColor: 'rgba(89,178,146,0.12)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-      }}>
-        <ImageIcon size={24} color={BRAND.green} />
-      </div>
-      <div>
-        <p style={{ margin: 0, fontSize: 16, fontWeight: 700, color: BRAND.text }}>
-          No images uploaded yet
-        </p>
-        <p style={{ margin: '5px 0 0', fontSize: 14, color: BRAND.textMuted }}>
-          Upload an image using the zone above.
-        </p>
-      </div>
-    </div>
-  );
-}
-
 export function MediaLibraryPicker({ onSelect }: MediaLibraryPickerProps = {}) {
   const { data: assets, isLoading } = useMediaAssetsQuery();
   const uploadAsset = useUploadMediaAssetMutation();
@@ -100,7 +70,6 @@ export function MediaLibraryPicker({ onSelect }: MediaLibraryPickerProps = {}) {
 
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [dropZoneHover, setDropZoneHover] = useState(false);
-  const [backLinkHover, setBackLinkHover] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
   async function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
@@ -235,7 +204,15 @@ export function MediaLibraryPicker({ onSelect }: MediaLibraryPickerProps = {}) {
       )}
 
       {isLoading && <MediaGridSkeleton />}
-      {!isLoading && assets?.length === 0 && <EmptyMedia embedded={embedded} />}
+      {!isLoading && assets?.length === 0 && (
+        <EmptyState
+          accent="green"
+          icon={<ImageIcon size={24} color={BRAND.green} />}
+          title="No images uploaded yet"
+          subtitle="Upload an image using the zone above."
+          padding={embedded ? '40px 24px' : '60px 24px'}
+        />
+      )}
       {!isLoading && (assets?.length ?? 0) > 0 && filteredAssets.length === 0 && (
         <p style={{ textAlign: 'center', color: BRAND.textMuted, fontSize: 14, fontWeight: 500, margin: '24px 0' }}>
           No images match "{searchQuery.trim()}"
@@ -385,151 +362,14 @@ export function MediaLibraryPicker({ onSelect }: MediaLibraryPickerProps = {}) {
 
   // Standalone page at /admin/media
   return (
-    <div
-      id="admin-root"
-      style={{
-        minHeight: '100vh',
-        backgroundColor: BRAND.green,
-        position: 'relative',
-        overflow: 'hidden',
-        padding: '28px 32px 64px',
-        fontFamily: 'system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif',
-      }}
-    >
-      {/* ── Background geometric shapes (same visual language as login + dashboard) ── */}
-
-      {/* Large yellow circle — top-left corner */}
-      <div style={{
-        position: 'absolute', top: -120, left: -140,
-        width: 400, height: 400, borderRadius: '50%',
-        backgroundColor: BRAND.yellow,
-        boxShadow: '10px 12px 0 rgba(0,0,0,0.09)',
-        pointerEvents: 'none',
-      }} />
-
-      {/* Pink rounded rectangle — top-right, angled */}
-      <div style={{
-        position: 'absolute', top: -60, right: -80,
-        width: 300, height: 280, borderRadius: 50,
-        backgroundColor: BRAND.pink,
-        transform: 'rotate(18deg)',
-        boxShadow: '-8px 10px 0 rgba(0,0,0,0.08)',
-        pointerEvents: 'none',
-      }} />
-
-      {/* Cream circle — bottom-left */}
-      <div style={{
-        position: 'absolute', bottom: -70, left: -60,
-        width: 240, height: 240, borderRadius: '50%',
-        backgroundColor: BRAND.cream, opacity: 0.55,
-        boxShadow: '8px 6px 0 rgba(0,0,0,0.06)',
-        pointerEvents: 'none',
-      }} />
-
-      {/* Yellow tall pill — mid-right, half off-screen */}
-      <div style={{
-        position: 'absolute', top: '30%', right: -65,
-        width: 120, height: 280, borderRadius: 60,
-        backgroundColor: BRAND.yellow, opacity: 0.55,
-        transform: 'rotate(-20deg)',
-        pointerEvents: 'none',
-      }} />
-
-      {/* Pink shape — bottom-right accent */}
-      <div style={{
-        position: 'absolute', bottom: -70, right: '10%',
-        width: 200, height: 180, borderRadius: 40,
-        backgroundColor: BRAND.pink, opacity: 0.35,
-        transform: 'rotate(8deg)',
-        pointerEvents: 'none',
-      }} />
-
-      {/* Cream small circle — mid-left */}
-      <div style={{
-        position: 'absolute', top: '45%', left: -40,
-        width: 120, height: 120, borderRadius: '50%',
-        backgroundColor: BRAND.cream, opacity: 0.4,
-        pointerEvents: 'none',
-      }} />
-
-      {/* ── Page content ── */}
-      <div style={{ position: 'relative', zIndex: 10, maxWidth: 900, margin: '0 auto' }}>
-
-        {/* ── Floating header card ── */}
-        <header style={{
-          backgroundColor: BRAND.cream,
-          borderRadius: 20,
-          padding: '24px 32px 28px',
-          marginBottom: 28,
-          boxShadow: '0 8px 28px rgba(0,0,0,0.14), 0 2px 6px rgba(0,0,0,0.08)',
-        }}>
-          <Link
-            to="/admin"
-            onMouseEnter={() => setBackLinkHover(true)}
-            onMouseLeave={() => setBackLinkHover(false)}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 7,
-              padding: '7px 14px 7px 10px',
-              borderRadius: 10,
-              fontSize: 13,
-              fontWeight: 700,
-              color: backLinkHover ? BRAND.text : BRAND.green,
-              backgroundColor: backLinkHover ? 'rgba(89,178,146,0.14)' : 'rgba(89,178,146,0.08)',
-              border: `1.5px solid ${backLinkHover ? 'rgba(89,178,146,0.4)' : 'rgba(89,178,146,0.2)'}`,
-              textDecoration: 'none',
-              marginBottom: 20,
-              transition: 'all 0.15s',
-            }}
-          >
-            <ArrowLeft size={14} />
-            Back to Dashboard
-          </Link>
-
-          <div style={{
-            display: 'flex',
-            alignItems: 'flex-start',
-            justifyContent: 'space-between',
-          }}>
-            <div>
-              <h1 style={{
-                margin: 0,
-                fontSize: 28,
-                fontWeight: 800,
-                color: BRAND.text,
-                letterSpacing: '-0.4px',
-                fontFamily: 'inherit',
-              }}>
-                Media Library
-              </h1>
-              <p style={{
-                margin: '7px 0 0',
-                fontSize: 14,
-                color: BRAND.textMuted,
-                fontWeight: 500,
-                lineHeight: 1.5,
-              }}>
-                Images shared across all booklets. Unused images can be safely deleted.
-              </p>
-            </div>
-            {/* Icon badge */}
-            <div style={{
-              width: 52, height: 52,
-              borderRadius: 16,
-              backgroundColor: BRAND.green,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              flexShrink: 0,
-              marginLeft: 20,
-              boxShadow: '4px 4px 0 rgba(0,0,0,0.1)',
-            }}>
-              <ImageIcon size={24} color="#fff" />
-            </div>
-          </div>
-        </header>
-
-        {content}
-      </div>
-    </div>
+    <AdminPageShell variant="media">
+      <AdminPageHeader
+        accent="green"
+        icon={<ImageIcon size={24} color="#fff" />}
+        title="Media Library"
+        subtitle="Images shared across all booklets. Unused images can be safely deleted."
+      />
+      {content}
+    </AdminPageShell>
   );
 }

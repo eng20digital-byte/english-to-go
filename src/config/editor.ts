@@ -33,6 +33,13 @@ export const CLIPBOARD_PASTE_OFFSET = 24;
 export const EDITOR_HANDLE_SIZE = 16;
 export const EDITOR_SELECTION_COLOR = '#2563eb';
 
+// Coral used by the editor selection chrome (border, resize handles, the inline
+// text-edit frame) — matches the var(--primary) token, kept as a constant so
+// the canvas-space inline styles that need it (EditorOverlay + TextEditOverlay)
+// draw from one source instead of repeating the literal.
+export const EDITOR_PRIMARY = 'hsl(22 90% 62%)';
+export const EDITOR_PRIMARY_TINT = 'hsl(22 90% 62% / 0.08)';
+
 // ── Text selection measurement ──────────────────────────────────────────────
 // A text element's selection box is derived from the *actually rendered* glyph
 // bounds (a DOM Range over the text node), not the stored frame w/h — so it

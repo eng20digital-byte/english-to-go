@@ -1,15 +1,16 @@
-import { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
+import { useRef } from 'react';
 import { ChevronDown, ChevronUp, Copy, Trash2 } from 'lucide-react';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { EDITOR_HANDLE_SIZE, EDITOR_MIN_ELEMENT_SIZE } from '@/config/editor';
+import {
+  EDITOR_HANDLE_SIZE,
+  EDITOR_MIN_ELEMENT_SIZE,
+  EDITOR_PRIMARY,
+  EDITOR_PRIMARY_TINT,
+} from '@/config/editor';
 import type { PageElement } from '@/types/elements';
 import type { GeometryChanges } from './useEditorReducer';
 import type { TextContentBox } from './useTextMeasurements';
-
-// Primary coral color — matches var(--primary) token but available as a
-// constant for inline styles (canvas-space coordinates require inline styles).
-const PRIMARY = 'hsl(22 90% 62%)';
-const PRIMARY_LIGHT = 'hsl(22 90% 62% / 0.08)';
+import { ActionBubbleButton } from './ActionBubbleButton';
+import { TextEditOverlay } from './TextEditOverlay';
 
 export interface GeometryOverride {
   id: string;
@@ -161,165 +162,6 @@ function computeGeometry(
   }
 
   return { x, y, w: Math.max(EDITOR_MIN_ELEMENT_SIZE, w), h: Math.max(EDITOR_MIN_ELEMENT_SIZE, h) };
-}
-
-interface ActionBubbleButtonProps {
-  label: string;
-  onClick: () => void;
-  children: React.ReactNode;
-  danger?: boolean;
-}
-
-function ActionBubbleButton({ label, onClick, children, danger }: ActionBubbleButtonProps) {
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <button
-          type="button"
-          onPointerDown={(e) => e.stopPropagation()}
-          onClick={(e) => {
-            e.stopPropagation();
-            onClick();
-          }}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            width: 28,
-            height: 28,
-            borderRadius: '50%',
-            border: 'none',
-            background: 'transparent',
-            cursor: 'pointer',
-            color: danger ? 'hsl(8 80% 58%)' : 'hsl(25 10% 30%)',
-            flexShrink: 0,
-          }}
-          onMouseEnter={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.background = danger
-              ? 'hsl(8 80% 95%)'
-              : 'hsl(38 30% 93%)';
-          }}
-          onMouseLeave={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
-          }}
-        >
-          {children}
-        </button>
-      </TooltipTrigger>
-      <TooltipContent side="top" className="text-xs">
-        {label}
-      </TooltipContent>
-    </Tooltip>
-  );
-}
-
-interface TextEditOverlayProps {
-  element: PageElement & { type: 'text' };
-  scale: number;
-  onContentChange: (content: string) => void;
-  onClose: () => void;
-}
-
-function TextEditOverlay({ element, scale, onContentChange, onClose }: TextEditOverlayProps) {
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const { content, font_id, font_size, color, align, line_height, direction } = element.props;
-  // Same @font-face family the renderer uses (registered globally on
-  // document.fonts), so the editing text wraps and looks exactly like the
-  // on-canvas text rather than the admin chrome's system font.
-  const familyName = `font-${font_id}`;
-
-  // Focus and drop the caret at the end exactly once, when editing begins.
-  // Re-running this on every content change (the previous behavior, keyed on
-  // content.length) is what forced the caret back to the end after each
-  // keystroke — making it impossible to type anywhere but the end. With a
-  // mount-only effect the textarea manages its own caret/selection natively:
-  // click to place, drag to select, arrow keys, mid-text insert/delete.
-  useEffect(() => {
-    const ta = textareaRef.current;
-    if (!ta) return;
-    ta.focus();
-    const end = ta.value.length;
-    ta.setSelectionRange(end, end);
-  }, []);
-
-  // Auto-grow the editing box to the rendered text height instead of the stored
-  // frame `h`, so the frame hugs the text and tracks typing / deleting / line
-  // re-wrapping live. Width stays the wrapping width (`element.w`) on purpose:
-  // the textarea must wrap at the same width as the on-canvas text for its line
-  // breaks — and therefore the caret — to line up with what's rendered.
-  const autoGrow = useCallback(() => {
-    const ta = textareaRef.current;
-    if (!ta) return;
-    ta.style.height = 'auto';
-    ta.style.height = `${ta.scrollHeight}px`;
-  }, []);
-
-  // useLayoutEffect: resize before paint so the frame never flashes a stale
-  // height as content changes.
-  useLayoutEffect(() => {
-    autoGrow();
-  }, [autoGrow, content, font_id, font_size, line_height, align, direction, scale]);
-
-  // Web fonts load asynchronously; once the real font applies, metrics (and so
-  // the height) change — re-grow when font loading settles.
-  useEffect(() => {
-    let cancelled = false;
-    document.fonts?.ready.then(() => {
-      if (!cancelled) autoGrow();
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [autoGrow]);
-
-  return (
-    <textarea
-      ref={textareaRef}
-      value={content}
-      rows={1}
-      onChange={(e) => onContentChange(e.target.value)}
-      onBlur={onClose}
-      onKeyDown={(e) => {
-        if (e.key === 'Escape') {
-          e.preventDefault();
-          onClose();
-        }
-      }}
-      onPointerDown={(e) => e.stopPropagation()}
-      dir={direction}
-      style={{
-        position: 'absolute',
-        left: element.x * scale,
-        top: element.y * scale,
-        width: element.w * scale,
-        // No `height` here — it's auto-grown imperatively (see autoGrow) so the
-        // frame matches the rendered text, not the stored `element.h`.
-        fontFamily: familyName,
-        fontSize: font_size * scale,
-        lineHeight: line_height,
-        color,
-        textAlign: align,
-        background: 'hsla(0 0% 100% / 0.92)',
-        // box-shadow (not border) draws the frame outside the box model, so it
-        // can't shift the text off the rendered glyphs the way the old
-        // border + padding did. padding:0 keeps the first glyph at the element
-        // origin, exactly where the canvas renders it.
-        boxShadow: `0 0 0 2px ${PRIMARY}`,
-        borderRadius: 2,
-        border: 'none',
-        padding: 0,
-        margin: 0,
-        resize: 'none',
-        outline: 'none',
-        overflow: 'hidden',
-        zIndex: 1000,
-        boxSizing: 'border-box',
-        overflowWrap: 'break-word',
-        whiteSpace: 'pre-wrap',
-        cursor: 'text',
-      }}
-    />
-  );
 }
 
 interface EditorOverlayProps {
@@ -487,8 +329,8 @@ export function EditorOverlay({
             top: toScreen(selectedRect.y),
             width: toScreen(selectedRect.w),
             height: toScreen(selectedRect.h),
-            border: `2px solid ${PRIMARY}`,
-            background: PRIMARY_LIGHT,
+            border: `2px solid ${EDITOR_PRIMARY}`,
+            background: EDITOR_PRIMARY_TINT,
             pointerEvents: 'none',
             boxSizing: 'border-box',
           }}
@@ -517,7 +359,7 @@ export function EditorOverlay({
               width: EDITOR_HANDLE_SIZE,
               height: EDITOR_HANDLE_SIZE,
               background: 'white',
-              border: `2px solid ${PRIMARY}`,
+              border: `2px solid ${EDITOR_PRIMARY}`,
               borderRadius: 2,
               boxShadow: '0 1px 4px rgba(0,0,0,0.2)',
               cursor,

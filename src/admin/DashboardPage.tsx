@@ -4,15 +4,11 @@ import { BookOpen, ImageIcon, Type, LogOut } from 'lucide-react';
 import { useAuth } from '@/auth/AuthContext';
 import { supabase } from '@/lib/supabaseClient';
 import { BRAND } from '@/config/theme';
-import { CreditsPanel } from '@/reader/CreditsPanel';
+import { CreditsPanel } from '@/components/CreditsPanel';
 import { ADMIN_DASHBOARD_STACK_BREAKPOINT } from '@/config/admin';
-import { useViewportWidth } from '@/reader/useViewportWidth';
-
-function cardShadow(hovered: boolean) {
-  return hovered
-    ? '0 20px 50px rgba(0,0,0,0.2), 0 8px 20px rgba(0,0,0,0.12)'
-    : '0 8px 24px rgba(0,0,0,0.14), 0 2px 6px rgba(0,0,0,0.08)';
-}
+import { useViewportWidth } from '@/hooks/useViewportWidth';
+import { AdminPageShell } from '@/admin/shell/AdminPageShell';
+import { cardShadow } from '@/admin/shell/adminControls';
 
 // Admin nav hub — booklets/fonts/media each get their own page rather than
 // living here, so this stays a thin index rather than growing into a
@@ -30,82 +26,7 @@ export function DashboardPage() {
   const stacked = useViewportWidth() < ADMIN_DASHBOARD_STACK_BREAKPOINT;
 
   return (
-    <div
-      id="admin-root"
-      style={{
-        // On wide screens, fixed viewport height + overflow:hidden keeps the
-        // dashboard a single non-scrolling hub screen (minHeight would let the
-        // box grow past the viewport and re-introduce page scroll). Once the
-        // cards stack (narrow screens) the content is taller than the viewport,
-        // so switch to minHeight + vertical scroll instead of clipping it.
-        height: stacked ? 'auto' : '100vh',
-        minHeight: stacked ? '100vh' : undefined,
-        backgroundColor: BRAND.green,
-        position: 'relative',
-        overflow: stacked ? 'hidden auto' : 'hidden',
-        padding: '28px 32px 64px',
-        fontFamily: 'system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif',
-      }}
-    >
-      {/* ── Background geometric shapes ────────────────────────────────────────
-          Same visual language as the login page — flat paper-cut shapes
-          erupting from viewport edges. No gradients, no glassmorphism. */}
-
-      {/* Large yellow circle — top-right corner */}
-      <div style={{
-        position: 'absolute', top: -100, right: -120,
-        width: 380, height: 380, borderRadius: '50%',
-        backgroundColor: BRAND.yellow,
-        boxShadow: '-10px 12px 0 rgba(0,0,0,0.09)',
-        pointerEvents: 'none',
-      }} />
-
-      {/* Pink rounded rectangle — bottom-left, angled */}
-      <div style={{
-        position: 'absolute', bottom: -90, left: -80,
-        width: 340, height: 290, borderRadius: 55,
-        backgroundColor: BRAND.pink,
-        transform: 'rotate(-12deg)',
-        boxShadow: '8px -8px 0 rgba(0,0,0,0.08)',
-        pointerEvents: 'none',
-      }} />
-
-      {/* Cream circle — bottom-right, partially off-screen */}
-      <div style={{
-        position: 'absolute', bottom: -60, right: '6%',
-        width: 240, height: 240, borderRadius: '50%',
-        backgroundColor: BRAND.cream, opacity: 0.55,
-        boxShadow: '-6px -6px 0 rgba(0,0,0,0.06)',
-        pointerEvents: 'none',
-      }} />
-
-      {/* Yellow tall pill — mid-left, half off-screen */}
-      <div style={{
-        position: 'absolute', top: '38%', left: -65,
-        width: 120, height: 270, borderRadius: 60,
-        backgroundColor: BRAND.yellow, opacity: 0.55,
-        transform: 'rotate(18deg)',
-        pointerEvents: 'none',
-      }} />
-
-      {/* Pink small circle — upper area, adds texture */}
-      <div style={{
-        position: 'absolute', top: '14%', left: '14%',
-        width: 80, height: 80, borderRadius: '50%',
-        backgroundColor: BRAND.pink, opacity: 0.22,
-        pointerEvents: 'none',
-      }} />
-
-      {/* Cream small shape — mid-right */}
-      <div style={{
-        position: 'absolute', top: '55%', right: -40,
-        width: 130, height: 130, borderRadius: '50%',
-        backgroundColor: BRAND.cream, opacity: 0.35,
-        pointerEvents: 'none',
-      }} />
-
-      {/* ── Page content ── */}
-      <div style={{ position: 'relative', zIndex: 10, maxWidth: 900, margin: '0 auto' }}>
+    <AdminPageShell variant="dashboard" hubScroll={stacked} footer={<CreditsPanel />}>
 
         {/* ── Navbar — floating cream paper card ── */}
         <header style={{
@@ -350,19 +271,6 @@ export function DashboardPage() {
           </Link>
 
         </div>
-      </div>
-
-      {/* Credits panel — same slide-in-from-left card as the reader, pinned to
-          the bottom-left corner of the dashboard. */}
-      <div style={{
-        position: 'fixed',
-        left: 0,
-        bottom: 24,
-        zIndex: 20,
-        display: 'flex',
-      }}>
-        <CreditsPanel />
-      </div>
-    </div>
+    </AdminPageShell>
   );
 }
