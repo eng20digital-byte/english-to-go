@@ -26,6 +26,11 @@ import { BookBackCover } from './BookBackCover';
 import { usePagePreloader } from './useNextPagePreloader';
 import { useCoverImageReady } from './useCoverImageReady';
 import { prefersReducedMotion } from './prefersReducedMotion';
+import { ReaderBgShapes } from './ReaderBgShapes';
+import { ReaderLoadingState } from './ReaderLoadingState';
+import { ReaderError } from './ReaderError';
+import { NavArrow } from './NavArrow';
+import { useReaderKeyboard } from './useReaderKeyboard';
 import { BRAND } from '@/config/theme';
 
 // Dots for ≤12 pages; progress bar for longer booklets.
@@ -36,137 +41,6 @@ const DOT_NAV_MAX = 12;
 // reserved for the animated transitions layered on in C3.3/C3.4.
 type CoverState = 'closed' | 'opening' | 'closing' | 'open';
 type BackCoverState = 'hidden' | 'entering' | 'exiting' | 'visible';
-
-// Decorative paper-cut background shapes — same visual language as admin pages.
-function BgShapes() {
-  return (
-    <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none' }}>
-      <div style={{ position: 'absolute', width: 500, height: 500, borderRadius: '50%', top: -160, right: -120, backgroundColor: BRAND.yellow, opacity: 0.22, boxShadow: '8px 10px 0 rgba(0,0,0,0.05)' }} />
-      <div style={{ position: 'absolute', width: 400, height: 200, borderRadius: 110, bottom: -80, left: -100, backgroundColor: BRAND.cream, opacity: 0.2, boxShadow: '6px 8px 0 rgba(0,0,0,0.05)' }} />
-      <div style={{ position: 'absolute', width: 260, height: 260, borderRadius: '50%', top: '38%', left: -90, backgroundColor: BRAND.pink, opacity: 0.14, boxShadow: '6px 8px 0 rgba(0,0,0,0.06)' }} />
-      <div style={{ position: 'absolute', width: 320, height: 320, borderRadius: '50%', bottom: -80, right: -60, backgroundColor: '#3d9b7a', opacity: 0.18 }} />
-      <div style={{ position: 'absolute', width: 140, height: 240, borderRadius: 46, top: 40, left: '25%', backgroundColor: BRAND.cream, opacity: 0.07 }} />
-    </div>
-  );
-}
-
-function LoadingState() {
-  return (
-    <div id="reader-root" translate="no" style={{
-      position: 'fixed', inset: 0,
-      backgroundColor: BRAND.green, overflow: 'hidden',
-      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20,
-      fontFamily: 'system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif',
-    }}>
-      <BgShapes />
-      <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
-        <div style={{ width: 420, height: 236, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.12)', animation: 'sk-pulse 1.5s ease-in-out infinite', boxShadow: '0 16px 48px rgba(0,0,0,0.2)' }} />
-        <div style={{ display: 'flex', gap: 6 }}>
-          {[0, 1, 2, 3].map((i) => (
-            <div key={i} style={{ width: i === 0 ? 20 : 8, height: 8, borderRadius: 6, backgroundColor: 'rgba(255,255,255,0.2)', animation: 'sk-pulse 1.5s ease-in-out infinite' }} />
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ReaderError({ icon, message }: { icon: React.ReactNode; message: string }) {
-  return (
-    <div id="reader-root" translate="no" style={{
-      position: 'fixed', inset: 0,
-      backgroundColor: BRAND.green, overflow: 'hidden',
-      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20,
-      fontFamily: 'system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif',
-    }}>
-      <BgShapes />
-      <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, textAlign: 'center', padding: '0 24px' }}>
-        <div style={{ width: 64, height: 64, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.18)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          {icon}
-        </div>
-        <p style={{ margin: 0, color: 'rgba(255,255,255,0.82)', fontSize: 15, maxWidth: 225, lineHeight: 1.5 }}>{message}</p>
-      </div>
-    </div>
-  );
-}
-
-// Prev/next arrow visual config, keyed by direction. Pulled out of the render
-// body so the single <NavArrow> component below can be reused both flanking the
-// book (desktop) and stacked in a bottom bar (mobile) without duplicating the
-// full style block per placement.
-const NAV_ARROW_STYLE = {
-  prev: {
-    disabledBg: 'rgba(250,103,129,0.18)',
-    hoverBg: BRAND.pink,
-    bg: 'rgba(250,103,129,0.82)',
-    disabledColor: 'rgba(26,26,26,0.22)',
-    color: '#fff',
-    hoverShadow: '0 8px 24px rgba(250,103,129,0.5)',
-    shadow: '0 4px 16px rgba(250,103,129,0.32)',
-    label: 'Previous page',
-    path: 'M15 18L9 12L15 6',
-  },
-  next: {
-    disabledBg: 'rgba(255,201,77,0.18)',
-    hoverBg: BRAND.yellow,
-    bg: 'rgba(255,201,77,0.88)',
-    disabledColor: 'rgba(26,26,26,0.18)',
-    color: BRAND.text,
-    hoverShadow: '0 8px 24px rgba(255,201,77,0.5)',
-    shadow: '0 4px 16px rgba(255,201,77,0.35)',
-    label: 'Next page',
-    path: 'M9 18L15 12L9 6',
-  },
-} as const;
-
-function NavArrow({
-  direction,
-  disabled,
-  hover,
-  onHoverChange,
-  onClick,
-  isMobile,
-}: {
-  direction: 'prev' | 'next';
-  disabled: boolean;
-  hover: boolean;
-  onHoverChange: (v: boolean) => void;
-  onClick: () => void;
-  isMobile: boolean;
-}) {
-  const s = NAV_ARROW_STYLE[direction];
-  return (
-    <button
-      type="button"
-      aria-label={s.label}
-      onClick={onClick}
-      disabled={disabled}
-      onMouseEnter={() => onHoverChange(true)}
-      onMouseLeave={() => onHoverChange(false)}
-      style={{
-        flexShrink: 0,
-        transform: `scale(${!disabled && hover ? 1.08 : 1})`,
-        zIndex: 20,
-        // Flanking the book (desktop) → tall/narrow; in the bottom bar (mobile)
-        // → wide/short for a comfortable thumb target clear of the side rail.
-        width: isMobile ? 64 : 44,
-        height: isMobile ? 46 : 60,
-        borderRadius: 14,
-        border: 'none',
-        backgroundColor: disabled ? s.disabledBg : hover ? s.hoverBg : s.bg,
-        color: disabled ? s.disabledColor : s.color,
-        cursor: disabled ? 'default' : 'pointer',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        boxShadow: disabled ? 'none' : hover ? s.hoverShadow : s.shadow,
-        backdropFilter: disabled ? 'none' : 'blur(10px)',
-        transition: 'background-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease',
-        fontFamily: 'inherit',
-      }}
-    >
-      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={s.path}/></svg>
-    </button>
-  );
-}
 
 // Public reader — fullscreen presentation mode.
 //
@@ -254,82 +128,23 @@ export function ReaderBookletPage() {
   usePagePreloader(booklet, pageIndex);
   const coverImageReady = useCoverImageReady(booklet);
 
-  // While the cover is closed, ArrowRight / Enter open it. Declared before the
-  // early returns (hooks rule), so `showCover` is recomputed inline from the
-  // currently-loaded booklet. PageFlip isn't mounted while closed, so its own
-  // ArrowRight handler can't conflict.
-  useEffect(() => {
-    if (!booklet) return;
-    const cover = booklet.pages.find((p) => p.is_cover) ?? null;
-    const showCover = cover !== null && coverState !== 'open';
-    if (!showCover) return;
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'ArrowRight' || event.key === 'Enter') {
-        event.preventDefault();
-        openCover();
-      }
-    }
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [booklet, coverState, openCover]);
-
-  // While open AT spread 0 of a cover booklet, ArrowLeft re-closes the cover.
-  // Same hooks-before-early-returns constraint as the open handler: `canClose`
-  // is recomputed inline from the loaded booklet + pageIndex. PageFlip's own
-  // ArrowLeft also fires but no-ops at index 0, so there's no conflict.
-  useEffect(() => {
-    if (!booklet) return;
-    const cover = booklet.pages.find((p) => p.is_cover) ?? null;
-    const spreads = booklet.pages.filter((p) => !p.is_cover && !p.is_back_cover);
-    const clampedIndex = Math.min(pageIndex, Math.max(0, spreads.length - 1));
-    const canClose = cover !== null && coverState === 'open' && clampedIndex === 0;
-    if (!canClose) return;
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'ArrowLeft') {
-        event.preventDefault();
-        closeCover();
-      }
-    }
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [booklet, coverState, pageIndex, closeCover]);
-
-  // While back cover is showing, ArrowLeft exits to last spread.
-  useEffect(() => {
-    if (!booklet) return;
-    const cover = booklet.pages.find((p) => p.is_cover) ?? null;
-    const showCover = cover !== null && coverState !== 'open';
-    if (!showBackCover || isFlipping || showCover) return;
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'ArrowLeft') {
-        event.preventDefault();
-        exitBackCover();
-      }
-    }
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [booklet, coverState, showBackCover, isFlipping, exitBackCover]);
-
-  // At the last spread (back cover not yet showing), ArrowRight enters the back
-  // cover. PageFlip's own ArrowRight no-ops at the last index, so no conflict.
-  useEffect(() => {
-    if (!booklet) return;
-    const cover = booklet.pages.find((p) => p.is_cover) ?? null;
-    const backCover = booklet.pages.find((p) => p.is_back_cover) ?? null;
-    const spreads = booklet.pages.filter((p) => !p.is_cover && !p.is_back_cover);
-    const clampedIndex = Math.min(pageIndex, Math.max(0, spreads.length - 1));
-    const showCover = cover !== null && coverState !== 'open';
-    const atLastSpread = clampedIndex === spreads.length - 1;
-    if (!atLastSpread || !backCover || showBackCover || showCover || isFlipping) return;
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'ArrowRight') {
-        event.preventDefault();
-        enterBackCover();
-      }
-    }
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [booklet, coverState, pageIndex, showBackCover, isFlipping, enterBackCover]);
+  // Arrow-key navigation for the cover / back-cover transitions (open, close,
+  // enter, exit) — one listener, each action keeping its original guard. See
+  // useReaderKeyboard. Declared before the early returns (hooks rule); it
+  // recomputes its guards from the loaded booklet. PageFlip owns arrow keys only
+  // while the open book shows, and each case here is guarded on !showCover /
+  // !showBackCover, so there's no conflict.
+  useReaderKeyboard({
+    booklet,
+    coverState,
+    pageIndex,
+    showBackCover,
+    isFlipping,
+    onOpenCover: openCover,
+    onCloseCover: closeCover,
+    onEnterBackCover: enterBackCover,
+    onExitBackCover: exitBackCover,
+  });
 
   // Auto-close every open left-edge side panel (dictionary, speech-rate,
   // credits) the moment the reader turns a page, so a flip never leaves a panel
@@ -348,11 +163,11 @@ export function ReaderBookletPage() {
     setPanelCloseSignal((n) => n + 1);
   }, [pageIndex, isFlipping, coverState, backCoverState]);
 
-  if (isLoading) return <LoadingState />;
+  if (isLoading) return <ReaderLoadingState />;
   if (isError) return <ReaderError icon={<AlertTriangle size={26} color="rgba(255,193,77,0.9)" />} message="Something went wrong loading this booklet. Please try again." />;
   if (!booklet) return <ReaderError icon={<BookX size={26} color="rgba(255,255,255,0.7)" />} message="This booklet could not be found. It may not be published or disabled" />;
   if (booklet.pages.length === 0) return <ReaderError icon={<BookOpen size={26} color="rgba(255,255,255,0.7)" />} message="This booklet has no pages yet." />;
-  if (!coverImageReady) return <LoadingState />;
+  if (!coverImageReady) return <ReaderLoadingState />;
 
   // Split covers from spreads. All open-book logic drives on `spreads` only —
   // neither cover is counted in the dot indicator or page counter.
@@ -464,7 +279,7 @@ export function ReaderBookletPage() {
         fontFamily: 'system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif',
       }}
     >
-      <BgShapes />
+      <ReaderBgShapes />
 
       <WordSpeechProvider>
         <div style={{ position: 'absolute', inset: 0, zIndex: 1, display: 'flex', flexDirection: 'column' }}>
