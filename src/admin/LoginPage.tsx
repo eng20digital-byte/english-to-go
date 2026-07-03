@@ -3,7 +3,7 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/auth/AuthContext';
 import { supabase } from '@/lib/supabaseClient';
 import { BRAND } from '@/config/theme';
-import { CreditsPanel } from '@/reader/CreditsPanel';
+import { CreditsPanel } from '@/components/CreditsPanel';
 import { AdminPageShell } from '@/admin/shell/AdminPageShell';
 import { inputStyle, submitButtonStyle } from '@/admin/shell/adminControls';
 

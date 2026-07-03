@@ -4,7 +4,7 @@ import { BookOpen, ImageIcon, Type, LogOut } from 'lucide-react';
 import { useAuth } from '@/auth/AuthContext';
 import { supabase } from '@/lib/supabaseClient';
 import { BRAND } from '@/config/theme';
-import { CreditsPanel } from '@/reader/CreditsPanel';
+import { CreditsPanel } from '@/components/CreditsPanel';
 import { ADMIN_DASHBOARD_STACK_BREAKPOINT } from '@/config/admin';
 import { useViewportWidth } from '@/hooks/useViewportWidth';
 import { AdminPageShell } from '@/admin/shell/AdminPageShell';

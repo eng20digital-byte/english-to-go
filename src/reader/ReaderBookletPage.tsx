@@ -20,7 +20,7 @@ import { SIDEBAR_PANEL_GAP } from '@/config/vocabulary';
 import { useViewportWidth } from '@/hooks/useViewportWidth';
 import { PageFlip } from './PageFlip';
 import { VocabularyPanel } from './VocabularyPanel';
-import { CreditsPanel } from './CreditsPanel';
+import { CreditsPanel } from '@/components/CreditsPanel';
 import { BookCover } from './BookCover';
 import { BookBackCover } from './BookBackCover';
 import { usePagePreloader } from './useNextPagePreloader';
