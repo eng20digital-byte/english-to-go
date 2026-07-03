@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { BRAND } from '@/config/theme';
 import { CreditsPanel } from '@/reader/CreditsPanel';
 import { ADMIN_DASHBOARD_STACK_BREAKPOINT } from '@/config/admin';
-import { useViewportWidth } from '@/reader/useViewportWidth';
+import { useViewportWidth } from '@/hooks/useViewportWidth';
 import { AdminPageShell } from '@/admin/shell/AdminPageShell';
 import { cardShadow } from '@/admin/shell/adminControls';
 

@@ -14,7 +14,9 @@ React + Vite + TypeScript, Supabase (Postgres DB, Auth, Storage) — no custom b
 
 ## Deployment
 
-**Cloudflare Pages, free tier.** Chosen over Vercel because the public reader serves anonymous/public traffic with unpredictable volume, and Cloudflare Pages' free tier has no bandwidth cap (Vercel's free tier caps at 100GB/mo). `public/_redirects` (`/* /index.html 200`) handles SPA fallback routing.
+**Vercel, free (Hobby) tier.** Originally planned for Cloudflare Pages (no bandwidth cap on its free tier, vs. Vercel Hobby's 100GB/mo), but the decision was changed to Vercel — needed for `api/keep-alive.ts`, a Vercel serverless function + native Cron Job (`vercel.json`) that pings Supabase every 6h so the free-tier Supabase project doesn't pause after 7 days of inactivity. SPA fallback routing is handled by the `rewrites` rule in `vercel.json`, not `public/_redirects` (that file is a leftover from the Cloudflare Pages plan and is no longer read by the live deployment).
+
+**Known consequence of this switch**: Vercel Hobby's 100GB/mo bandwidth cap now applies to the public reader's anonymous traffic (previously avoided by choosing Cloudflare). If reader traffic grows, this cap — not Supabase — may become the first thing to hit.
 
 ## Routing
 
@@ -247,7 +249,10 @@ scripts/
   convert-fonts.mjs               -- re-runnable TTF/OTF -> WOFF2
 fonts/                             -- source TTF/OTF files (input to the script above)
 public/
-  _redirects                      -- Cloudflare Pages SPA fallback
+  _redirects                      -- unused leftover from the earlier Cloudflare Pages plan; live SPA fallback is vercel.json's rewrites
+api/
+  keep-alive.ts                    -- Vercel serverless function, hit by vercel.json's Cron Job to keep the free-tier Supabase project awake
+vercel.json                        -- SPA rewrites + Cron Job schedule for api/keep-alive.ts
 supabase/
   migrations/
     0001_init.sql

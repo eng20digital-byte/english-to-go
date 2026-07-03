@@ -17,7 +17,7 @@ import {
   SWIPE_THRESHOLD_RATIO,
 } from '@/config/reader';
 import { SIDEBAR_PANEL_GAP } from '@/config/vocabulary';
-import { useViewportWidth } from './useViewportWidth';
+import { useViewportWidth } from '@/hooks/useViewportWidth';
 import { PageFlip } from './PageFlip';
 import { VocabularyPanel } from './VocabularyPanel';
 import { CreditsPanel } from './CreditsPanel';

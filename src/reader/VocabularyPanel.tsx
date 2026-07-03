@@ -24,7 +24,7 @@ import {
   VOCABULARY_PANEL_VIEWPORT_WIDTH_RATIO,
   VOCABULARY_WORD_SEPARATOR,
 } from '@/config/vocabulary';
-import { useViewportWidth } from './useViewportWidth';
+import { useViewportWidth } from '@/hooks/useViewportWidth';
 import { useWordSpeech } from '@/tts/useWordSpeech';
 import type { ReaderBookletPage } from '@/hooks/useBookletQuery';
 import type { VocabularyWord } from '@/types/elements';

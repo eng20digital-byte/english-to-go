@@ -13,7 +13,7 @@ import {
   VOCABULARY_PANEL_PADDING,
   VOCABULARY_PANEL_SLIDE_MS,
 } from '@/config/vocabulary';
-import { useViewportHeight } from './useViewportWidth';
+import { useViewportHeight } from '@/hooks/useViewportWidth';
 
 // Left-sidebar credits panel — same slide-in-from-left pattern as VocabularyPanel.
 // Sits below the Dictionary panel in the sidebar container owned by
