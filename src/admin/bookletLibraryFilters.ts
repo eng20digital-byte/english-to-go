@@ -34,10 +34,13 @@ const SORT_COMPARATORS: Record<BookletSortValue, (a: BookletRow, b: BookletRow) 
   'title-desc': (a, b) => byTitle(b, a),
 };
 
-export function filterAndSortBooklets(
-  booklets: BookletRow[],
+// Generic over the row so callers passing an extended row (e.g. the list item
+// carrying a recipient_count) keep that field through the filter/sort — the
+// rules only read BookletRow fields.
+export function filterAndSortBooklets<T extends BookletRow>(
+  booklets: T[],
   { search, status, sort }: BookletFilterState,
-): BookletRow[] {
+): T[] {
   const filtered = booklets.filter(
     (b) => (status === 'all' || b.status === status) && matchesSearch(b, search),
   );

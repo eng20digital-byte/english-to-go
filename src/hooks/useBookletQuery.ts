@@ -43,14 +43,17 @@ interface BookletQueryRow {
   }[];
 }
 
-// Single nested select pulls the booklet, its pages, and each page's
-// elements in one round trip — RLS is enforced independently at each table
-// (booklets/pages/page_elements), so anonymous callers only ever see rows
-// belonging to a published booklet. That means an unknown token and a
-// draft/disabled one both resolve here to the same `null`; the reader
-// renders one generic not-found state for both (see CLAUDE.md "No draft/live
-// content fork" and M5 manual verification steps 3-4) rather than leaking
-// which case occurred.
+// Resolves a booklet for the public reader through the get_booklet_by_token RPC
+// (migration 0009). The RPC is a security definer that first resolves a
+// per-recipient access_token (a published grant, expiry enforced server-side),
+// then falls back to the admin master link (booklets.public_token +
+// status='published') — returning the exact same nested booklet → pages →
+// elements shape the old RLS nested-select returned. An unknown token and a
+// draft/disabled/unpublished/expired one all resolve to the same `null`; the
+// reader renders one generic not-found for every case (see CLAUDE.md "No
+// draft/live content fork" and M5 verification steps 3-4) rather than leaking
+// which case occurred. Pages/elements come back pre-ordered (page_order, then
+// z_index) from the RPC, so no client-side ordering is needed.
 export function useBookletByToken(token: string | undefined) {
   return useQuery({
     queryKey: ['booklet', token],
@@ -58,14 +61,7 @@ export function useBookletByToken(token: string | undefined) {
     queryFn: async (): Promise<ReaderBooklet | null> => {
       if (!token) return null;
 
-      const { data, error } = await supabase
-        .from('booklets')
-        .select(
-          'id, title, canvas_width, canvas_height, background_color, quiz_embed_code, quiz_embed_height, show_quiz_on_last_spread, pages(id, page_order, is_quiz_page, is_cover, is_back_cover, page_elements(id, page_id, type, z_index, x, y, w, h, rotation, props))',
-        )
-        .eq('public_token', token)
-        .order('page_order', { referencedTable: 'pages' })
-        .maybeSingle();
+      const { data, error } = await supabase.rpc('get_booklet_by_token', { p_token: token });
       if (error) throw error;
       if (!data) return null;
 
@@ -96,21 +92,36 @@ export function useBookletByToken(token: string | undefined) {
 // see every status, unlike the public useBookletByToken above.
 // ============================================================================
 
-const ADMIN_BOOKLETS_QUERY_KEY = ['admin-booklets'] as const;
+// Exported so recipient mutations (useBookletRecipientsQuery) can invalidate the
+// same key — a card's recipient count (RP3) is refetched from this list query.
+export const ADMIN_BOOKLETS_QUERY_KEY = ['admin-booklets'] as const;
 const adminBookletQueryKey = (id: string) => ['admin-booklet', id] as const;
+
+// A library card also shows how many recipients a booklet has ("Manage users
+// (N)"), so the list query carries a recipient_count alongside the booklet row.
+export interface BookletListItem extends BookletRow {
+  recipient_count: number;
+}
 
 export function useBookletsQuery() {
   return useQuery({
     queryKey: ADMIN_BOOKLETS_QUERY_KEY,
-    queryFn: async (): Promise<BookletRow[]> => {
+    queryFn: async (): Promise<BookletListItem[]> => {
+      // booklet_recipients(count) is a single aggregate embed — one query for all
+      // cards, not an N+1 per card. PostgREST returns it as [{ count }].
       const { data, error } = await supabase
         .from('booklets')
         .select(
-          'id, public_token, title, status, canvas_width, canvas_height, background_color, quiz_embed_code, quiz_embed_height, show_quiz_on_last_spread, created_at, updated_at',
+          'id, public_token, title, status, canvas_width, canvas_height, background_color, quiz_embed_code, quiz_embed_height, show_quiz_on_last_spread, created_at, updated_at, booklet_recipients(count)',
         )
         .order('created_at', { ascending: false });
       if (error) throw error;
-      return data;
+      return (data ?? []).map((row) => {
+        const { booklet_recipients, ...booklet } = row as BookletRow & {
+          booklet_recipients: { count: number }[] | null;
+        };
+        return { ...booklet, recipient_count: booklet_recipients?.[0]?.count ?? 0 };
+      });
     },
   });
 }

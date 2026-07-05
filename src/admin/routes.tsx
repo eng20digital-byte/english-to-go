@@ -2,6 +2,7 @@ import { Route, Routes } from 'react-router-dom';
 import { DashboardPage } from '@/admin/DashboardPage';
 import { BookletListPage } from '@/admin/BookletListPage';
 import { BookletEditorPage } from '@/admin/BookletEditorPage';
+import { BookletUsersPage } from '@/admin/booklets/BookletUsersPage';
 import { FontManagerPage } from '@/admin/fonts/FontManagerPage';
 import { MediaLibraryPicker } from '@/admin/editor/MediaLibraryPicker';
 
@@ -12,6 +13,10 @@ export function AdminRoutes() {
       <Route path="/" element={<DashboardPage />} />
       <Route path="/booklets" element={<BookletListPage />} />
       <Route path="/booklets/:bookletId" element={<BookletEditorPage />} />
+      {/* Per-recipient publication (RP3): manage a booklet's private per-user
+          links. A static "/users" segment, so it ranks ahead of the dynamic
+          "/pages/:pageId" sibling regardless of declaration order. */}
+      <Route path="/booklets/:bookletId/users" element={<BookletUsersPage />} />
       {/* M8 mounts the real per-page editor at this nested route; M7 renders
           BookletEditorPage's placeholder panel for it (see CLAUDE.md M8 scope:
           "Per-page editor route nested under the booklet shell"). */}

@@ -280,10 +280,10 @@ export function BookletListPage() {
                 key={booklet.id}
                 booklet={booklet}
                 palette={CARD_COLORS[index % CARD_COLORS.length]}
+                recipientCount={booklet.recipient_count}
                 isUpdating={updateStatus.isPending}
                 onPublish={() => updateStatus.mutate({ id: booklet.id, status: 'published' })}
                 onUnpublish={() => updateStatus.mutate({ id: booklet.id, status: 'draft' })}
-                onDisable={() => updateStatus.mutate({ id: booklet.id, status: 'disabled' })}
                 onReenable={() => setReenableTarget(booklet)}
                 onDelete={() => setDeleteTarget(booklet)}
               />
