@@ -45,3 +45,22 @@ export interface PageRow {
   is_back_cover: boolean;
   created_at: string;
 }
+
+// Per-recipient publication (migration 0009). Each booklet can hand out many
+// independent links, one per named recipient, each published/unpublished on its
+// own schedule (manual toggle or timed expiry) — separate from the admin's
+// master link (booklets.status + public_token). Used from RP2 on; defined here
+// so the DB shape lives in one place.
+export type RecipientStatus = 'published' | 'unpublished';
+
+export interface BookletRecipientRow {
+  id: string;
+  booklet_id: string;
+  name: string;
+  access_token: string;
+  status: RecipientStatus;
+  expires_at: string | null;
+  published_at: string | null;
+  created_at: string;
+  updated_at: string;
+}

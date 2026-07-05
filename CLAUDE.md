@@ -24,7 +24,8 @@ Single app, client-side route split — not two separate deployments:
 
 - `/admin/*` — auth-gated via `RequireAuth` (Supabase session + `admin_users` row check)
 - `/admin/login`
-- `/b/:token` — public reader, no auth, only `status = 'published'` booklets resolve (RLS-enforced); `draft` and `disabled` both resolve to the same not-found behavior
+- `/admin/booklets/:bookletId/users` — per-booklet recipient management (see "Recipient publication")
+- `/b/:token` — public reader, no auth. The token resolves through the `get_booklet_by_token` RPC (not the RLS nested-select — see "Recipient publication"), which accepts **two** link types at the same path: a **recipient** link (`booklet_recipients.access_token`, gated per-grant by its own `status` + optional `expires_at`) or the **master (admin)** link (`booklets.public_token`, gated by `booklets.status = 'published'`). Anything unresolved — unknown / `draft` / `disabled` / unpublished-recipient / revoked / expired — returns the same not-found behavior, leaking no status information.
 
 ## Core architecture rules
 
@@ -87,9 +88,9 @@ interface BackgroundImageProps {
 
 ### 4. No draft/live content fork
 
-`booklets.status` (`draft` | `published` | `disabled`) is the _only_ visibility gate. There is no separate staging copy of content — editing a published booklet edits it live, autosaving directly. This is a deliberate V1 simplification: the reader has no realtime subscription (fetches on page load only), so an already-open reader tab won't flicker mid-edit; only someone loading the link at the exact moment of a save sees a transient state, an accepted edge case. If heavier in-progress editing needs to happen without any visibility risk, the admin can temporarily flip the booklet back to `draft`, edit, then republish. **Do not build a draft/live fork (shadow content table + explicit publish step) without an explicit decision to revisit this** — it's a meaningful complexity jump that was deliberately deferred.
+`booklets.status` (`draft` | `published` | `disabled`) is the visibility gate **for the master (admin) link** (`booklets.public_token`). It is no longer the _only_ gate: **recipient links have their own per-grant gate** (`booklet_recipients.status` + optional `expires_at`), resolved by the `get_booklet_by_token` reader RPC rather than by `booklets.status` — see "Recipient publication". This is a publication-visibility split, **not** a content fork: there is still exactly one copy of the content, and every link (master or recipient) resolves the same live pages. There is no separate staging copy of content — editing a published booklet edits it live, autosaving directly. This is a deliberate V1 simplification: the reader has no realtime subscription (fetches on page load only), so an already-open reader tab won't flicker mid-edit; only someone loading the link at the exact moment of a save sees a transient state, an accepted edge case. If heavier in-progress editing needs to happen without any visibility risk, the admin can temporarily flip the booklet back to `draft`, edit, then republish. **Do not build a draft/live fork (shadow content table + explicit publish step) without an explicit decision to revisit this** — it's a meaningful complexity jump that was deliberately deferred.
 
-`disabled` is a third, distinct state from `draft`: both are publicly invisible (RLS only allows `published`), but they mean different things to the admin and must stay visually distinct in the admin UI. `draft` = "not ready yet, never been live." `disabled` = "was live at this exact `public_token`, intentionally revoked" — e.g. the admin wants to kill access without losing the link/content/page structure, or without it being mistaken for an in-progress edit. Toggling `draft → published` and `disabled → published` are _not_ the same action in the UI: re-enabling a `disabled` booklet restores public access at an already-known link, so it requires an explicit confirm step (the cost of an accidental click is higher than the first-ever publish of a fresh draft, where nobody has the link yet).
+`disabled` still exists as a distinct state at the DB/RLS level (`draft` and `disabled` are both publicly invisible; only `published` is served), but the **"Disable" action was removed from the admin card UI**: it was functionally redundant with Unpublish (both just revoke public access), so `BookletCard` now offers only the plain `draft ↔ published` toggle. The `disabled → Re-enable` branch (behind its explicit confirm dialog) is **kept** as a recovery path for any legacy booklet already sitting in `disabled` — re-enabling restores public access at an already-known link, which is why it stays gated by a confirm step — but there is no longer any way to *reach* `disabled` from the UI. Historical intent of the state: `draft` = "not ready yet, never been live"; `disabled` = "was live at this exact `public_token`, intentionally revoked."
 
 ## Auth & multi-admin
 
@@ -98,6 +99,20 @@ Supabase Auth (email/password). Admin status is determined by membership in `adm
 ## Public link
 
 `booklets.public_token` is a randomly generated unguessable string (nanoid), not an admin-chosen slug. Since the reader has zero auth, the token is the only privacy boundary for a published booklet — don't make it guessable or sequential.
+
+## Recipient publication
+
+A booklet is published **per recipient**, not just globally. Alongside the admin's own **master link** (`booklets.public_token`, gated by `booklets.status`, unchanged), each booklet can hand out many independent **recipient links** — one per named recipient, each with its own token, publish state, and optional expiry. Both link types resolve at `/b/:token`. Full design: `docs/recipient-publication-milestones/`.
+
+| Link | Token | Gate | Expiry |
+|------|-------|------|--------|
+| **Master (admin)** | `booklets.public_token` | `booklets.status = 'published'` | none |
+| **Recipient** | `booklet_recipients.access_token` | `status = 'published'` **and** not expired | optional `expires_at` |
+
+- **Recipient = anonymous named grant.** A `booklet_recipients` row = name + independent nanoid token + own `status` + optional `expires_at`. No reader login; the token is the only privacy boundary, and each recipient token is unguessable from the master token or from each other. Per-booklet flat table — no shared cross-booklet contact identity.
+- **Reader resolves via a `security definer` RPC** (`get_booklet_by_token(p_token)` in `0009`), **not** the RLS nested-select. This is the whole reason the reader moved off RLS in RP1: **RLS has no token parameter** — a per-recipient RLS `select` policy could at best say "a published grant *exists* for this booklet," which would leak the booklet to an *unpublished* recipient's token too. Correctly isolating a single token requires resolving that specific token, which only a function parameter can do. The RPC checks the recipient table first (a published grant wins, independent of `booklets.status`), then falls back to the master link. `booklet_recipients` therefore has **no anon grant** — the reader never touches it directly (also blocks anonymous token enumeration); admin CRUD is `is_admin()`-gated straight-to-table (no RPC needed for writes). The RPC's projection is an explicit `jsonb_build_object` of exactly the columns the reader consumes — deliberately not `to_jsonb(b)`, which would expose `public_token` / `status` / `created_by` to anon.
+- **Lazy expiry — no cron.** `expires_at` is optional and future-only (UI `min` = tomorrow; the mutation guards it again). It's checked **exactly when a link is opened**: when a published recipient link is hit after its `expires_at`, the RPC **persists `status = 'unpublished'`** and returns not-found. The admin UI never waits on that write to show "Expired" — a pure `recipientEffectiveStatus` helper (`src/config/recipients.ts`) derives it immediately from `status` + `expires_at`. Setting a new future date **re-publishes** the link (that's how "changing the date again makes it live" works).
+- Admin data layer is `src/hooks/useBookletRecipientsQuery.ts` (list with server-side `ilike` search + `range` pagination, add/status/expiry/rotate/delete, plus bulk publish-all/unpublish-all/delete). Recipient labels/consts/pure helpers live in `src/config/recipients.ts`; management UI is `/admin/booklets/:bookletId/users`, linked from each `BookletCard`.
 
 ## TTS (word-click)
 
@@ -198,6 +213,7 @@ src/
     media.ts                     -- media bucket, accepted types, compression max-dimension/quality
     quiz.ts                      -- iframe sandbox tokens (see "Quiz embed")
     reader.ts                    -- reader-only: page-flip duration/easing, swipe thresholds, max width, sheet thickness
+    recipients.ts                -- recipient status labels + page size/search debounce + recipientEffectiveStatus/expiry-date pure helpers
     theme.ts                     -- brand palette (BRAND); authoritative source for index.css custom props + shadcn tokens
     tts.ts                       -- speech-synthesis rate bounds/defaults
     vocabulary.ts                -- vocabulary + credits panel sizing/slide constants
@@ -240,8 +256,14 @@ src/
       EmptyState.tsx             -- dashed empty-state card (+ optional action button)
       adminControls.ts           -- CARD_COLORS palette, inputStyle(), submitButtonStyle(), cardShadow(), BTN_BASE, ADMIN_FONT
     booklets/
-      BookletCard.tsx            -- one booklet card (status-dependent actions)
+      BookletCard.tsx            -- one booklet card (status-dependent actions + "Manage users" link)
       BookletCardSkeleton.tsx
+      BookletUsersPage.tsx       -- /admin/booklets/:bookletId/users recipient management page
+      RecipientRow.tsx           -- one recipient: link/status/expiry controls + rotate/delete
+      RecipientStatusBadge.tsx   -- effective-status badge (published/unpublished/expired)
+      RecipientBulkBar.tsx       -- multi-select bar: publish/unpublish/delete all-or-selected
+      RecipientPager.tsx         -- server-side prev/next pagination control
+      AddRecipientDialog.tsx     -- add-recipient form (name + optional expiry)
     editor/
       EditorCanvas.tsx
       EditorOverlay.tsx          -- drag/selection/resize-handle logic only
@@ -288,7 +310,8 @@ src/
     StatusBadge.tsx
     ui/                          -- shadcn/ui generated components (badge, card, dialog, dropdown-menu, separator, slider, tooltip, …)
   hooks/
-    useBookletQuery.ts            -- React Query hooks (list + by-token reader query)
+    useBookletQuery.ts            -- React Query hooks (list + by-token reader query via get_booklet_by_token RPC; per-card recipient count)
+    useBookletRecipientsQuery.ts   -- recipient list (server search/pagination) + add/status/expiry/rotate/delete + bulk mutations
     useFontsQuery.ts               -- fonts list + register-font mutation
     useFontFace.ts                 -- load a registered @font-face on demand
     useMediaAssetQuery.ts          -- single media asset by id
@@ -314,9 +337,11 @@ supabase/
     0006_back_cover_page.sql        -- is_back_cover column + back-cover RPC
     0007_fix_add_page_before_back_cover.sql
     0008_quiz_on_last_spread.sql    -- show_quiz_on_last_spread flag (quiz now on the back cover)
+    0009_recipient_publication.sql  -- booklet_recipients table + admin-only RLS (no anon grant) + get_booklet_by_token reader RPC
 docs/
   milestones/                      -- M0..M12, one file per milestone
-  refactor-milestones/             -- R0..R5 clean-architecture refactor (this pass)
+  refactor-milestones/             -- R0..R5 clean-architecture refactor
+  recipient-publication-milestones/ -- RP0..RP6 per-recipient booklet links
 CLAUDE.md
 ```
 
@@ -422,6 +447,26 @@ A cover's canvas size is **derived from `is_cover`, never stored** — `COVER_CA
 |                         |                                                      | index on page_id, index on (page_id, z_index)                              |
 
 RLS: SELECT public if parent page's booklet is published (join `pages → booklets`); `is_admin()` sees all. Writes `is_admin()` (via `save_page_elements` RPC in practice).
+
+### `booklet_recipients`
+
+Per-recipient publication (migration `0009_recipient_publication.sql`). See "Recipient publication" above for the model and the reader-RPC decision.
+
+| column       | type                                                     | notes                                                        |
+| ------------ | ------------------------------------------------------- | ------------------------------------------------------------ |
+| id           | uuid PK default gen_random_uuid()                       |                                                              |
+| booklet_id   | uuid not null references booklets(id) on delete cascade |                                                              |
+| name         | text not null                                           | admin-facing label ("Dana")                                  |
+| access_token | text not null unique                                    | independent nanoid; the `/b/:token` recipient link           |
+| status       | text not null default 'unpublished'                     | 'published' \| 'unpublished', constrained via `check`        |
+| expires_at   | timestamptz                                             | optional; null = no expiry. Lazy-evaluated by the reader RPC |
+| published_at | timestamptz                                             | audit: last time it went live                                |
+| created_at / updated_at | timestamptz not null default now()           | `updated_at` is app-maintained (no DB trigger on this table) |
+|              |                                                         | unique(access_token); index on booklet_id                    |
+
+RLS: **admin only** (`is_admin()` for select/insert/update/delete) — there is **no anon grant** (the reader reaches booklets solely through the `get_booklet_by_token` RPC, never this table directly, which also blocks anonymous token enumeration). `on delete cascade` from `booklets`.
+
+`get_booklet_by_token(p_token text) returns jsonb` (security definer, `execute` granted to `anon, authenticated`): resolves a published recipient grant first (persisting a lazy `status='unpublished'` flip if past `expires_at`), else the master link (`public_token` + `status='published'`), else null. Returns an explicit `jsonb_build_object` of only the reader-consumed columns (never `to_jsonb(b)`). Same not-found for unknown / unpublished / revoked / expired — no status leak.
 
 ### Storage buckets
 

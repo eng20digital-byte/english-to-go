@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { BookOpen, Check, Copy, ExternalLink, Trash2 } from 'lucide-react';
+import { BookOpen, Check, Copy, ExternalLink, Trash2, Users } from 'lucide-react';
 import { StatusBadge } from '@/components/StatusBadge';
 import type { BookletRow } from '@/types/database';
 import { BRAND } from '@/config/theme';
@@ -13,23 +13,25 @@ function readerUrl(token: string): string {
 interface BookletCardProps {
   booklet: BookletRow;
   palette: CardPalette;
+  recipientCount: number;
   onPublish: () => void;
   onUnpublish: () => void;
-  onDisable: () => void;
   onReenable: () => void;
   onDelete: () => void;
   isUpdating: boolean;
 }
 
-// Action set depends on status — see CLAUDE.md "No draft/live content fork"
-// for why disable/re-enable is a separate, asymmetric-risk action from the
-// plain draft<->published toggle.
+// Action set depends on status. "Disable" was dropped from this UI — it was
+// functionally redundant with Unpublish (both revoke public access), so only
+// the plain draft<->published toggle is offered here. `disabled` still exists
+// at the DB level, so the disabled->Re-enable branch is kept as a recovery
+// path for any legacy booklet already in that state.
 export function BookletCard({
   booklet,
   palette,
+  recipientCount,
   onPublish,
   onUnpublish,
-  onDisable,
   onReenable,
   onDelete,
   isUpdating,
@@ -109,7 +111,7 @@ export function BookletCard({
           letterSpacing: '0.6px',
           textTransform: 'uppercase',
         }}>
-          Public link
+          Master link (admin)
         </p>
         <div style={{
           display: 'flex',
@@ -202,7 +204,7 @@ export function BookletCard({
           Open
         </Link>
 
-        {/* Draft → Publish */}
+        {/* Draft → Publish — primary publish/unpublish toggle: pink bg, white text */}
         {booklet.status === 'draft' && (
           <button
             onClick={(e) => { stop(e); onPublish(); }}
@@ -211,8 +213,8 @@ export function BookletCard({
             onMouseLeave={() => setBtnHover(null)}
             style={{
               ...BTN_BASE,
-              backgroundColor: btnHover === 'publish' ? BRAND.yellowDark : BRAND.yellow,
-              color: BRAND.text,
+              backgroundColor: btnHover === 'publish' ? '#e0536e' : BRAND.pink,
+              color: '#fff',
               opacity: isUpdating ? 0.6 : 1,
               cursor: isUpdating ? 'not-allowed' : 'pointer',
             }}
@@ -221,40 +223,23 @@ export function BookletCard({
           </button>
         )}
 
-        {/* Published → Unpublish + Disable */}
+        {/* Published → Unpublish — same primary pink treatment as Publish */}
         {booklet.status === 'published' && (
-          <>
-            <button
-              onClick={(e) => { stop(e); onUnpublish(); }}
-              disabled={isUpdating}
-              onMouseEnter={() => setBtnHover('unpublish')}
-              onMouseLeave={() => setBtnHover(null)}
-              style={{
-                ...BTN_BASE,
-                backgroundColor: btnHover === 'unpublish' ? palette.neutralBtnBgHover : palette.neutralBtnBg,
-                color: palette.neutralBtnText,
-                opacity: isUpdating ? 0.6 : 1,
-                cursor: isUpdating ? 'not-allowed' : 'pointer',
-              }}
-            >
-              Unpublish
-            </button>
-            <button
-              onClick={(e) => { stop(e); onDisable(); }}
-              disabled={isUpdating}
-              onMouseEnter={() => setBtnHover('disable')}
-              onMouseLeave={() => setBtnHover(null)}
-              style={{
-                ...BTN_BASE,
-                backgroundColor: btnHover === 'disable' ? '#e0536e' : BRAND.pink,
-                color: '#fff',
-                opacity: isUpdating ? 0.6 : 1,
-                cursor: isUpdating ? 'not-allowed' : 'pointer',
-              }}
-            >
-              Disable
-            </button>
-          </>
+          <button
+            onClick={(e) => { stop(e); onUnpublish(); }}
+            disabled={isUpdating}
+            onMouseEnter={() => setBtnHover('unpublish')}
+            onMouseLeave={() => setBtnHover(null)}
+            style={{
+              ...BTN_BASE,
+              backgroundColor: btnHover === 'unpublish' ? '#e0536e' : BRAND.pink,
+              color: '#fff',
+              opacity: isUpdating ? 0.6 : 1,
+              cursor: isUpdating ? 'not-allowed' : 'pointer',
+            }}
+          >
+            Unpublish
+          </button>
         )}
 
         {/* Disabled → Re-enable */}
@@ -276,32 +261,59 @@ export function BookletCard({
           </button>
         )}
 
-        {/* Delete — always pushed to the right */}
-        <button
-          onClick={(e) => { stop(e); onDelete(); }}
-          disabled={isUpdating}
-          onMouseEnter={() => setBtnHover('delete')}
-          onMouseLeave={() => setBtnHover(null)}
-          aria-label={`Delete ${booklet.title}`}
-          style={{
-            width: 34, height: 34,
-            borderRadius: 9,
-            backgroundColor: btnHover === 'delete' ? 'rgba(250,103,129,0.14)' : 'transparent',
-            border: 'none',
-            cursor: isUpdating ? 'not-allowed' : 'pointer',
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: BRAND.pink,
-            transition: 'background-color 0.16s',
-            marginLeft: 'auto',
-            padding: 0,
-            opacity: isUpdating ? 0.5 : 1,
-            fontFamily: 'inherit',
-          }}
-        >
-          <Trash2 size={14} />
-        </button>
+        {/* Manage users + Delete — a single right-anchored group (marginLeft:auto)
+            so they stay side by side and wrap together as a unit rather than
+            landing on separate lines. */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto' }}>
+          {/* Manage users — entry point to the per-recipient publication page. */}
+          <Link
+            to={`/admin/booklets/${booklet.id}/users`}
+            onClick={stop}
+            onMouseEnter={() => setBtnHover('users')}
+            onMouseLeave={() => setBtnHover(null)}
+            style={{
+              ...BTN_BASE,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 7,
+              backgroundColor: btnHover === 'users' ? palette.neutralBtnBgHover : palette.neutralBtnBg,
+              color: palette.neutralBtnText,
+              textDecoration: 'none',
+              // Keep the label + count on a single line even on narrow cards.
+              whiteSpace: 'nowrap',
+              fontSize: 13,
+            }}
+          >
+            <Users size={15} style={{ flexShrink: 0 }} />
+            Manage users ({recipientCount})
+          </Link>
+
+          {/* Delete */}
+          <button
+            onClick={(e) => { stop(e); onDelete(); }}
+            disabled={isUpdating}
+            onMouseEnter={() => setBtnHover('delete')}
+            onMouseLeave={() => setBtnHover(null)}
+            aria-label={`Delete ${booklet.title}`}
+            style={{
+              width: 34, height: 34,
+              borderRadius: 9,
+              backgroundColor: btnHover === 'delete' ? 'rgba(250,103,129,0.14)' : 'transparent',
+              border: 'none',
+              cursor: isUpdating ? 'not-allowed' : 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: BRAND.pink,
+              transition: 'background-color 0.16s',
+              padding: 0,
+              opacity: isUpdating ? 0.5 : 1,
+              fontFamily: 'inherit',
+            }}
+          >
+            <Trash2 size={14} />
+          </button>
+        </div>
       </div>
     </div>
   );
