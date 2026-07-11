@@ -45,11 +45,13 @@ export interface BookletStatusFilterOption {
 
 export const DEFAULT_BOOKLET_STATUS_FILTER: BookletStatusFilter = 'all';
 
-// 'draft' is intentionally omitted as a filter pill — the admin has no need to
-// filter the library down to unpublished drafts. The status itself still exists
-// on the row (and in countBookletsByStatus); it's just not a selectable filter.
+// 'disabled' is intentionally omitted as a filter pill — the "Disable" action
+// was removed from the admin card UI (see CLAUDE.md "No draft/live content
+// fork"), so it's no longer a status the admin reaches. The status still exists
+// on the row (and in countBookletsByStatus) for legacy booklets; it's just not
+// a selectable filter. 'draft' is the meaningful unpublished bucket to filter by.
 export const BOOKLET_STATUS_FILTERS: BookletStatusFilterOption[] = [
   { value: 'all', label: 'All' },
   { value: 'published', label: 'Published' },
-  { value: 'disabled', label: 'Disabled' },
+  { value: 'draft', label: 'Draft' },
 ];
