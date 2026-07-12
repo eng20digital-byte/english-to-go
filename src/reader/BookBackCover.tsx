@@ -1,6 +1,7 @@
 import { useRef, type CSSProperties, type PointerEvent } from 'react';
 import { useCanvasScale } from '@/renderer/useCanvasScale';
 import { PageCanvas } from '@/renderer/PageCanvas';
+import { QuizEmbed } from '@/quiz/QuizEmbed';
 import {
   CANVAS_WIDTH,
   CANVAS_HEIGHT,
@@ -17,6 +18,10 @@ import {
   SWIPE_THRESHOLD_PX,
   SWIPE_THRESHOLD_RATIO,
 } from '@/config/reader';
+import {
+  QUIZ_BACK_COVER_BOTTOM_INSET_PX,
+  QUIZ_BACK_COVER_RIGHT_INSET_PX,
+} from '@/config/quiz';
 import type { ReaderBookletPage } from '@/hooks/useBookletQuery';
 
 // Owned by ReaderBookletPage; mirrored here so BookBackCover can read state.
@@ -30,6 +35,9 @@ interface BookBackCoverProps {
   onClose: () => void;
   onEnterEnd: () => void;
   onExitEnd: () => void;
+  // Null/undefined when the booklet has no quiz configured for the back
+  // cover — see ReaderBookletPage's `showQuizOnBackCover` gating.
+  quizEmbedCode?: string | null;
 }
 
 const SPREAD_ASPECT = (CANVAS_WIDTH / CANVAS_HEIGHT).toFixed(4);
@@ -59,6 +67,7 @@ export function BookBackCover({
   onClose,
   onEnterEnd,
   onExitEnd,
+  quizEmbedCode,
 }: BookBackCoverProps) {
   const cardRef = useRef<HTMLDivElement>(null);
   // Card is always the full spread — same scale basis as the open book.
@@ -263,6 +272,31 @@ export function BookBackCover({
           className="book-back-cover-spine"
           style={{ position: 'absolute', right: '25%', top: 0, bottom: 0 }}
         />
+      )}
+
+      {/* Quiz trigger, anchored to the bottom-right corner of the settled
+          portrait (which occupies the middle 25%–75% of this wrapper — see
+          the `visible` clip-path/transform above and the spine shadow's
+          matching `right:25%`). Rendered here (a sibling of the card, not a
+          descendant) so it stays outside the card's overflow:hidden — same
+          reasoning as the old placement in ReaderBookletPage, just now scoped
+          to the portrait instead of centered over the whole viewer.
+          stopPropagation keeps a click from also triggering this wrapper's
+          own pointerUp tap-to-close handler above. */}
+      {isVisible && quizEmbedCode && (
+        <div
+          onPointerDown={(event) => event.stopPropagation()}
+          onPointerUp={(event) => event.stopPropagation()}
+          style={{
+            position: 'absolute',
+            right: `calc(25% + ${QUIZ_BACK_COVER_RIGHT_INSET_PX}px)`,
+            bottom: QUIZ_BACK_COVER_BOTTOM_INSET_PX,
+            zIndex: 5,
+            cursor: 'default',
+          }}
+        >
+          <QuizEmbed embedCode={quizEmbedCode} />
+        </div>
       )}
     </div>
   );

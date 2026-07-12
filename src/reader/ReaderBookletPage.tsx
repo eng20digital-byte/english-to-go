@@ -5,7 +5,6 @@ import { useBookletByToken } from '@/hooks/useBookletQuery';
 import { PageCanvas } from '@/renderer/PageCanvas';
 import { WordSpeechProvider } from '@/tts/useWordSpeech';
 import { SpeechRateControl } from '@/tts/SpeechRateControl';
-import { QuizEmbed } from '@/quiz/QuizEmbed';
 import { CANVAS_WIDTH, CANVAS_HEIGHT } from '@/config/canvas';
 import {
   READER_MAX_WIDTH,
@@ -468,6 +467,7 @@ export function ReaderBookletPage() {
                 onClose={exitBackCover}
                 onEnterEnd={finishEntering}
                 onExitEnd={finishExiting}
+                quizEmbedCode={showQuizOnBackCover ? booklet.quiz_embed_code : null}
               />
             ) : (
             <>
@@ -663,25 +663,6 @@ export function ReaderBookletPage() {
               </div>
             )}
 
-            {/* QuizEmbed lives here — outside the PageFlip/card transform and
-                overflow:hidden contexts (including the back cover card's, which
-                is also overflow:hidden) — so Fillout's slider can escape to the
-                viewport correctly. Shown only on the settled back cover. */}
-            {showQuizOnBackCover && booklet.quiz_embed_code && (
-              <div style={{
-                position: 'absolute',
-                inset: 0,
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                zIndex: 15,
-                pointerEvents: 'none',
-              }}>
-                <div style={{ pointerEvents: 'auto' }}>
-                  <QuizEmbed embedCode={booklet.quiz_embed_code} />
-                </div>
-              </div>
-            )}
           </div>{/* viewer area */}
         </div>
       </WordSpeechProvider>
