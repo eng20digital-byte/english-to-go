@@ -9,9 +9,9 @@ export const DEFAULT_QUIZ_EMBED_HEIGHT = 900;
 
 // Inset (px) from the back cover portrait's bottom edge where the quiz
 // trigger sits — see BookBackCover.tsx.
-export const QUIZ_BACK_COVER_BOTTOM_INSET_PX = 50;
+export const QUIZ_BACK_COVER_BOTTOM_INSET_PX = 200;
 
 // Inset (px) from the back cover portrait's right edge where the quiz
 // trigger sits — kept separate from the bottom inset so the button can be
 // nudged horizontally without also shifting it vertically.
-export const QUIZ_BACK_COVER_RIGHT_INSET_PX = 110;
+export const QUIZ_BACK_COVER_RIGHT_INSET_PX = 210;
