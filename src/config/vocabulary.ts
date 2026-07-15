@@ -54,7 +54,7 @@ export const VOCABULARY_SPACING_MAX = 80;
 // The panel no longer has a fixed height: in the reader it STRETCHES to fill
 // the flexible rail slot between the speaker (top) and the credits (bottom),
 // so it can never overlap them at any viewport size (see VocabularyPanel +
-// ReaderBookletPage's left-sidebar rail). This value is only the
+// ReaderBookletPage's right-sidebar rail). This value is only the
 // pre-measurement fallback used for the very first paint before the slot
 // height is measured.
 export const VOCABULARY_PANEL_HEIGHT = 450; // fallback height; live height is the measured slot
@@ -66,6 +66,23 @@ export const VOCABULARY_PANEL_ROW_GAP = 8; // vertical gap between chips in a co
 export const VOCABULARY_PANEL_COLUMN_GAP = 10; // horizontal gap between columns
 export const VOCABULARY_PANEL_HANDLE_WIDTH = 44; // peeking tab when collapsed
 export const VOCABULARY_PANEL_SLIDE_MS = 400;
+
+// ── Which viewport edge a sliding panel is docked to ────────────────────────
+// The reader's rail sits at the RIGHT edge; the admin shell still docks the
+// Credits panel bottom-LEFT. The two are exact mirrors, so rather than fork the
+// styling, the side-dependent bits are derived here: the drop shadow's x-offset
+// points AWAY from the docked edge, and the handle tab rounds only its two
+// corners facing INTO the page (the body is flush against the edge).
+export type SidebarSide = 'left' | 'right';
+
+export const sidebarPanelShadow = (side: SidebarSide) =>
+  side === 'right' ? '-2px 4px 18px rgba(0,0,0,0.22)' : '2px 4px 18px rgba(0,0,0,0.22)';
+
+export const SIDEBAR_HANDLE_RADIUS = 16;
+export const sidebarHandleRadius = (side: SidebarSide) =>
+  side === 'right'
+    ? { borderTopLeftRadius: SIDEBAR_HANDLE_RADIUS, borderBottomLeftRadius: SIDEBAR_HANDLE_RADIUS }
+    : { borderTopRightRadius: SIDEBAR_HANDLE_RADIUS, borderBottomRightRadius: SIDEBAR_HANDLE_RADIUS };
 
 // ── Responsive width behaviour ──────────────────────────────────────────────
 // Columns hug their content (each as wide as its widest chip) so every word is
@@ -95,7 +112,7 @@ export const VOCABULARY_PANEL_CHIP_HEIGHT_MOBILE = 32;
 export const VOCABULARY_PANEL_CHIP_FONT_SIZE_MOBILE = 13;
 export const VOCABULARY_PANEL_COLUMN_MIN_WIDTH_MOBILE = 150;
 
-// ── Credits panel (reader left sidebar, pinned to the bottom) ───────────────
+// ── Credits panel (reader right sidebar, pinned to the bottom) ──────────────
 // ≈ 2.3× the TTS panel height (56px). SIDEBAR_PANEL_GAP is the fixed gap
 // between all three stacked rail panels (speaker → Dictionary → Credits); the
 // Dictionary flexes to fill whatever height is left between the top-pinned

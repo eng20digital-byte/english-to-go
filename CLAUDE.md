@@ -287,7 +287,7 @@ src/
       FontCard.tsx               -- one registered-font specimen row
       FontPreview.tsx
   reader/                       -- public reader chrome (plain Tailwind under #reader-root; imports renderer/ unmodified)
-    ReaderBookletPage.tsx        -- chrome root (#reader-root): orchestration, cover/back-cover state machines, side rail
+    ReaderBookletPage.tsx        -- chrome root (#reader-root): orchestration, cover/back-cover state machines, right side rail (speaker/dictionary/credits)
     ReaderBgShapes.tsx           -- reader-side decorative background shapes
     ReaderLoadingState.tsx       -- full-screen loading skeleton
     ReaderError.tsx              -- full-screen error/empty state
@@ -297,7 +297,7 @@ src/
     PageNav.tsx
     BookCover.tsx                -- front cover open/close animation
     BookBackCover.tsx            -- back cover enter/exit animation
-    VocabularyPanel.tsx          -- slide-in-from-left per-page dictionary panel
+    VocabularyPanel.tsx          -- slide-in-from-right per-page dictionary panel
     UnavailableBookletPage.tsx   -- draft/disabled/not-found reader fallback
     prefersReducedMotion.ts
     useCoverImageReady.ts        -- gate first paint until the cover image decodes
@@ -305,7 +305,7 @@ src/
     pageFlipAudio.ts             -- page-turn sound buffer
     usePageFlipSound.ts          -- play page-turn sound on flip
   components/                   -- neutral shared UI (admin + reader)
-    CreditsPanel.tsx             -- slide-in credits panel (used by reader + admin Login/Dashboard)
+    CreditsPanel.tsx             -- slide-in credits panel; `side` prop docks it right (reader rail) or left (admin Login/Dashboard footer)
     Spinner.tsx
     StatusBadge.tsx
     ui/                          -- shadcn/ui generated components (badge, card, dialog, dropdown-menu, separator, slider, tooltip, …)

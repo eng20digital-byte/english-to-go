@@ -12,16 +12,26 @@ import {
   VOCABULARY_PANEL_HANDLE_WIDTH,
   VOCABULARY_PANEL_PADDING,
   VOCABULARY_PANEL_SLIDE_MS,
+  sidebarHandleRadius,
+  sidebarPanelShadow,
+  type SidebarSide,
 } from '@/config/vocabulary';
 import { useViewportHeight } from '@/hooks/useViewportWidth';
 
-// Left-sidebar credits panel — same slide-in-from-left pattern as VocabularyPanel.
-// Sits below the Dictionary panel in the sidebar container owned by
-// ReaderBookletPage. Always rendered (not tied to page vocabulary or cover state).
-export function CreditsPanel({ closeSignal }: {
+// Sidebar credits panel — same slide-out-from-the-docked-edge pattern as
+// VocabularyPanel. In the reader it sits below the Dictionary panel in the
+// right-hand sidebar container owned by ReaderBookletPage; in the admin shell
+// it's the fixed bottom-LEFT footer. That's the only reason `side` is a prop
+// rather than hardcoded like VocabularyPanel's: this component genuinely has
+// consumers on both edges. Always rendered (not tied to page vocabulary or
+// cover state).
+export function CreditsPanel({ closeSignal, side = 'left' }: {
   // Bumped by the reader whenever a page turn occurs — collapse on change so a
   // flip never leaves the credits open over the new spread.
   closeSignal?: number;
+  // Which viewport edge the panel is docked to. Defaults to 'left' — the admin
+  // shell's footer slot, which passes nothing.
+  side?: SidebarSide;
 }) {
   const [expanded, setExpanded] = useState(false);
   // Compact the whole card ONLY on a SHORT screen (low viewport height), where the
@@ -78,15 +88,20 @@ export function CreditsPanel({ closeSignal }: {
   return (
     <div
       style={{
-        transform: `translateX(${expanded ? 0 : -bodyWidth}px)`,
+        transform: `translateX(${expanded ? 0 : side === 'right' ? bodyWidth : -bodyWidth}px)`,
         transition: slideEnabled
           ? `transform ${VOCABULARY_PANEL_SLIDE_MS}ms cubic-bezier(0.4, 0, 0.2, 1)`
           : 'none',
         // Pinned to the bottom of the rail at full height — never shrinks, so on
         // short screens the flexible Dictionary slot above absorbs the squeeze
-        // instead (see ReaderBookletPage's left-sidebar rail).
+        // instead (see ReaderBookletPage's right-sidebar rail).
         flexShrink: 0,
         display: 'flex',
+        // Docked right ⇒ row-reverse puts the handle (second in DOM) on the LEFT
+        // of the body, so the tab peeks inward from the edge while the body
+        // hides beyond it. DOM order is unchanged either way, keeping the tab
+        // after the region it discloses in the tab order.
+        flexDirection: side === 'right' ? 'row-reverse' : 'row',
         alignItems: 'center',
         // Re-enable clicks: the parent wrapper sets pointer-events:none (so its
         // wider, untransformed DOM box can't block the prev/next nav). That
@@ -108,7 +123,7 @@ export function CreditsPanel({ closeSignal }: {
           gap: 10,
           padding: `0 ${VOCABULARY_PANEL_PADDING}px`,
           backgroundColor: BRAND.cream,
-          boxShadow: '2px 4px 18px rgba(0,0,0,0.22)',
+          boxShadow: sidebarPanelShadow(side),
           whiteSpace: 'nowrap',
         }}
       >
@@ -169,9 +184,8 @@ export function CreditsPanel({ closeSignal }: {
           border: 'none',
           padding: 0,
           backgroundColor: BRAND.cream,
-          borderTopRightRadius: 16,
-          borderBottomRightRadius: 16,
-          boxShadow: '2px 4px 18px rgba(0,0,0,0.22)',
+          ...sidebarHandleRadius(side),
+          boxShadow: sidebarPanelShadow(side),
           cursor: 'pointer',
           display: 'flex',
           alignItems: 'center',

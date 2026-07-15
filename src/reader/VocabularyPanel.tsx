@@ -23,6 +23,8 @@ import {
   VOCABULARY_PANEL_VIEWPORT_RESERVE,
   VOCABULARY_PANEL_VIEWPORT_WIDTH_RATIO,
   VOCABULARY_WORD_SEPARATOR,
+  sidebarHandleRadius,
+  sidebarPanelShadow,
 } from '@/config/vocabulary';
 import { useViewportWidth } from '@/hooks/useViewportWidth';
 import { useWordSpeech } from '@/tts/useWordSpeech';
@@ -136,7 +138,7 @@ function VocabChip({
 // words on the page currently in view and updates automatically when the
 // reader flips pages (the parent passes the current page, which changes on
 // flip). Mirrors the speech-rate control's interaction: a rounded tab peeks
-// from the left edge and the body slides in/out. Collapsed by default. Lives
+// from the right edge and the body slides in/out. Collapsed by default. Lives
 // in reader chrome (#reader-root), so inline-styled utilities are fine here —
 // never touches PageCanvas or the element renderers.
 export function VocabularyPanel({
@@ -162,7 +164,7 @@ export function VocabularyPanel({
   const [measuredHeight, setMeasuredHeight] = useState(VOCABULARY_PANEL_HEIGHT);
   // The slide transition must fire ONLY for a user-initiated expand/collapse —
   // never as a side effect of a page change. On flip, the panel's measured
-  // width (and thus its collapsed offset `translateX(-contentWidth)`) can
+  // width (and thus its collapsed offset `translateX(contentWidth)`) can
   // change, which would otherwise animate the panel into place on every page
   // turn (the distracting "entry animation"). So the transition is off by
   // default, armed for exactly one toggle by the handle's onClick, and disarmed
@@ -234,7 +236,7 @@ export function VocabularyPanel({
   // first paint — no flash of the open panel. Re-measures when anything that
   // changes the body's rendered width does: the column layout (words add/remove),
   // the compact chip metrics, or the width cap (viewport change) — so the
-  // collapsed `translateX(-contentWidth)` stays exact.
+  // collapsed `translateX(contentWidth)` stays exact.
   useLayoutEffect(() => {
     // A layout input changed — disarm the slide so the re-measured collapsed
     // offset applies instantly (no entry animation on a page/viewport change),
@@ -282,9 +284,10 @@ export function VocabularyPanel({
       style={{
         // Positioning is handled by the parent sidebar container in
         // ReaderBookletPage — this component is a plain flex-row child.
-        // translateX hides the body, leaving only the handle tab visible
-        // when collapsed; the parent centers the whole sidebar vertically.
-        transform: `translateX(${expanded ? 0 : -contentWidth}px)`,
+        // translateX hides the body off the RIGHT edge, leaving only the handle
+        // tab visible when collapsed; the parent centers the whole sidebar
+        // vertically.
+        transform: `translateX(${expanded ? 0 : contentWidth}px)`,
         transition: slideEnabled
           ? `transform ${VOCABULARY_PANEL_SLIDE_MS}ms cubic-bezier(0.4, 0, 0.2, 1)`
           : 'none',
@@ -293,6 +296,12 @@ export function VocabularyPanel({
         // ReaderBookletPage). height:100% resolves against that slot.
         height: '100%',
         display: 'flex',
+        // row-reverse puts the handle (second in DOM) on the LEFT of the body,
+        // so the tab is what peeks inward from the right edge while the body
+        // hides beyond it. DOM order stays body-then-handle: the tab is the
+        // panel's control, so it should follow the region it discloses in the
+        // reading/tab order regardless of which edge we dock to.
+        flexDirection: 'row-reverse',
         // Handle and body are both full-height now, so alignment is moot.
         alignItems: 'stretch',
         // Re-enable clicks: the parent wrapper sets pointer-events:none (so its
@@ -315,7 +324,7 @@ export function VocabularyPanel({
           flexDirection: 'column',
           padding: VOCABULARY_PANEL_PADDING,
           backgroundColor: BRAND.cream,
-          boxShadow: '2px 4px 18px rgba(0,0,0,0.22)',
+          boxShadow: sidebarPanelShadow('right'),
         }}
       >
         {/* Header */}
@@ -401,9 +410,8 @@ export function VocabularyPanel({
           border: 'none',
           padding: 0,
           backgroundColor: BRAND.cream,
-          borderTopRightRadius: 16,
-          borderBottomRightRadius: 16,
-          boxShadow: '2px 4px 18px rgba(0,0,0,0.22)',
+          ...sidebarHandleRadius('right'),
+          boxShadow: sidebarPanelShadow('right'),
           cursor: 'pointer',
           display: 'flex',
           alignItems: 'center',

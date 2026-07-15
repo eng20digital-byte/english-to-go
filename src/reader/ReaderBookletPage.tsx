@@ -15,7 +15,7 @@ import {
   SWIPE_THRESHOLD_PX,
   SWIPE_THRESHOLD_RATIO,
 } from '@/config/reader';
-import { SIDEBAR_PANEL_GAP } from '@/config/vocabulary';
+import { SIDEBAR_PANEL_GAP, sidebarPanelShadow } from '@/config/vocabulary';
 import { useViewportWidth } from '@/hooks/useViewportWidth';
 import { PageFlip } from './PageFlip';
 import { VocabularyPanel } from './VocabularyPanel';
@@ -47,8 +47,8 @@ type BackCoverState = 'hidden' | 'entering' | 'exiting' | 'visible';
 // viewport minus a 3vw horizontal + 20px vertical margin. All UI chrome is
 // overlaid directly on the booklet card so nothing competes with its size:
 //
-//   NW edge   — collapsible D-tab: half-circle speaker button → slides open
-//               rightward to reveal the speed-rate slider panel
+//   NE edge   — collapsible D-tab: half-circle speaker button → slides open
+//               leftward to reveal the speed-rate slider panel
 //   W / E     — prev / next page overlay buttons
 //   S center  — dot/progress indicator + page counter, dark frosted pill
 //
@@ -69,7 +69,7 @@ export function ReaderBookletPage() {
   const [hoveredDot, setHoveredDot] = useState<number | null>(null);
   const [speechExpanded, setSpeechExpanded] = useState(false);
   const [isFlipping, setIsFlipping] = useState(false);
-  // Incrementing pulse that tells the self-owned left-edge panels (dictionary,
+  // Incrementing pulse that tells the self-owned right-edge panels (dictionary,
   // credits) to collapse. The speech-rate panel's open state lives here, so
   // it's reset directly; see the page-turn effect below.
   const [panelCloseSignal, setPanelCloseSignal] = useState(0);
@@ -145,7 +145,7 @@ export function ReaderBookletPage() {
     onExitBackCover: exitBackCover,
   });
 
-  // Auto-close every open left-edge side panel (dictionary, speech-rate,
+  // Auto-close every open right-edge side panel (dictionary, speech-rate,
   // credits) the moment the reader turns a page, so a flip never leaves a panel
   // hovering over the new spread. `isFlipping` catches animated turns from any
   // source (button / keyboard / swipe) at their start; `pageIndex` catches
@@ -292,10 +292,10 @@ export function ReaderBookletPage() {
             position: 'relative',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             // On mobile the prev/next arrows move OUT of the flex row (where the
-            // left side rail would cover the prev arrow on a narrow screen) and
+            // right side rail would cover the next arrow on a narrow screen) and
             // into a centered bar pinned to the bottom of this viewer area; the
             // extra bottom padding reserves its space so the book never overlaps.
-            // The symmetric horizontal padding reserves room for the left side
+            // The symmetric horizontal padding reserves room for the right side
             // rail's peeking handles so the centered book shrinks to stay clear
             // of them instead of scaling underneath them on a narrow screen.
             padding: isMobile
@@ -303,9 +303,9 @@ export function ReaderBookletPage() {
               : '20px 16px',
           }}>
 
-            {/* ── Left sidebar rail ─────────────────────────────────────────
+            {/* ── Right sidebar rail ────────────────────────────────────────
                 Single vertical flex column spanning the full viewer height, so
-                the three left-edge panels can NEVER overlap at any viewport
+                the three right-edge panels can NEVER overlap at any viewport
                 size: the speaker is pinned to the TOP, the Credits to the
                 BOTTOM, and the Dictionary fills the flexible middle (flex:1)
                 between them. Because the middle is a flowed, flex-growing slot
@@ -314,8 +314,8 @@ export function ReaderBookletPage() {
                 bottom-pinned Credits — the collision the old top/bottom-anchor
                 layout suffered from.
 
-                alignItems:flex-start keeps each panel at its own (content) width
-                pinned to the left edge — without it the column's default
+                alignItems:flex-end keeps each panel at its own (content) width
+                pinned to the right edge — without it the column's default
                 `stretch` would blow the auto-width panel roots out to full
                 width and break their body+handle rows.
 
@@ -326,41 +326,45 @@ export function ReaderBookletPage() {
             <div
               style={{
                 position: 'absolute',
-                left: 0,
+                right: 0,
                 top: 16,
                 bottom: 24,
                 zIndex: 25,
                 display: 'flex',
                 flexDirection: 'column',
-                alignItems: 'flex-start',
+                alignItems: 'flex-end',
                 gap: SIDEBAR_PANEL_GAP,
                 pointerEvents: 'none',
               }}
             >
               {/* ── Speech-rate panel (speaker) ──────────────────────────────
-                  Collapsed: only the rightmost 60px (speaker button) is visible.
-                  Expanded: the full panel slides into view (translateX(0)). */}
+                  Collapsed: only the leftmost 60px (speaker button) is visible.
+                  Expanded: the full panel slides into view (translateX(0)).
+                  row-reverse keeps the DOM order slider-then-button (the button
+                  controls the slider) while rendering the button on the left, so
+                  it's the part that peeks in from the right edge. */}
               <div
                 style={{
-                  transform: `translateX(${speechExpanded ? '0px' : '-180px'})`,
+                  transform: `translateX(${speechExpanded ? '0px' : '180px'})`,
                   transition: 'transform 0.38s cubic-bezier(0.4, 0, 0.2, 1)',
                   width: 240,
                   height: 56,
                   flexShrink: 0,
                   backgroundColor: BRAND.cream,
                   borderRadius: 16,
-                  boxShadow: '2px 4px 18px rgba(0,0,0,0.22)',
+                  boxShadow: sidebarPanelShadow('right'),
                   display: 'flex',
+                  flexDirection: 'row-reverse',
                   alignItems: 'center',
                   overflow: 'hidden',
                   pointerEvents: 'auto',
                 }}
               >
-                {/* Slider content — left portion, fades in as panel opens */}
+                {/* Slider content — right portion, fades in as panel opens */}
                 <div
                   style={{
                     flex: 1,
-                    padding: '0 6px 0 14px',
+                    padding: '0 14px 0 6px',
                     opacity: speechExpanded ? 1 : 0,
                     transition: speechExpanded
                       ? 'opacity 0.22s ease 0.18s'
@@ -371,7 +375,7 @@ export function ReaderBookletPage() {
                   <SpeechRateControl compact />
                 </div>
 
-                {/* Speaker toggle — rightmost 60px, always peeks out when collapsed */}
+                {/* Speaker toggle — leftmost 60px, always peeks out when collapsed */}
                 <button
                   type="button"
                   aria-label={speechExpanded ? 'Close speed control' : 'Open speed control'}
@@ -407,6 +411,12 @@ export function ReaderBookletPage() {
                   alignSelf: 'stretch',
                   display: 'flex',
                   alignItems: 'stretch',
+                  // alignSelf:stretch above widens this slot to the whole rail
+                  // (which is as wide as its widest panel — often the Credits
+                  // logo banner), so the Dictionary must be pushed to the slot's
+                  // right edge explicitly; the rail's own alignItems can't reach
+                  // it through the stretched slot.
+                  justifyContent: 'flex-end',
                   pointerEvents: 'none',
                 }}
               >
@@ -417,8 +427,10 @@ export function ReaderBookletPage() {
 
               {/* ── Credits panel ────────────────────────────────────────────
                   Always present; pinned to the bottom of the rail by the
-                  flex:1 Dictionary slot above it. */}
-              <CreditsPanel closeSignal={panelCloseSignal} />
+                  flex:1 Dictionary slot above it. `side` is explicit because
+                  this component is shared with the admin shell, where it stays
+                  docked bottom-left. */}
+              <CreditsPanel closeSignal={panelCloseSignal} side="right" />
             </div>
 
             {/* ── Flex row: prev | booklet | next ──────────────────────────
@@ -629,8 +641,8 @@ export function ReaderBookletPage() {
             </div>{/* flex row */}
 
             {/* ── Mobile bottom nav bar ────────────────────────────────────
-                On narrow screens the left side rail (dictionary/credits
-                handles) overlaps where the flanking prev arrow used to sit, so
+                On narrow screens the right side rail (dictionary/credits
+                handles) overlaps where the flanking next arrow used to sit, so
                 both arrows drop below the book and stand centered at the bottom
                 of the viewer area, clear of the rail. */}
             {isMobile && (
