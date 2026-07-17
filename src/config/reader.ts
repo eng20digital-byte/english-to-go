@@ -25,6 +25,18 @@ export const READER_MOBILE_BREAKPOINT = 640;
 // room. Applied symmetrically so the book stays visually centered.
 export const READER_MOBILE_RAIL_RESERVE_PX = 64;
 
+// ── Portrait / rotate-device gate ───────────────────────────────────────────
+// The booklet canvas is a fixed 16:9 LANDSCAPE spread (see src/config/canvas.ts),
+// so on a portrait touch device it would shrink to a thin unreadable strip. The
+// reader instead blocks portrait on touch devices with a full-screen "rotate
+// your device" overlay (src/reader/RotateDeviceOverlay.tsx) and only reveals the
+// book once the device is physically turned to landscape.
+//
+// Matched via matchMedia: `pointer: coarse` narrows this to touch devices
+// (phones/tablets) so a desktop window that merely happens to be taller than it
+// is wide — where the user can't "rotate" anything — is never blocked.
+export const ROTATE_DEVICE_MEDIA_QUERY = '(orientation: portrait) and (pointer: coarse)';
+
 export const PAGE_FLIP_DURATION_MS = 1000;
 // Smooth ease-in-out-cubic: slight resistance at the start, flows through the
 // midpoint, then settles gently — mimics paper's physical inertia.

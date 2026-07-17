@@ -26,6 +26,7 @@ import { usePagePreloader } from './useNextPagePreloader';
 import { useCoverImageReady } from './useCoverImageReady';
 import { prefersReducedMotion } from './prefersReducedMotion';
 import { ReaderBgShapes } from './ReaderBgShapes';
+import { RotateDeviceOverlay } from './RotateDeviceOverlay';
 import { ReaderLoadingState } from './ReaderLoadingState';
 import { ReaderError } from './ReaderError';
 import { NavArrow } from './NavArrow';
@@ -279,6 +280,11 @@ export function ReaderBookletPage() {
       }}
     >
       <ReaderBgShapes />
+
+      {/* Portrait gate: covers the whole reader on portrait touch devices, since
+          the fixed landscape canvas is unreadable in portrait. Sits above all
+          chrome (zIndex 100). See RotateDeviceOverlay. */}
+      <RotateDeviceOverlay />
 
       <WordSpeechProvider>
         <div style={{ position: 'absolute', inset: 0, zIndex: 1, display: 'flex', flexDirection: 'column' }}>

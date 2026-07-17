@@ -614,3 +614,19 @@ body {
   outline: none;
   border-color: #59B292;
 }
+
+/* Rotate-device overlay: a phone icon that tips from portrait to landscape and
+   back, cueing the reader to turn the device. Used by
+   src/reader/RotateDeviceOverlay.tsx. Global (keyframes can't be scoped).
+   Honors reduced-motion by holding a static landscape tilt. */
+@keyframes rotate-device-hint {
+  0%, 30%   { transform: rotate(0deg); }
+  55%, 85%  { transform: rotate(-90deg); }
+  100%      { transform: rotate(0deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  #reader-root .rotate-device-icon {
+    animation: none;
+    transform: rotate(-90deg);
+  }
+}
