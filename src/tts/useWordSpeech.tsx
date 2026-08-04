@@ -29,6 +29,51 @@ function detectLang(word: string): string {
   return HEBREW_CHAR_REGEX.test(word) ? HEBREW_SPEECH_LANG : ENGLISH_SPEECH_LANG;
 }
 
+function pickMaleVoice(voices: SpeechSynthesisVoice[], lang: string): SpeechSynthesisVoice | null {
+  const normalizedLang = lang.toLowerCase();
+  const languagePrefix = normalizedLang.split('-')[0];
+  const matchingVoices = voices.filter((voice) =>
+    voice.lang?.toLowerCase().startsWith(languagePrefix),
+  );
+
+  const maleHints = [
+    'male',
+    'man',
+    'david',
+    'mark',
+    'daniel',
+    'adam',
+    'javier',
+    'james',
+    'michael',
+    'alex',
+    'frank',
+    'liam',
+    'oliver',
+    'jack',
+    'noah',
+    'william',
+    'matthew',
+    'robert',
+    'steven',
+    'thomas',
+    'simon',
+    'sam',
+    'ethan',
+    'omar',
+    'muhammad',
+    'guy',
+    'ryan',
+  ];
+
+  const maleVoice = matchingVoices.find((voice) => {
+    const normalizedName = voice.name.toLowerCase();
+    return maleHints.some((hint) => normalizedName.includes(hint));
+  });
+
+  return maleVoice ?? matchingVoices.find((voice) => voice.default) ?? matchingVoices[0] ?? null;
+}
+
 // Single shared speechSynthesis session for the whole reader page (one
 // provider instance per booklet view), so clicking a word in any text box —
 // even across different pages' elements — cancels whatever was speaking
@@ -41,6 +86,7 @@ export function WordSpeechProvider({ children }: { children: ReactNode }) {
   const [voiceWarning, setVoiceWarning] = useState<string | null>(
     speechSupported ? null : 'Speech is not supported in this browser.',
   );
+  const voicesRef = useRef<SpeechSynthesisVoice[]>([]);
   const rateRef = useRef(rate);
   useEffect(() => {
     rateRef.current = rate;
@@ -54,12 +100,18 @@ export function WordSpeechProvider({ children }: { children: ReactNode }) {
     // have a Hebrew voice, so this re-checks on `voiceschanged` too.
     function checkVoices() {
       const voices = window.speechSynthesis.getVoices();
+      voicesRef.current = voices;
       if (voices.length === 0) return;
+
       const hasHebrewVoice = voices.some((voice) => voice.lang?.toLowerCase().startsWith('he'));
+      const preferredHebrewVoice = pickMaleVoice(voices, HEBREW_SPEECH_LANG);
+      const preferredEnglishVoice = pickMaleVoice(voices, ENGLISH_SPEECH_LANG);
+      const hasPreferredVoice = Boolean(preferredHebrewVoice || preferredEnglishVoice);
+
       setVoiceWarning(
-        hasHebrewVoice
+        hasHebrewVoice && hasPreferredVoice
           ? null
-          : 'No Hebrew voice was found on this device — Hebrew words may be silent or read in another language.',
+          : 'No suitable male voice was found on this device — the browser will use its default voice instead.',
       );
     }
 
@@ -92,6 +144,10 @@ export function WordSpeechProvider({ children }: { children: ReactNode }) {
     utteranceRef.current = utterance;
     utterance.lang = detectLang(word);
     utterance.rate = rateRef.current;
+    const preferredVoice = pickMaleVoice(voicesRef.current, utterance.lang);
+    if (preferredVoice) {
+      utterance.voice = preferredVoice;
+    }
     utterance.onstart = () => setSpeakingWordKey(wordKey);
     const clearIfCurrent = () => {
       setSpeakingWordKey((current) => (current === wordKey ? null : current));
