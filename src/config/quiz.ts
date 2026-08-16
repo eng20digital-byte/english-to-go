@@ -7,11 +7,8 @@ export const QUIZ_IFRAME_SANDBOX =
 // booklets.quiz_embed_height hasn't been set yet.
 export const DEFAULT_QUIZ_EMBED_HEIGHT = 900;
 
-// Inset (px) from the back cover portrait's bottom edge where the quiz
-// trigger sits — see BookBackCover.tsx.
-export const QUIZ_BACK_COVER_BOTTOM_INSET_PX = 200;
-
-// Inset (px) from the back cover portrait's right edge where the quiz
-// trigger sits — kept separate from the bottom inset so the button can be
-// nudged horizontally without also shifting it vertically.
-export const QUIZ_BACK_COVER_RIGHT_INSET_PX = 210;
+// The embed sits centered along the lower edge of the back cover and scales
+// down on narrow screens so it stays within the portrait bounds.
+export const QUIZ_BACK_COVER_MIN_SCALE = 0.72;
+export const QUIZ_BACK_COVER_MAX_SCALE = 1;
+export const QUIZ_BACK_COVER_SCALE_BREAKPOINT = 520;

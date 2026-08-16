@@ -1,4 +1,4 @@
-import { useRef, type CSSProperties, type PointerEvent } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type PointerEvent } from 'react';
 import { useCanvasScale } from '@/renderer/useCanvasScale';
 import { PageCanvas } from '@/renderer/PageCanvas';
 import { QuizEmbed } from '@/quiz/QuizEmbed';
@@ -18,10 +18,6 @@ import {
   SWIPE_THRESHOLD_PX,
   SWIPE_THRESHOLD_RATIO,
 } from '@/config/reader';
-import {
-  QUIZ_BACK_COVER_BOTTOM_INSET_PX,
-  QUIZ_BACK_COVER_RIGHT_INSET_PX,
-} from '@/config/quiz';
 import type { ReaderBookletPage } from '@/hooks/useBookletQuery';
 
 // Owned by ReaderBookletPage; mirrored here so BookBackCover can read state.
@@ -72,6 +68,26 @@ export function BookBackCover({
   const cardRef = useRef<HTMLDivElement>(null);
   // Card is always the full spread — same scale basis as the open book.
   const scale = useCanvasScale(cardRef, CANVAS_WIDTH);
+  const [coverWidth, setCoverWidth] = useState(0);
+
+  useEffect(() => {
+    const element = cardRef.current;
+    if (!element) return;
+
+    const updateSize = () => {
+      setCoverWidth(element.getBoundingClientRect().width);
+    };
+
+    updateSize();
+    const observer = new ResizeObserver(updateSize);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+
+  const isCompact = coverWidth > 0 && coverWidth < 420;
+  const buttonWidth = isCompact ? Math.min(140, Math.max(82, coverWidth * 0.2)) : 220;
+  const buttonBottom = isCompact ? Math.max(14, coverWidth * 0.09) : '25%';
+  const buttonFontSize = isCompact ? 10 : 14;
 
   const isEntering  = backCoverState === 'entering';
   const isExiting   = backCoverState === 'exiting';
@@ -274,28 +290,28 @@ export function BookBackCover({
         />
       )}
 
-      {/* Quiz trigger, anchored to the bottom-right corner of the settled
-          portrait (which occupies the middle 25%–75% of this wrapper — see
-          the `visible` clip-path/transform above and the spine shadow's
-          matching `right:25%`). Rendered here (a sibling of the card, not a
-          descendant) so it stays outside the card's overflow:hidden — same
-          reasoning as the old placement in ReaderBookletPage, just now scoped
-          to the portrait instead of centered over the whole viewer.
-          stopPropagation keeps a click from also triggering this wrapper's
-          own pointerUp tap-to-close handler above. */}
+      {/* Desktop: large, bold, centered near the lower quarter of the cover.
+          Phone: compact mode, still aligned to the cover but much tighter. */}
       {isVisible && quizEmbedCode && (
         <div
           onPointerDown={(event) => event.stopPropagation()}
           onPointerUp={(event) => event.stopPropagation()}
           style={{
             position: 'absolute',
-            right: `calc(25% + ${QUIZ_BACK_COVER_RIGHT_INSET_PX}px)`,
-            bottom: QUIZ_BACK_COVER_BOTTOM_INSET_PX,
+            left: '50%',
+            bottom: isCompact ? `${buttonBottom}px` : buttonBottom,
             zIndex: 5,
             cursor: 'default',
+            transform: 'translateX(-50%)',
+            width: `${buttonWidth}px`,
+            maxWidth: isCompact ? '100px' : '220px',
+            pointerEvents: 'auto',
+            display: 'inline-block',
+            fontSize: `${buttonFontSize}px`,
+            lineHeight: 1.15,
           }}
         >
-          <QuizEmbed embedCode={quizEmbedCode} />
+          <QuizEmbed embedCode={quizEmbedCode} compact={isCompact} />
         </div>
       )}
     </div>
